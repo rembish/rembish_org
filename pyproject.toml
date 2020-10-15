@@ -9,6 +9,8 @@ python = "^3.8"
 Flask = "^1.1.2"
 
 [tool.poetry.dev-dependencies]
+python-dotenv = "^0.14.0"
+pyOpenSSL = "^19.1.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
