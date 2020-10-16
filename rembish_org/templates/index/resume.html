@@ -1,1 +1,230 @@
 {% extends "layout.html" %}
+
+{% block title %}Resume | Alex Rembish{% endblock %}
+
+{% block main %}
+    <!-- ======= Resume Section ======= -->
+    <section id="resume" class="resume">
+        <div class="container" data-aos="fade-up">
+
+            <div class="section-title">
+                <h2>Resume</h2>
+                <p>Senior team leader / Python professional / IT manager</p>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-4">
+                    <h3 class="resume-title">Contact</h3>
+                    <div class="resume-item pb-0">
+                        <p><i class="icofont icofont-download"></i> Download <a class="badge badge-dark" href="{{ static_url('files/alex-rembish-cv.pdf') }}">PDF version</a></p>
+                        <p><i class="icofont icofont-google-map"></i> Wiesenthalova 1034/6, Praha 13, Czechia</p>
+                        <p><i class="icofont icofont-phone"></i> <a href="tel:00420775054554">+420 775 054 554</a></p>
+                        <p><i class="icofont icofont-email"></i> <a href="mailto:{{ config.ME_EMAIL }}">{{ config.ME_EMAIL }}</a></p>
+                    </div>
+
+                    <h3 class="resume-title">Education</h3>
+                    <div class="resume-item pb-0">
+                        <h4>Bachelor of Applied Mathematics and Informatics</h4>
+                        <h5>2002 - 2008</h5>
+                        <p><em>Novosibirsk State Technical University, Novosibirsk, Russia</em></p>
+                    </div>
+
+                    <h3 class="resume-title">Skills</h3>
+                    <div class="resume-item pb-0">
+                        <ul>
+                            <li>Python expert</li>
+                            <li>Containerization</li>
+                            <li>Decreasing legacy code</li>
+                            <li>Code standardization</li>
+                            <li>Step-by-step refactoring</li>
+                            <li>Agile development</li>
+                            <li>Mentoring (up to Lead)</li>
+                            <li>Team coordination</li>
+                            <li>Public speaking</li>
+                            <li>Interviewing</li>
+                        </ul>
+                    </div>
+
+                    <h3 class="resume-title">Hard skills</h3>
+                    <div class="resume-item pb-0">
+                        <p>
+                            Python, PHP, C++, Javascript<br>
+                            Nginx, uwsgi, async frameworks<br>
+                            MySQL family databases<br>
+                            Linux (Debian, Ubuntu, Mint)<br>
+                            Cassandra, MongoDB and other NoSQL dbs<br>
+                            Docker, Kubernetes, Prometheus<br>
+                            Virtualization (kvm, lxc, openvz)<br>
+                            CI/CD, bootstrapping and automation<br>
+                            Debian packaging<br>
+                            Python packaging<br>
+                            Coding standards<br>
+                            Complex automated testing<br>
+                            Code reviewing
+                        </p>
+                    </div>
+
+                    <h3 class="resume-title">Languages</h3>
+                    <div class="resume-item pb-0">
+                        <p>
+                            Russian | Native<br>
+                            Czech | Fluent<br>
+                            English | Professional working proficiency
+                        </p>
+                    </div>
+
+                    <h3 class="resume-title">Interests</h3>
+                    <div class="resume-item pb-0">
+                        <p>
+                            Travel<br>
+                            Drone piloting<br>
+                            Aerial photography<br>
+                            Indoor climbing
+                        </p>
+                    </div>
+
+                    <h3 class="resume-title">Public speaking</h3>
+                    <div class="resume-item pb-0">
+                        <h4>The way of a backend programmer</h4>
+                        <p>
+                            <a href="https://www.televizeseznam.cz/video/seznam-cz/aleksey-rembish-cesta-backend-programatora-63967281">Video</a>,
+                            <a href="http://slides.com/rembish/the-way-of-a-backend-programmer">Slides</a>
+                        </p>
+
+                        <h4>Super() quiz</h4>
+                        <p>
+                            <a href="https://www.youtube.com/watch?v=rmpuAJfJyos">Video</a>,
+                            <a href="http://slides.com/rembish/super-quiz-pyvo">Slides</a>
+                        </p>
+
+                        <h4>Bytecode manipulations</h4>
+                        <p>
+                            <a href="https://www.youtube.com/watch?v=LBFHzDfgfqg">Video</a>,
+                            <a href="http://slides.com/rembish/bytecode">Slides</a>
+                        </p>
+                    </div>
+
+                    <h3 class="resume-title">Links</h3>
+                    <div class="resume-item pb-0">
+                        <p><i class="bx bxl-linkedin-square"></i> <a href="https://www.linkedin.com/in/rembish/">linkedin.com/in/rembish</a></p>
+                        <p><i class="bx bxl-github"></i> <a href="https://github.com/rembish">github.com/rembish</a></p>
+                        <p><i class="icofont icofont-code"></i> <a href="https://app.codesignal.com/profile/rembish">app.codesignal.com/profile/rembish</a></p>
+                        <p><i class="icofont icofont-presentation"></i> <a href="http://slides.com/rembish">slides.com/rembish</a></p>
+                    </div>
+                </div>
+                <div class="col-lg-8">
+                    <h3 class="resume-title">Profile</h3>
+                    <div class="resume-item pb-0">
+                        <h4>Alex Rembish</h4>
+                        <p>
+                            I have more than 15 years of active programming experience including 9 years as a Python
+                            expert, 4+ years as a team leader and the last 2 years as a head of development.
+                        </p>
+
+                        <p>
+                            I’m now looking for a new opportunity with an interesting startup or an older project with
+                            a rich history and complex issues that need to be solved. Feel free to <a href="{{ url_for('index.contact') }}">contact me</a> if you’re
+                            interested in a technical leader, an architect, or a Python evangelist.
+                        </p>
+
+                        <p>CZ/EU citizen</p>
+                    </div>
+
+                    <h3 class="resume-title">Professional Experience</h3>
+                    <div class="resume-item">
+                        <h4>Head of development</h4>
+                        <h5>Feb  2019 - Present</h5>
+                        <p><em><a href="https://seznam.cz">Seznam.cz a.s.</a> @ <a href="https://sklik.cz">Sklik.cz</a> | Prague</em></p>
+                        <p>
+                            Managing up to 18 teams (75 programmers and tech leaders) in 5 different locations in
+                            the Czech Republic. Coordinating technological roadmap and consulting product development
+                            estimates. Decreasing technical debt.
+                        </p>
+                        <ul>
+                            <li>Transparent development, building  product vs dev relations</li>
+                            <li>Technological tasks are part of the department roadmap</li>
+                            <li>Problems are to be solved, not to be hidden</li>
+                            <li>Technical know-how sync meetings</li>
+                            <li>Metrics, SLA/SLO</li>
+                            <li>Business logs to be streamed</li>
+                        </ul>
+                    </div>
+
+                    <div class="resume-item">
+                        <h4>Team leader</h4>
+                        <h5>May 2017 - Jan 2019</h5>
+                        <p><em>Seznam.cz a.s. @ Sklik.cz | Prague</em></p>
+                        <p>
+                            Leading two teams (10 programmers) in 2 different locations in the Czech Republic.
+                            Primarily responsible for developing and maintaining <a href="https://partner.seznam.cz">the partners’ portal</a> at Sklik.cz.
+                            Mentoring less experienced colleagues (up to Senior). Public speaking about Python.
+                            Containerization of frontend components and other Python-based services.
+                        </p>
+                        <ul>
+                            <li>Team grew from 2 to 10 members</li>
+                            <li>Lead developer on two “first line” web applications at Sklik.cz</li>
+                            <li>Reduced on-boarding time from 2 days to 15 minutes</li>
+                            <li>Several core components were switched from a legacy to open-source codebase</li>
+                            <li>Python 2 to 3 migration</li>
+                            <li>Stable and well-documented scripts for partners’ revenue calculations</li>
+                        </ul>
+                    </div>
+
+                    <div class="resume-item">
+                        <h4>Senior Python Programmer</h4>
+                        <h5>Jun 2014 - Apr 2017</h5>
+                        <p><em>Seznam.cz a.s. @ Sklik.cz | Prague</em></p>
+                        <p>
+                            As a separated programmer, I worked almost on all Sklik.cz components written in Python:
+                            libraries, websites, RPC servers and maintenance scripts.
+                        </p>
+                        <ul>
+                            <li>Changed own agenda from C++ back to Python to dive deeper and extend knowledge of the language</li>
+                            <li>Split a monolithic repository for core Sklik.cz websites into three separated websites for partners, advertisers and administrators</li>
+                            <li>Wrote a microframework (based on Flask) for step-by-step replacement of the old legacy code (based on <code>apache</code> + <code>mod_python</code>)</li>
+                            <li>Standardized a bunch of core modules written in Python (not only at Sklik.cz, but for whole Seznam infrastructure</li>
+                        </ul>
+                    </div>
+
+                    <div class="resume-item">
+                        <h4>C++ Programmer</h4>
+                        <h5>Feb 2013 - May 2014</h5>
+                        <p><em>Seznam.cz a.s. @ Sklik.cz | Prague</em></p>
+                        <p>
+                            Working in a smaller team developing servers for context advertisements’. Learned how
+                            to deal with large repositories and how to work on the same codebase with other
+                            programmers: coding standards, reviews, advanced versioning, packaging, project structure.
+                        </p>
+                        <ul>
+                            <li>Built an internal testing system for RPC servers based on Python’s Unittest2 module (this system survived for 8 years)</li>
+                            <li>Worked on the first version of automatic adult content testing for the internal approval system</li>
+                        </ul>
+                    </div>
+
+                    <div class="resume-item">
+                        <h4>Senior Python Programmer</h4>
+                        <h5>Aug 2011 - Feb 2013</h5>
+                        <p><em><a href="https://www.glogster.com/personal">Glogster a.s.</a> | Prague</em></p>
+                        <p>
+                            Built <a href="https://edu.glogster.com">an education platform</a> based on Python and Cassandra (old codebase was completely
+                            rewritten). Completed OOP solution based on data models. Project cold-start. New features
+                            analysis and further implementation.
+                        </p>
+                    </div>
+
+                    <div class="resume-item">
+                        <h4>PHP Programmer</h4>
+                        <h5>Mar 2010 - Jul 2011</h5>
+                        <p><em><a href="https://www.wdf.cz/">Web Design Factory s.r.o.</a> | Prague</em></p>
+                        <p>
+                            High-load MySQL optimization, bottle-neck searching. Old PHP code improvement,
+                            implementation of new features. After half a year, new Glogster application architecture
+                            and code development. Switched from PHP to Python language.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section><!-- End Resume Section -->
+{% endblock %}
