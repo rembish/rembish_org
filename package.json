@@ -1,0 +1,19 @@
+{
+  "name": "rembish_org",
+  "version": "0.1.0",
+  "description": "Personal website",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rembish/rembish_org.git"
+  },
+  "author": "Alex Rembish <alex@rembish.org>",
+  "license": "UNLICENSED",
+  "homepage": "https://github.com/rembish/rembish_org",
+  "dependencies": {
+    "@icon/icofont": "^1.0.1-alpha.1",
+    "bootstrap": "^4.5.3",
+    "boxicons": "^2.0.5",
+    "jquery": "^3.5.1",
+    "popper.js": "^1.16.1"
+  }
+}
