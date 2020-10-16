@@ -12,10 +12,12 @@ def index():
 
 
 @root.route("/resume")
+@with_template
 def resume():
     pass
 
 
 @root.route("/contacts")
+@with_template
 def contacts():
     pass
