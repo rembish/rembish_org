@@ -21,3 +21,8 @@ def resume():
 @with_template
 def contact():
     pass
+
+
+@root.route("/contact/email", methods=("POST",))
+def email():
+    pass
