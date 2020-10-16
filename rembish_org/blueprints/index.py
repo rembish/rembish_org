@@ -17,7 +17,7 @@ def resume():
     pass
 
 
-@root.route("/contacts")
+@root.route("/contact")
 @with_template
-def contacts():
+def contact():
     pass

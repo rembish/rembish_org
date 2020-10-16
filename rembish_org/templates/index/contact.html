@@ -1,0 +1,83 @@
+{% extends "layout.html" %}
+
+{% block title %}Contact | Alex Rembish{% endblock %}
+
+{% block main %}
+    <!-- ======= Contact Section ======= -->
+    <section id="contact" class="contact">
+        <div class="container" data-aos="fade-up">
+            <div class="section-title">
+                <h2>Contact</h2>
+            </div>
+
+            <div>
+                <iframe class="map" src="https://frame.mapy.cz/s/{{ config.CONTACTS_MAP_CODE }}"></iframe>
+            </div>
+
+            <div class="row mt-1">
+                <div class="col-lg-4">
+                    <div class="info">
+                        <div class="address">
+                            <i class="icofont icofont-google-map"></i>
+                            <h4>Location: <a class="icofont icofont-briefcase badge badge-light float-right" href="{{ static_url('files/alex-rembish.vcf') }}"> vCard</a></h4>
+                            <p>Wiesenthalova 1034/6, 155 00 Praha-Řeporyje, Czech Republic</p>
+                        </div>
+
+                        <div class="email">
+                            <i class="icofont icofont-envelope"></i>
+                            <h4>Email: <a class="icofont icofont-lock badge badge-light float-right" href="{{ static_url('files/alex-rembish.asc') }}"> PGP</a></h4>
+                            <p>{{ config.ME_EMAIL }}</p>
+                        </div>
+
+                        <div class="phone">
+                            <i class="icofont icofont-phone"></i>
+                            <h4>
+                                Call: <span class="float-right">
+                                    <a class="badge badge-light" href="https://t.me/rembish" title="Telegram"><b class="bx bxl-telegram"></b></a>
+                                    <a class="badge badge-light" href="https://wa.me/420775054554" title="WhatsApp"><b class="bx bxl-whatsapp"></b></a>
+                                </span>
+                            </h4>
+                            <p>+420 775 054 554</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-8 mt-5 mt-lg-0">
+                    <form action="forms/contact.php" method="post" role="form" class="php-email-form">
+                        <div class="form-row">
+                            <div class="col-md-6 form-group">
+                                <input type="text" name="name" class="form-control" id="name" placeholder="Your Name"
+                                       data-rule="minlen:4" data-msg="Please enter at least 4 chars"/>
+                                <div class="validate"></div>
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <input type="email" class="form-control" name="email" id="email"
+                                       placeholder="Your Email" data-rule="email"
+                                       data-msg="Please enter a valid email"/>
+                                <div class="validate"></div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <input type="text" class="form-control" name="subject" id="subject" placeholder="Subject"
+                                   data-rule="minlen:4" data-msg="Please enter at least 8 chars of subject"/>
+                            <div class="validate"></div>
+                        </div>
+                        <div class="form-group">
+                            <textarea class="form-control" name="message" rows="5" data-rule="required"
+                                      data-msg="Please write something for us" placeholder="Message"></textarea>
+                            <div class="validate"></div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="loading">Loading</div>
+                            <div class="error-message"></div>
+                            <div class="sent-message">Your message has been sent. Thank you!</div>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit">Send Message</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section><!-- End Contact Section -->
+{% endblock %}
