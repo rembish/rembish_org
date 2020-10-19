@@ -28,3 +28,34 @@ jobs:
           repository: rembish/rembish-org-uwsgi
           dockerfile: dockerfiles/uwsgi.dockerfile
           tags: latest
+      - name: Copying basic docker-compose.yaml
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.REMBISHORG_HOST }}
+          username: ${{ secrets.REMBISHORG_USERNAME }}
+          key: ${{ secrets.REMBISHORG_KEY }}
+          source: "docker-compose.yaml"
+          target: "rembish_org"
+      - name: Copying basic extended for production docker-compose.yaml
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.REMBISHORG_HOST }}
+          username: ${{ secrets.REMBISHORG_USERNAME }}
+          key: ${{ secrets.REMBISHORG_KEY }}
+          source: "docker-compose.prod.yaml"
+          target: "rembish_org/docker-compose.override.yaml"
+      - name: executing remote ssh commands using password
+        uses: appleboy/ssh-action@master
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        with:
+          host: ${{ secrets.REMBISHORG_HOST }}
+          username: ${{ secrets.REMBISHORG_USERNAME }}
+          key: ${{ secrets.REMBISHORG_KEY }}
+          script: |
+            cd rembish_org
+            docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
+            docker pull rembish/rembish-org-nginx:latest
+            docker pull rembish/rembish-org-uwsgi:latest
+            docker-compose up -d --force-recreate

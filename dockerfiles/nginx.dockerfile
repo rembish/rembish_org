@@ -18,6 +18,7 @@ EXPOSE 80 443
 WORKDIR /app
 VOLUME /app/ssl
 COPY nginx/rembish.conf.template /etc/nginx/templates/
+COPY nginx/docker-entrypoint.sh /docker-entrypoint.sh
 COPY rembish_org/static static/
 COPY --from=builder /vendor static/vendor/
 COPY dockerfiles/nginx.dockerfile /Dockerfile
