@@ -2,33 +2,38 @@ version: "3.8"
 
 services:
   nginx:
-    image: nginx:latest
+    build:
+      dockerfile: dockerfiles/nginx.dockerfile
+      context: .
     volumes:
-      - ./nginx:/etc/nginx/templates:ro
-      - ./rembish_org/static:/app/static:ro
-      - ./ssl:/app/ssl:ro
-      - ./node_modules:/node_modules
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
     ports:
+      - "80:80"
       - "443:443"
     environment:
-      NGINX_HOST: dev.rembish.org
-      NGINX_PORT: "443"
-      SSL_CERTIFICATE: /app/ssl/dev.rembish.org.crt
-      SSL_CERTIFICATE_KEY: /app/ssl/dev.rembish.org.key
+      NGINX_HOST: rembish.org www.rembish.org alex.rembish.org aleksey.rembish.org
+      NGINX_HTTP_PORT: "80"
+      NGINX_HTTPS_PORT: "443"
       UWSGI_HOST: uwsgi
       UWSGI_PORT: 5000
+      SSL_CERTIFICATE: /etc/letsencrypt/live/rembish.org/fullchain.pem
+      SSL_CERTIFICATE_KEY: /etc/letsencrypt/live/rembish.org/privkey.pem
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
     links:
       - uwsgi
 
   uwsgi:
     build:
-      dockerfile: Dockerfile
+      dockerfile: dockerfiles/uwsgi.dockerfile
       context: .
-    volumes:
-      - ./rembish_org:/app/rembish_org:ro
     environment:
       UWSGI_PROCESSES: "4"
       UWSGI_SOCKET: ":5000"
-      UWSGI_PY_AUTORELOAD: "1"
-      FLASK_DEBUG: "1"
-      FLASK_ENV: "development"
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"

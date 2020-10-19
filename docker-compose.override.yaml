@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  nginx:
+    volumes:
+      - ./nginx:/etc/nginx/templates:ro
+      - ./rembish_org/static:/app/static:ro
+      - ./ssl:/app/ssl:ro
+      - ./node_modules:/node_modules
+    environment:
+      NGINX_HOST: dev.rembish.org
+      SSL_CERTIFICATE: /app/ssl/dev.rembish.org.crt
+      SSL_CERTIFICATE_KEY: /app/ssl/dev.rembish.org.key
+
+  uwsgi:
+    volumes:
+      - ./rembish_org:/app/rembish_org:ro
+    environment:
+      UWSGI_PY_AUTORELOAD: "1"
+      FLASK_DEBUG: "1"
+      FLASK_ENV: "development"
