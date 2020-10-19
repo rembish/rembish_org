@@ -3,7 +3,7 @@ FROM python:latest AS builder
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 COPY poetry.lock pyproject.toml ./
-RUN pip install poetry && mkdir /build && poetry export > /build/requirements.txt
+RUN pip install poetry && mkdir /build && poetry export $(test "$FLASK_ENV" == development && echo "--dev") > /build/requirements.txt
 WORKDIR /build
 COPY dockerfiles .
 
