@@ -21,10 +21,10 @@ jobs:
           dockerfile: dockerfiles/nginx.dockerfile
           tags: latest
       - name: Build and push uwsgi image
-          uses: docker/build-push-action@v1
-          with:
-            username: ${{ secrets.DOCKERHUB_USERNAME }}
-            password: ${{ secrets.DOCKERHUB_TOKEN }}
-            repository: rembish/rembish-org-uwsgi
-            dockerfile: dockerfiles/uwsgi.dockerfile
-            tags: latest
+        uses: docker/build-push-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: rembish/rembish-org-uwsgi
+          dockerfile: dockerfiles/uwsgi.dockerfile
+          tags: latest
