@@ -43,7 +43,7 @@ jobs:
           username: ${{ secrets.REMBISHORG_USERNAME }}
           key: ${{ secrets.REMBISHORG_KEY }}
           source: "docker-compose.prod.yaml"
-          target: "rembish_org/docker-compose.override.yaml"
+          target: "rembish_org/"
       - name: Applying new configuration and restarting containers
         uses: appleboy/ssh-action@master
         env:
@@ -55,6 +55,7 @@ jobs:
           key: ${{ secrets.REMBISHORG_KEY }}
           script: |
             cd rembish_org
+            mv -f docker-compose.prod.yaml docker-compose.override.yaml
             docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
             docker pull rembish/rembish-org-nginx:latest
             docker pull rembish/rembish-org-uwsgi:latest
