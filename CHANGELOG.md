@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [//]: # (Don't forget to update `pyproject.toml`, `package.json` and `rembish_org.version` with newer version.)
 
 ## [Unreleased]
+
+## [0.3.2] - 2020-10-20
 ### Fixed
 - Dummy hero photo replaced with actual one
 
@@ -44,7 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simple containerization
 - CD based on GitHub Actions
 
-[Unreleased]: https://github.com/rembish/rembish_org/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/rembish/rembish_org/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/rembish/rembish_org/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/rembish/rembish_org/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/rembish/rembish_org/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/rembish/rembish_org/compare/v0.1.0...v0.2.0
