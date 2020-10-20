@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [//]: # (Don't forget to update `pyproject.toml`, `package.json` and `rembish_org.version` with newer version.)
 
 ## [Unreleased]
+### Fixed
+- Dummy hero photo replaced with actual one
 
 ## [0.3.1] - 2020-10-20
 ### Added
