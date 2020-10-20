@@ -15,6 +15,9 @@ Don't forget to update `pyproject.toml`, `package.json` and `rembish_org.version
 ### Changed
 - Footer is now showing the relevant information about copyrights and licenses
 
+### Fixed
+- Keybase.io auth file was forgotten
+
 ## [0.1.0] - 2020-10-19
 ### Added
 - Basic project structure

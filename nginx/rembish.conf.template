@@ -26,6 +26,10 @@ server {
         alias /app/static;
     }
 
+    location /.well-known/keybase.txt {
+        alias /app/static/files/keybase.txt;
+    }
+
     location / {
         uwsgi_pass ${UWSGI_HOST}:${UWSGI_PORT};
         include uwsgi_params;

@@ -1,0 +1,88 @@
+==================================================================
+https://keybase.io/rembish
+--------------------------------------------------------------------
+
+I hereby claim:
+
+  * I am an admin of https://rembish.org
+  * I am rembish (https://keybase.io/rembish) on keybase.
+  * I have a public key with fingerprint 93B4 78E2 DD49 6F23 F76B  C581 E883 1D4F C89A 7B88
+
+To do so, I am signing this object:
+
+{
+  "body": {
+    "key": {
+      "eldest_kid": "01208ed88316dc9a600107fdca36b1a6f285bed47e730f219caf63fcbed4de830e1a0a",
+      "fingerprint": "93b478e2dd496f23f76bc581e8831d4fc89a7b88",
+      "host": "keybase.io",
+      "key_id": "e8831d4fc89a7b88",
+      "kid": "010119dc9cddea3a4f27e9022e30cd94e29dce0dc14709e64271a3e3b4da128995b80a",
+      "uid": "03121ed77c8a49350f4fe6db681eca19",
+      "username": "rembish"
+    },
+    "merkle_root": {
+      "ctime": 1603183794,
+      "hash_meta": "8b5fc94667d177e60ba0dd31aa5f3c8354923b5287bba002699b4182dae17a8b",
+      "seqno": 17877232
+    },
+    "revoke": {
+      "sig_ids": [
+        "75d7b487e6f669d1a994551dd874724a9d0d77de730b0e723c57e5165e95b6af0f"
+      ]
+    },
+    "service": {
+      "hostname": "rembish.org",
+      "protocol": "https:"
+    },
+    "type": "web_service_binding",
+    "version": 1
+  },
+  "ctime": 1603183809,
+  "expire_in": 157680000,
+  "prev": "c5cef63de3d61408fba88cb3269252012237f178a4ef131b33053759b4596360",
+  "seqno": 25,
+  "tag": "signature"
+}
+
+which yields the signature:
+
+-----BEGIN PGP MESSAGE-----
+Version: Keybase OpenPGP v2.1.13
+Comment: https://keybase.io/crypto
+
+yMP9AnicbVN7UFVFHL5Y6kg4QjJQOj44EUQwuHv2nLN7GLERrRzM1wxiaXrdc3bP
+5Yjcez33chUUQcixHDQwKLTUYULSHB+T+WAccmRSKDRSTEv/6DFqNmg+yLdWeyin
+cabzz87Z3/f7vu/37e6Xg5/wREddqhoxrWPD0rejOtuKiz3etU2Hl0pGgJVIWUul
+Qt638IWMh8LeQptJWRKAMiCcEYKgxkydagBAgC1mUqQZkGqWTFSDMwVzjIAlQ92k
+loYs091jnCDAIQVUypAs2+/jTtCx/WFBqyNDwYTLjCm64EAW1gxTJZC7QkyxTKJT
+bBAiGgsCIbdDmDNoiGfaAbEnfrx99v4H/8g3gFAXjk3GOEVUsWTMdSDLHAGT6QqX
+RZEDZkIFA51riowhRVzYYhTKRNdVg/T5Lv6HDkEZcoaxSaiiIxVYisU1ZmjCskmh
+7gJD3PHTIi7QDi8y7FCBVJYhFXGncCH3OoFA2M3WDNsuAmqCkCCsK2I+GirwFvEw
+FY3EUC1TVzQNM4gx14BBAWMIUqpayCRIVXQZGapMsCEqQNZ03VAgkRnlEFNiCBsh
+vsgfEAqYYCwjWVhweCRQyF31kO0TsYWkrDkSVhk2FCI0LE3TGaS6rqgqZIxgBcsK
+1RkQ0zL3VA3ABZOpYq5CTeUiGY1awJLmlrlqTsQ2+8jdc3p8/syA4xOOgk4gHDAD
+C0WhIBwOhrLcXMIlQRe5mBvefzm8hu1n4pKIjgh3QnbAL6YQyMcjI0DPkPiSoO1w
+r+0iVKwRID5Xh0cEpamaXFxBxhHToAKIZVBCTAOJsGRVFvdZRtgS8VCFWxBBAyGg
+IqyKIFVdQxr4L0NZFT6pT3CK4Pw0XOxwqazt8JtPeqKiPQP693Nfjyd6UOyjN7Vl
+0JCHI/Nm/9mQsmTVwe/S5s8cmNg7dX5q05iM1J28vSGb4kUP9oVH3xvdf9e53u7t
+6b/Ejin+deorTfofx5bdajiZH1iw8ur05II1Z1+CCcs/yDXHPfteSn3yM3Wjrr9R
+07Pn7I3k1XbCtG/TZm2J5K44fHDu7u41LbVrN+/ZgW9dnjHsYNc70obtXbX1BUU9
+Lc1Tjr51Ksfrv3U78Uymr7U9NnflmcjwFan5/UpT0yfdfS0m6YSvubLVvLT+UGl2
+etWs4F1vzscxkf11ntNPjWtOS5zw4PiP9XHxnSkba2OnVHRWswuf3CmuXLPVKCdJ
+c2qO7k8qipkWPDJyRMLTJe82dL4/t8ITP30Ov4LLb8+L0SsmVpav9HfMsp7Pd4aY
+ctxn69CO9LRFH/6e3fj6Odgx7EiOFD18fNruF+5c2x91c9/kUbsfNH4xu3Hmgf75
+Lctm7B13/A4b+tz5H766GRN8MWHCmbSW5Epv9rXFXZvLx97/PDuuvSduR+RYaTgU
+f3/vxY17vZvavBN9K0p8GVXVO0+2Dz41Mj391VVgrIFbM2vGmy8vb2rc171+69Da
+yvif2sYePZ3RO/Dc1es5tRUn9iSWDMjsPXvlQuGN6yU92zq+OZCi3FNvx+8qDJ/v
+KhtdZ9d/PS+v+aMNC2DdpEOl1bndf6Vuc0BS8+X631onfz9h3cOqT2H3/QuhuIHV
+FzflZdS01eZV/fw3NJX/Sg==
+=x8qi
+-----END PGP MESSAGE-----
+
+And finally, I am proving ownership of this host by posting or
+appending to this document.
+
+View my publicly-auditable identity here: https://keybase.io/rembish
+
+==================================================================
