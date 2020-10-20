@@ -30,13 +30,13 @@ jobs:
           dockerfile: dockerfiles/uwsgi.dockerfile
           tags: latest
           tag_with_ref: true
-      - name: Copying docker-compose configuration files
+      - name: Uploading docker-compose configuration files and changelog
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.REMBISHORG_HOST }}
           username: ${{ secrets.REMBISHORG_USERNAME }}
           key: ${{ secrets.REMBISHORG_KEY }}
-          source: "docker-compose.yaml,docker-compose.prod.yaml"
+          source: "docker-compose.yaml,docker-compose.prod.yaml,CHANGELOG.md"
           target: "rembish_org/"
       - name: Applying new configuration and restarting containers
         uses: appleboy/ssh-action@master

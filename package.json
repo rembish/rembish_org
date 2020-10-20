@@ -7,7 +7,7 @@
     "url": "git+https://github.com/rembish/rembish_org.git"
   },
   "author": "Alex Rembish <alex@rembish.org>",
-  "license": "UNLICENSED",
+  "license": "CC BY-NC-ND 4.0",
   "homepage": "https://github.com/rembish/rembish_org",
   "dependencies": {
     "@icon/icofont": "^1.0.1-alpha.1",

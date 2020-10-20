@@ -11,6 +11,7 @@ except ImportError:
 from werkzeug.utils import import_string
 
 from . import blueprints, configuration
+from .version import __version__
 
 
 def create_app():
@@ -27,7 +28,8 @@ def create_app():
     @app.context_processor
     def global_variables():
         return {
-            "now": datetime.now()
+            "now": datetime.now(),
+            "version": f"{__version__}{'+' if app.env == 'development' else ''}",
         }
 
     for minfo in iter_modules(blueprints.__path__):

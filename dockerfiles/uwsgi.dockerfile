@@ -14,6 +14,7 @@ EXPOSE 5000
 WORKDIR /app
 COPY --from=builder /build/requirements.txt ./
 COPY rembish_org rembish_org/
+COPY CHANGELOG.md ./
 RUN pip install -r requirements.txt \
     && rm -rf rembish_org/static && rm requirements.txt
 COPY dockerfiles/uwsgi.dockerfile /Dockerfile

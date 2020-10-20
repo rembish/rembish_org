@@ -1,4 +1,6 @@
 from flask import Blueprint
+from markdown2 import markdown_path
+from pkg_resources import resource_filename
 
 from ..libraries.templating import with_template
 
@@ -15,6 +17,16 @@ def index():
 @with_template
 def resume():
     pass
+
+
+@root.route("/changelog")
+@with_template
+def changelog():
+    filename = resource_filename("rembish_org", "templates/CHANGELOG.md")
+    md = markdown_path(filename)
+    return {
+        "changelog": md,
+    }
 
 
 @root.route("/contact")
