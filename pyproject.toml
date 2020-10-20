@@ -9,6 +9,8 @@ python = "^3.8"
 Flask = "^1.1.2"
 uWSGI = "^2.0.19"
 markdown2 = "^2.3.10"
+Flask-WTF = "^0.14.3"
+requests = "^2.24.0"
 
 [tool.poetry.dev-dependencies]
 python-dotenv = "^0.14.0"

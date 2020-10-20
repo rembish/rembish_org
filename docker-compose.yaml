@@ -19,3 +19,5 @@ services:
     environment:
       UWSGI_PROCESSES: "4"
       UWSGI_SOCKET: ":5000"
+    env_file:
+      - ./secrets

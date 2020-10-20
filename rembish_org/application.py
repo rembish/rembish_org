@@ -11,12 +11,15 @@ except ImportError:
 from werkzeug.utils import import_string
 
 from . import blueprints, configuration
+from .libraries.telegram import telegram
 from .version import __version__
 
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(f"{configuration.__name__}.{app.env.title()}Configuration")
+
+    telegram.init_app(app)
 
     if app.debug:
         DebugToolbarExtension(app)

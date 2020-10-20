@@ -1,8 +1,10 @@
-from flask import Blueprint
+from flask import Blueprint, request, render_template
 from markdown2 import markdown_path
 from pkg_resources import resource_filename
 
-from ..libraries.templating import with_template
+from ..forms.contact import ContactForm
+from ..libraries.telegram import telegram, TelegramError
+from ..libraries.templating import with_template, with_json
 
 root = Blueprint('index', __name__)
 
@@ -32,9 +34,28 @@ def changelog():
 @root.route("/contact")
 @with_template
 def contact():
-    pass
+    form = ContactForm()
+    return {
+        "form": form,
+    }
 
 
 @root.route("/contact/email", methods=("POST",))
+@with_json
 def email():
-    pass
+    form = ContactForm(request.form)
+    if not form.validate_on_submit():
+        return {
+            "status": 403,
+            "errors": form.errors,
+        }
+
+    message = render_template("messages/contact.md", **form.data)
+
+    try:
+        telegram.send(message, parse_mode="Markdown")
+    except TelegramError as tge:
+        return {
+            "status": tge.code,
+            "message": tge.message,
+        }

@@ -28,4 +28,30 @@
       backDelay: 2000
     });
   }
+
+  $("#contact-form").submit(function(event) {
+    event.preventDefault();
+    const form = $(this);
+    $("#submit", form).prop('disabled', true).hide();
+    $(".loading", form).show();
+    $(".validate", form).hide();
+
+    $.ajax({
+      type: form.attr("method"),
+      url: form.attr("action"),
+      data: form.serialize(),
+      dataType: "json"
+    }).done(function(data, textStatus, jqXHR) {
+      console.log(data);
+      $(".sent-message", form).show()
+    }).fail(function(jqXHR, textStatus, errorThrown) {
+      const errors = jqXHR.responseJSON.errors;
+      Object.keys(errors).forEach(function(key) {
+        $("#" + key, form).next().show().html(errors[key]);
+      });
+      $("#submit", form).prop('disabled', false).show();
+    }).always(function() {
+      $(".loading", form).hide();
+    });
+  });
 })(jQuery);

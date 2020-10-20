@@ -4,11 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Don't forget to update `pyproject.toml`, `package.json` and `rembish_org.version` with newer version.
+[//]: # (Don't forget to update `pyproject.toml`, `package.json` and `rembish_org.version` with newer version.)
 
 ## [Unreleased]
 ### Added
 - Typed on Hero page
+- Working contact page form (using Telegram bot)
+- Secrets file added (mustn't be committed)
 
 ### Fixed
 - Empty favicons are replaced with AR icon

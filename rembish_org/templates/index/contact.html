@@ -5,7 +5,7 @@
 {% block main %}
     <!-- ======= Contact Section ======= -->
     <section id="contact" class="contact">
-        <div class="container" data-aos="fade-up">
+        <div class="container">
             <div class="section-title">
                 <h2>Contact</h2>
             </div>
@@ -43,28 +43,24 @@
                 </div>
 
                 <div class="col-lg-8 mt-5 mt-lg-0">
-                    <form action="{{ url_for('index.email') }}" method="post" role="form" class="php-email-form">
+                    <form action="{{ url_for('index.email') }}" method="post" id="contact-form" class="email-form">
+                        {{ form.csrf_token }}
                         <div class="form-row">
                             <div class="col-md-6 form-group">
-                                <input type="text" name="name" class="form-control" id="name" placeholder="Your Name"
-                                       data-rule="minlen:4" data-msg="Please enter at least 4 chars" disabled/>
+                                {{ form.name(class_="form-control", placeholder=form.name.label.text) }}
                                 <div class="validate"></div>
                             </div>
                             <div class="col-md-6 form-group">
-                                <input type="email" class="form-control" name="email" id="email"
-                                       placeholder="Your Email" data-rule="email"
-                                       data-msg="Please enter a valid email" disabled/>
+                                {{ form.email(class_="form-control", placeholder=form.email.label.text) }}
                                 <div class="validate"></div>
                             </div>
                         </div>
                         <div class="form-group">
-                            <input type="text" class="form-control" name="subject" id="subject" placeholder="Subject"
-                                   data-rule="minlen:4" data-msg="Please enter at least 8 chars of subject" disabled/>
+                            {{ form.subject(class_="form-control", placeholder=form.subject.label.text) }}
                             <div class="validate"></div>
                         </div>
                         <div class="form-group">
-                            <textarea class="form-control" name="message" rows="5" data-rule="required"
-                                      data-msg="Please write something for us" placeholder="Message" disabled></textarea>
+                            {{ form.message(class_="form-control", placeholder=form.message.label.text, rows=5) }}
                             <div class="validate"></div>
                         </div>
                         <div class="mb-3">
@@ -73,7 +69,7 @@
                             <div class="sent-message">Your message has been sent. Thank you!</div>
                         </div>
                         <div class="text-center">
-                            <button type="submit" disabled>Send Message</button>
+                            {{ form.submit }}
                         </div>
                     </form>
                 </div>
