@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [//]: # (Don't forget to update `pyproject.toml`, `package.json` and `rembish_org.version` with newer version.)
 
 ## [Unreleased]
+### Added
+- Standard configuration propagation from ENV variables
+
+### Fixed
+- Forgotten SECRET_KEY for production
+
 ## [0.3.0] - 2020-10-20
 ### Added
 - Typed on Hero page

@@ -21,8 +21,8 @@ class Telegram:
             self.init_app(app)
 
     def init_app(self, app):
-        self.token = app.config.get("TELEGRAM_TOKEN", environ.get("TELEGRAM_TOKEN"))
-        self.chat_id = app.config.get("TELEGRAM_CHAT_ID", environ.get("TELEGRAM_CHAT_ID"))
+        self.token = app.config.get("TELEGRAM_TOKEN", None)
+        self.chat_id = app.config.get("TELEGRAM_CHAT_ID", None)
 
     @property
     def bot_base(self):
