@@ -42,7 +42,6 @@
       data: form.serialize(),
       dataType: "json"
     }).done(function(data, textStatus, jqXHR) {
-      console.log(data);
       $(".sent-message", form).show()
     }).fail(function(jqXHR, textStatus, errorThrown) {
       const errors = jqXHR.responseJSON.errors;
