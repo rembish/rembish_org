@@ -1,3 +1,4 @@
+from datetime import datetime
 from pkgutil import iter_modules
 
 from flask import Flask, url_for
@@ -22,6 +23,12 @@ def create_app():
     @app.template_global()
     def static_url(filename):
         return url_for('static', filename=filename)
+
+    @app.context_processor
+    def global_variables():
+        return {
+            "now": datetime.now()
+        }
 
     for minfo in iter_modules(blueprints.__path__):
         app.register_blueprint(import_string(f"{blueprints.__name__}.{minfo.name}:root"))

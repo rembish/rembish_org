@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Changelog.md created for further changes tracking
+- License added
+
+### Changed
+- Footer is now showing the relevant information about copyrights and licenses
 
 ## [0.1.0] - 2020-10-19
 ### Added
