@@ -30,6 +30,10 @@ server {
         alias /app/static/files/keybase.txt;
     }
 
+    location /favicon.ico {
+        alias /app/static/imgs/favicon.ico;
+    }
+
     location / {
         uwsgi_pass ${UWSGI_HOST}:${UWSGI_PORT};
         include uwsgi_params;

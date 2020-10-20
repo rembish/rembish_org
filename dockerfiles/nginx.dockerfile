@@ -9,7 +9,8 @@ RUN npm install \
     && mkdir -p /vendor/boxicons/css && mkdir -p /vendor/boxicons/fonts \
         && mv node_modules/boxicons/css/*.min.css /vendor/boxicons/css \
         && mv node_modules/boxicons/fonts/* /vendor/boxicons/fonts \
-    && mkdir -p /vendor/jquery && mv node_modules/jquery/dist/*.min.js /vendor/jquery
+    && mkdir -p /vendor/jquery && mv node_modules/jquery/dist/*.min.js /vendor/jquery \
+    && mkdir -p /vendor/typed.js && mv node_modules/typed.js/lib/*.min.js /vendor/typed.js
 
 FROM nginx:latest
 

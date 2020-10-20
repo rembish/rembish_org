@@ -6,7 +6,7 @@
     <section id="hero" class="d-flex flex-column justify-content-center">
         <div class="container">
             <h1>Alex Rembish</h1>
-            <p>Senior team leader<br>Python professional<br>IT manager</p>
+            <p>I'm <span class="typed" data-typed-items="a Senior Team Leader, a Python professional, an IT Manager, a Traveller, an Aerial Photographer, a Drone Pilot"></span></p>
             <div class="social-links">
                 <a href="https://linkedin.com/in/rembish/" class="linkedin"><i class="bx bxl-linkedin-square"></i></a>
                 <a href="https://github.com/rembish" class="github"><i class="bx bxl-github"></i></a>
@@ -16,4 +16,8 @@
             </div>
         </div>
     </section>
+{% endblock %}
+
+{% block js %}
+    <script src="{{ static_url('vendor/typed.js/typed.min.js') }}"></script>
 {% endblock %}
