@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rembish_org"
-version = "0.2.0"
+version = "0.3.0"
 description = "Personal website"
 authors = ["Alex Rembish <alex@rembish.org>"]
 

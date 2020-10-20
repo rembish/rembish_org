@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [//]: # (Don't forget to update `pyproject.toml`, `package.json` and `rembish_org.version` with newer version.)
 
 ## [Unreleased]
+## [0.3.0] - 2020-10-20
 ### Added
 - Typed on Hero page
 - Working contact page form (using Telegram bot)
@@ -33,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simple containerization
 - CD based on GitHub Actions
 
-[Unreleased]: https://github.com/rembish/rembish_org/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/rembish/rembish_org/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/rembish/rembish_org/releases/tag/v0.3.0
 [0.2.0]: https://github.com/rembish/rembish_org/releases/tag/v0.2.0
 [0.1.0]: https://github.com/rembish/rembish_org/releases/tag/v0.1.0
