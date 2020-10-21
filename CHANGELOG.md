@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [//]: # (Don't forget to update `pyproject.toml`, `package.json` and `rembish_org.version` with newer version.)
 
 ## [Unreleased]
+### Added
+- Very early work experience added
+
+### Changed
+- Resume replaced by CV
+- /contact/email is now /contact/message (it doesn't send any email)
+- Download a PDF is highlighted now
+
 ### Fixed
 - JS console output suspended
 

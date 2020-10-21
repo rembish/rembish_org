@@ -15,9 +15,9 @@ def index():
     pass
 
 
-@root.route("/resume")
+@root.route("/cv")
 @with_template
-def resume():
+def cv():
     pass
 
 
@@ -40,9 +40,9 @@ def contact():
     }
 
 
-@root.route("/contact/email", methods=("POST",))
+@root.route("/contact/message", methods=("POST",))
 @with_json
-def email():
+def message():
     form = ContactForm(request.form)
     if not form.validate_on_submit():
         return {
