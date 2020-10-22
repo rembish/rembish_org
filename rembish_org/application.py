@@ -10,7 +10,7 @@ except ImportError:
 
 from werkzeug.utils import import_string
 
-from . import blueprints, configuration
+from . import blueprints, configuration, commands
 from .libraries.telegram import telegram
 from .version import __version__
 
@@ -37,5 +37,9 @@ def create_app():
 
     for minfo in iter_modules(blueprints.__path__):
         app.register_blueprint(import_string(f"{blueprints.__name__}.{minfo.name}:root"))
+
+    for attribute in dir(commands):
+        if not attribute.startswith("__"):
+            app.cli.add_command(getattr(commands, attribute))
 
     return app
