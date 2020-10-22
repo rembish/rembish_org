@@ -2,8 +2,6 @@ from datetime import date
 from json import load as json_load, dump as json_dump
 
 from click import command, option, Choice, echo
-from semver import VersionInfo
-from toml import load as toml_load, dump as toml_dump
 
 from ..version import __version__ as current_version
 
@@ -15,6 +13,10 @@ def version(increment):
         Project version manipulations.
         Returns back current version if increment wasn't sent.
     """
+    # Those packages don't be available on production.
+    from semver import VersionInfo
+    from toml import load as toml_load, dump as toml_dump
+
     if not increment:
         return echo(current_version)
 
