@@ -29,3 +29,21 @@ services:
       UWSGI_PY_AUTORELOAD: "1"
       FLASK_DEBUG: "1"
       FLASK_ENV: "development"
+      DB_HOST: database
+    links:
+      - database
+
+  database:
+    image: mariadb:latest
+    ports:
+      - "3306:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+    environment:  # All sensitive data were generated only for dev environment
+      MYSQL_ROOT_PASSWORD: KlaJc6taROo6Qq3kepmA
+      MYSQL_DATABASE: rembish_org
+      MYSQL_USER: alex
+      MYSQL_PASSWORD: 3V1fgJe8Ss0rZiiGkA0R
+
+volumes:
+  db-data:

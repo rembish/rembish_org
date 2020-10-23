@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - `flask version` command to work with current app version
+- MySQL database added
+- Login/logout added
 
 ## [0.4.0] - 2020-10-21
 ### Added

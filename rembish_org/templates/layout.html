@@ -40,6 +40,13 @@
         <li{{ ' class="active"' | safe if ".cv" in request.endpoint }}><a href="{{ url_for('index.cv') }}"><i class="bx bx-file-blank"></i> <span>Curriculum Vitae</span></a></li>
         <li{{ ' class="active"' | safe if ".contact" in request.endpoint }}><a href="{{ url_for('index.contact') }}"><i class="bx bx-envelope"></i> <span>Contact</span></a></li>
       </ul>
+      <ul class="lower">
+        {% if current_user %}
+        <li><a href="{{ url_for('google.logout') }}"><i class="bx bx-log-out-circle"></i> <span>Logout</span></a></li>
+        {% else %}
+        <li><a href="{{ url_for('google.login') }}"><i class="bx bx-log-in-circle"></i> <span>Login</span></a></li>
+        {% endif %}
+      </ul>
     </nav><!-- .nav-menu -->
 
   </header><!-- End Header -->
