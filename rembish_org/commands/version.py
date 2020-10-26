@@ -44,7 +44,7 @@ def version(increment):
     today = date.today().strftime("%Y-%m-%d")
     changelog = changelog.replace("## [Unreleased]", f"## [Unreleased]\n\n## [{new}] - {today}")
     changelog = changelog.replace(
-        f"[Unreleased]: https://github.com/rembish/rembish_org/compare/{previous}",
+        f"[Unreleased]: https://github.com/rembish/rembish_org/compare/v{previous}",
         f"[Unreleased]: https://github.com/rembish/rembish_org/compare/v{new}")
     changelog = changelog.replace(
         "...HEAD",

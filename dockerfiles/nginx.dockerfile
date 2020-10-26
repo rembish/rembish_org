@@ -1,7 +1,7 @@
 FROM node:latest AS builder
 
 COPY package.json ./
-RUN npm install \
+RUN npm cache clean --force && npm install \
     && mkdir -p /vendor/icofont && mv node_modules/@icon/icofont/icofont.* /vendor/icofont \
     && mkdir -p /vendor/bootstrap/css && mkdir -p /vendor/bootstrap/js \
         && mv node_modules/bootstrap/dist/css/*.min.css /vendor/bootstrap/css \
