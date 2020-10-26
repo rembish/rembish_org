@@ -12,7 +12,9 @@ from ..models.oauth import OAuth
 from ..models.user import User
 
 storage = SQLAlchemyStorage(OAuth, db.session, user=current_user)
-root = make_google_blueprint(scope="https://www.googleapis.com/auth/userinfo.email openid", storage=storage)
+root = make_google_blueprint(
+    scope="https://www.googleapis.com/auth/userinfo.email openid",
+    storage=storage, offline=True)
 
 
 @oauth_authorized.connect_via(root)
@@ -25,10 +27,7 @@ def google_logged_in(blueprint, token):
         return False
 
     info = response.json()
-    print(info)
     user_id = info["id"]
-    # {'id': 'Integer', 'email': 'Email', 'verified_email': Boolean, 'name': 'Full name', 'given_name': 'Name',
-    # 'family_name': 'Surname', 'picture': 'url', 'hd': 'domain'}
 
     query = OAuth.query.filter_by(provider=blueprint.name, provider_user_id=user_id)
     try:
@@ -42,6 +41,8 @@ def google_logged_in(blueprint, token):
             oauth.user = query.one()
         except NoResultFound:
             return False
+
+    oauth.token = token
 
     db.session.add(oauth)
     db.session.commit()

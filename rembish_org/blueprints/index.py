@@ -1,4 +1,6 @@
 from flask import Blueprint, request, render_template
+from flask_dance.contrib.google import google
+from flask_login import current_user
 from markdown2 import markdown_path
 from pkg_resources import resource_filename
 
@@ -34,7 +36,13 @@ def changelog():
 @root.route("/contact")
 @with_template
 def contact():
-    form = ContactForm()
+    info = {}
+    if current_user and google.authorized:
+        response = google.get("/oauth2/v1/userinfo")
+        if response.ok:
+            info = response.json()
+
+    form = ContactForm(data=info)
     return {
         "form": form,
     }
