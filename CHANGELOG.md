@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MySQL database added
 - Login/logout added
 
+### Fixing
+- Table `users_roles` doesn't have PK
+
 ## [0.4.0] - 2020-10-21
 ### Added
 - Very early work experience added
