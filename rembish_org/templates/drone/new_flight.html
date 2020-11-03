@@ -12,6 +12,7 @@
   <script src="{{ static_url('vendor/bootstrap-datepicker/js/bootstrap-datepicker.min.js') }}"></script>
   <script src="{{ static_url('vendor/bootstrap-select/js/bootstrap-select.min.js') }}"></script>
   <script src="{{ static_url('vendor/bootstrap-timepicker/js/bootstrap-timepicker.min.js') }}"></script>
+  <script src="{{ static_url('vendor/moment/moment.min.js') }}"></script>
   <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ config['GOOGLE_API_KEY'] }}&libraries=places&language=en&callback=initMap"></script>
 
     <script>
@@ -98,13 +99,22 @@
 
     let takeoffs = 0;
     $(document).ready(() => {
+        $.fn.timepicker.defaults.secondStep = 1;
+        $.fn.timepicker.defaults.minuteStep = 1;
+        $.fn.timepicker.defaults.icons = {
+            up: "icofont icofont-rounded-up",
+            down: "icofont icofont-rounded-down"
+        };
+        $.fn.timepicker.defaults.showMeridian = false;
+        $.fn.timepicker.defaults.showSeconds = true;
+
         $(".takeoff-delete").click(function() {
             $(this).closest(".form-row").remove();
             return false;
         });
         $("#takeoff-add").click(() => {
             takeoffs++;
-            let div = $("#takeoffs>div:first").clone(true);
+            let div = $("#takeoffs>div:first").clone(true, true);
             $("input", div).each((i, element) => {
                 $(element).prop("id", $(element).prop("id").replace("--", "-" + takeoffs + "-"));
                 $(element).prop("name", $(element).prop("name").replace("--", "-" + takeoffs + "-"));
@@ -112,6 +122,29 @@
             div.removeClass("d-none");
             $(div).insertAfter("#takeoffs>div:last");
             return false;
+        });
+
+        $("input.tp").change(function() {
+            const self = $(this);
+            const row = self.closest(".form-row");
+
+            let start = $(".tp-start", row).val();
+            let duration = $(".tp-duration", row).val();
+            let finish = $(".tp-finish", row).val();
+
+            if (start && finish && self.hasClass("tp-finish")) {
+                start = moment(start, "HH:mm:ss");
+                finish = moment(finish, "HH:mm:ss");
+                duration = moment.utc(finish.diff(start, "milliseconds"));
+
+                $(".tp-duration", row).val(duration.format("HH:mm:ss"));
+            } else if (start && duration) {
+                start = moment(start, "HH:mm:ss");
+                duration = moment.duration(duration);
+                finish = start.add(duration, "seconds");
+
+                $(".tp-finish", row).val(finish.format("HH:mm:ss"));
+            }
         });
     });
     </script>
@@ -166,7 +199,7 @@
                                 <div class="input-group-prepend">
                                     <div class="input-group-text"><span class="icofont icofont-clock-time"></span></div>
                                 </div>
-                                <input class="form-control" data-provide="timepicker" data-show-meridian="false" data-show-seconds="true" id="takeoffs--start" name="takeoffs--start" type="text" value="">
+                                <input class="form-control tp tp-start" data-provide="timepicker" id="takeoffs--start" name="takeoffs--start" type="text" value="">
                             </div>
                         </div>
                         <div class="form-group col-2">
@@ -174,7 +207,7 @@
                                 <div class="input-group-prepend">
                                     <div class="input-group-text"><span class="icofont icofont-clock-time"></span></div>
                                 </div>
-                                <input class="form-control" data-default-time="false" data-max-hours="2" data-provide="timepicker" data-show-meridian="false" data-show-seconds="true" id="takeoffs--duration" name="takeoffs--duration" type="text" value="">
+                                <input class="form-control tp tp-duration" data-default-time="false" data-max-hours="2" data-provide="timepicker" id="takeoffs--duration" name="takeoffs--duration" type="text" value="">
                             </div>
                         </div>
                         <div class="form-group col-2">
@@ -182,7 +215,7 @@
                                 <div class="input-group-prepend">
                                     <div class="input-group-text"><span class="icofont icofont-clock-time"></span></div>
                                 </div>
-                                <input name="takeoffs--finish" type="text" class="form-control" data-provide="timepicker" data-show-meridian="false" data-show-seconds="true">
+                                <input name="takeoffs--finish" id="takeoffs--finish" type="text" class="form-control tp tp-finish" data-provide="timepicker">
                             </div>
                         </div>
                         <div class="form-group col-2"><input class="form-control" id="takeoffs--distance" name="takeoffs--distance" type="text" value=""></div>
@@ -195,7 +228,7 @@
                                 <div class="input-group-prepend">
                                     <div class="input-group-text"><span class="icofont icofont-clock-time"></span></div>
                                 </div>
-                                {{ takeoff.start(class_="form-control tp", data_provide="timepicker", data_show_meridian="false", data_show_seconds="true") }}
+                                {{ takeoff.start(class_="form-control tp tp-start", data_provide="timepicker") }}
                             </div>
                         </div>
                         <div class="form-group col-2">
@@ -203,7 +236,7 @@
                                 <div class="input-group-prepend">
                                     <div class="input-group-text"><span class="icofont icofont-clock-time"></span></div>
                                 </div>
-                                {{ takeoff.duration(class_="form-control tp", data_provide="timepicker", data_show_meridian="false", data_max_hours="2", data_default_time="false", data_show_seconds="true") }}
+                                {{ takeoff.duration(class_="form-control tp tp-duration", data_provide="timepicker",  data_max_hours="2", data_default_time="false") }}
                             </div>
                         </div>
                         <div class="form-group col-2">
@@ -211,7 +244,7 @@
                                 <div class="input-group-prepend">
                                     <div class="input-group-text"><span class="icofont icofont-clock-time"></span></div>
                                 </div>
-                                <input name="takeoffs-{{ loop.index0 }}-finish" type="text" class="form-control" data-provide="timepicker tp" data-show-meridian="false" data-show-seconds="true">
+                                <input name="takeoffs-{{ loop.index0 }}-finish" id="takeoffs-{{ loop.index0 }}-finish" type="text" class="form-control tp tp-finish" data-provide="timepicker">
                             </div>
                         </div>
                         <div class="form-group col-2">{{ takeoff.distance(class_="form-control") }}</div>
