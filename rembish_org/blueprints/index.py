@@ -2,6 +2,7 @@ from flask import Blueprint, request, render_template
 from flask_dance.contrib.google import google
 from flask_login import current_user
 from markdown2 import markdown_path
+from oauthlib.oauth2 import InvalidClientIdError
 from pkg_resources import resource_filename
 
 from ..forms.contact import ContactForm
@@ -38,9 +39,12 @@ def changelog():
 def contact():
     info = {}
     if current_user and google.authorized:
-        response = google.get("/oauth2/v1/userinfo")
-        if response.ok:
-            info = response.json()
+        try:
+            response = google.get("/oauth2/v1/userinfo")
+            if response.ok:
+                info = response.json()
+        except InvalidClientIdError:
+            pass
 
     form = ContactForm(data=info)
     return {

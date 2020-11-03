@@ -20,6 +20,7 @@
   <link href="{{ static_url('vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
   <link href="{{ static_url('vendor/icofont/icofont.css') }}" rel="stylesheet">
   <link href="{{ static_url('vendor/boxicons/css/boxicons.min.css') }}" rel="stylesheet">
+  <link href="{{ static_url('vendor/flaticon/flaticon.css') }}" rel="stylesheet">
   {% block css %}{% endblock %}
 
   <!-- Template Main CSS File -->
@@ -39,6 +40,7 @@
         <li{{ ' class="active"' | safe if ".index" in request.endpoint }}><a href="{{ url_for('index.index') }}"><i class="bx bx-home"></i> <span>Home</span></a></li>
         <li{{ ' class="active"' | safe if ".cv" in request.endpoint }}><a href="{{ url_for('index.cv') }}"><i class="bx bx-file-blank"></i> <span>Curriculum Vitae</span></a></li>
         <li{{ ' class="active"' | safe if ".contact" in request.endpoint }}><a href="{{ url_for('index.contact') }}"><i class="bx bx-envelope"></i> <span>Contact</span></a></li>
+        <li{{ ' class="active"' | safe if ".flightlog" in request.endpoint }}><a href="{{ url_for('drone.flightlog') }}"><b class="flaticon-drone-14"></b> <span>Flight log</span></a></li>
       </ul>
       <ul class="lower">
         {% if current_user %}
@@ -63,6 +65,7 @@
       <div class="credits">
         Python code is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc-nd/4.0/">CC BY-NC-ND 4.0</a><br>
         CSS and HTML are based on a paid version of <a href="https://bootstrapmade.com/free-html-bootstrap-template-my-resume/">MyResume</a> by <a href="https://bootstrapmade.com/">BootstrapMade</a><br>
+        Drone icons are from <a href="http://www.flaticon.com">flaticon.com</a>. Under <a href="http://creativecommons.org/licenses/by/3.0/">CC</a>: <a data-file="drone-19" href="http://www.freepik.com">Freepik</a><br>
         Source code (<a href="{{ url_for('index.changelog') }}">version {{ version }}</a>) can be found on <a href="https://github.com/rembish/rembish_org">GitHub</a>
         <!--
          Based on MyResume - v2.1.0 (https://bootstrapmade.com/free-html-bootstrap-template-my-resume/).

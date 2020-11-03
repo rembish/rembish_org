@@ -1,0 +1,230 @@
+{% extends "layout.html" %}
+
+{% block title %}New flight - Alex Rembish{% endblock %}
+
+{% block css %}
+  <link href="{{ static_url('vendor/bootstrap-datepicker/css/bootstrap-datepicker3.min.css') }}" rel="stylesheet">
+  <link href="{{ static_url('vendor/bootstrap-select/css/bootstrap-select.min.css') }}" rel="stylesheet">
+  <link href="{{ static_url('vendor/bootstrap-timepicker/css/bootstrap-timepicker.min.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block js %}
+  <script src="{{ static_url('vendor/bootstrap-datepicker/js/bootstrap-datepicker.min.js') }}"></script>
+  <script src="{{ static_url('vendor/bootstrap-select/js/bootstrap-select.min.js') }}"></script>
+  <script src="{{ static_url('vendor/bootstrap-timepicker/js/bootstrap-timepicker.min.js') }}"></script>
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ config['GOOGLE_API_KEY'] }}&libraries=places&language=en&callback=initMap"></script>
+
+    <script>
+    function initMap() {
+        const map = new google.maps.Map(document.getElementById("map"), {
+            center: {lat: 50.08804, lng: 14.42076},  // Default position is Prague
+            zoom: 13,
+            mapTypeId: "roadmap",
+        });
+        const locationInput = document.getElementById("location");
+        const searchBox = new google.maps.places.SearchBox(locationInput);
+        const gps = $("#gps");
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((position => {
+                const latitude  = position.coords.latitude;
+                const longitude = position.coords.longitude;
+                map.setCenter(new google.maps.LatLng(latitude, longitude));
+            }));
+        }
+
+        let markerLocation, markerPosition;
+
+        map.addListener("bounds_changed", () => {
+            searchBox.setBounds(map.getBounds());
+        });
+
+        map.addListener("dblclick", (event) => {
+            if (markerPosition) {
+                markerPosition.setMap(null);
+            }
+
+            const position = event.latLng;
+            markerPosition = new google.maps.Marker({
+                map,
+                title: "Exact position",
+                position: position
+            });
+
+            gps.val(position.lat() + ", " + position.lng());
+        });
+
+        searchBox.addListener("places_changed", () => {
+            const places = searchBox.getPlaces();
+            if (places.length === 0 || !places[0].geometry) {
+                return;
+            }
+
+            if (markerLocation) {
+                markerLocation.setMap(null);
+            }
+            if (markerPosition) {
+                markerPosition.setMap(null);
+            }
+
+            const place = places[0];
+            const bounds = new google.maps.LatLngBounds();
+            const icon = {
+                url: place.icon,
+                size: new google.maps.Size(71, 71),
+                origin: new google.maps.Point(0, 0),
+                anchor: new google.maps.Point(17, 34),
+                scaledSize: new google.maps.Size(25, 25),
+            };
+            const placeLocation = place.geometry.location;
+
+            markerLocation = new google.maps.Marker({
+              map, icon,
+              title: place.name,
+              position: placeLocation,
+            });
+
+            gps.val(placeLocation.lat() + ", " + placeLocation.lng());
+
+            if (place.geometry.viewport) {
+                bounds.union(place.geometry.viewport);
+            } else {
+                bounds.extend(place.geometry.location);
+            }
+
+            map.fitBounds(bounds)
+        });
+    }
+
+    let takeoffs = 0;
+    $(document).ready(() => {
+        $(".takeoff-delete").click(function() {
+            $(this).closest(".form-row").remove();
+            return false;
+        });
+        $("#takeoff-add").click(() => {
+            takeoffs++;
+            let div = $("#takeoffs>div:first").clone(true);
+            $("input", div).each((i, element) => {
+                $(element).prop("id", $(element).prop("id").replace("--", "-" + takeoffs + "-"));
+                $(element).prop("name", $(element).prop("name").replace("--", "-" + takeoffs + "-"));
+            });
+            div.removeClass("d-none");
+            $(div).insertAfter("#takeoffs>div:last");
+            return false;
+        });
+    });
+    </script>
+{% endblock %}
+
+{% block main %}
+    <section class="flightlog">
+        <div class="container">
+            <div class="section-title">
+                <h2>Flight registration</h2>
+            </div>
+
+            <form method="post" action="{{ url_for('drone.new_flight') }}">
+                <div class="form-row">
+                    <div class="form-group col-2">
+                        <div class="input-group date" data-provide="datepicker" data-date-format="dd.mm.yyyy" data-date-week-start="1">
+                            {{ form.date(class_="form-control") }}
+                            <div class="input-group-append">
+                                <div class="input-group-text"><span class="icofont icofont-calendar"></span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group col-4">{{ form.drone(class_="form-control selectpicker") }}</div>
+                    <div class="form-group col-3">{{ form.type(class_="form-control selectpicker") }}</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col">{{ form.location(class_="form-control", placeholder=form.location.label.text) }}</div>
+                    <div class="form-group col-5">
+                        <div class="input-group">
+                            <div class="input-group-prepend">
+                                <div class="input-group-text"><span class="icofont icofont-air-balloon"></span></div>
+                            </div>
+                            {{ form.gps(class_="form-control", placeholder=form.gps.label.text) }}
+                        </div>
+                    </div>
+                </div>
+
+                <div id="map" style="height: 300px; margin-bottom: 10px;"></div>
+
+                <div class="form-row">
+                    <div class="form-group col-2">Take-off</div>
+                    <div class="form-group col-2">Duration</div>
+                    <div class="form-group col-2">Landing</div>
+                    <div class="form-group col-2">Distance, m</div>
+                    <div class="form-group col-1"><button class="btn btn-outline-dark" id="takeoff-add"><span class="icofont icofont-plus"></span></button></div>
+                </div>
+                <div id="takeoffs">
+                    <div class="form-row d-none">
+                        <div class="form-group col-2">
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <div class="input-group-text"><span class="icofont icofont-clock-time"></span></div>
+                                </div>
+                                <input class="form-control" data-provide="timepicker" data-show-meridian="false" data-show-seconds="true" id="takeoffs--start" name="takeoffs--start" type="text" value="">
+                            </div>
+                        </div>
+                        <div class="form-group col-2">
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <div class="input-group-text"><span class="icofont icofont-clock-time"></span></div>
+                                </div>
+                                <input class="form-control" data-default-time="false" data-max-hours="2" data-provide="timepicker" data-show-meridian="false" data-show-seconds="true" id="takeoffs--duration" name="takeoffs--duration" type="text" value="">
+                            </div>
+                        </div>
+                        <div class="form-group col-2">
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <div class="input-group-text"><span class="icofont icofont-clock-time"></span></div>
+                                </div>
+                                <input name="takeoffs--finish" type="text" class="form-control" data-provide="timepicker" data-show-meridian="false" data-show-seconds="true">
+                            </div>
+                        </div>
+                        <div class="form-group col-2"><input class="form-control" id="takeoffs--distance" name="takeoffs--distance" type="text" value=""></div>
+                        <div class="form-group col-1"><button class="btn btn-outline-danger takeoff-delete"><span class="icofont icofont-trash"></span></button></div>
+                    </div>
+                {% for takeoff in form.takeoffs %}
+                    <div class="form-row">
+                        <div class="form-group col-2">
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <div class="input-group-text"><span class="icofont icofont-clock-time"></span></div>
+                                </div>
+                                {{ takeoff.start(class_="form-control tp", data_provide="timepicker", data_show_meridian="false", data_show_seconds="true") }}
+                            </div>
+                        </div>
+                        <div class="form-group col-2">
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <div class="input-group-text"><span class="icofont icofont-clock-time"></span></div>
+                                </div>
+                                {{ takeoff.duration(class_="form-control tp", data_provide="timepicker", data_show_meridian="false", data_max_hours="2", data_default_time="false", data_show_seconds="true") }}
+                            </div>
+                        </div>
+                        <div class="form-group col-2">
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <div class="input-group-text"><span class="icofont icofont-clock-time"></span></div>
+                                </div>
+                                <input name="takeoffs-{{ loop.index0 }}-finish" type="text" class="form-control" data-provide="timepicker tp" data-show-meridian="false" data-show-seconds="true">
+                            </div>
+                        </div>
+                        <div class="form-group col-2">{{ takeoff.distance(class_="form-control") }}</div>
+                        <div class="form-group col-1"><button class="btn btn-outline-danger takeoff-delete"><span class="icofont icofont-trash"></span></button></div>
+                    </div>
+                {% endfor %}
+                </div>
+
+                <div class="form-row"><div class="form-group col">{{ form.activity(class_="form-control", placeholder=form.activity.label.text) }}</div></div>
+                <div class="form-row"><div class="form-group col">{{ form.description(class_="form-control", placeholder=form.description.label.text) }}</div></div>
+
+                {{ form.register(class_="form-control") }}
+            </form>
+        </div>
+    </section>
+{% endblock %}

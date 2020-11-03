@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+
+{% block title %}Flight log - Alex Rembish{% endblock %}
+
+{% block main %}
+    <section class="flightlog">
+        <div class="container">
+            <div class="section-title">
+                <h2>Drone flight log</h2>
+            </div>
+
+            {% if current_user.has_role("administrator") %}
+            <div class="row">
+                <a href="{{ url_for("drone.new_flight") }}">Register flight</a>
+            </div>
+            {% endif %}
+
+            <div class="table-responsive"><table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th scope="col" class="align-text-top">#</th>
+                        <th scope="col">Date<br><small>Take-off &ndash; Landing</small></th>
+                        <th scope="col">Place<br><small>Coordinates</small></th>
+                        <th scope="col" class="align-text-top">Drone</th>
+                        <th scope="col" class="align-text-top">Duration<br>Distance</th>
+                        <th scope="col">Type<br><small>Additional information</small></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for flight in flights %}
+                    <tr>
+                        <th scope="row">{{ loop.index }}</th>
+                        <td>
+                            {{ flight.date.strftime("%d.%m.%Y") }}<br>
+                            <small>{{ flight.takeoff }} &ndash; {{ flight.landing }}</small>
+                        </td>
+                        <td class="text-nowrap">
+                            <a href="{{ url_for("drone.flight", flight_id=flight.id) }}">{{ flight.location | default("Untitled") }}</a><br>
+                            <small><i class="bx bx-map-pin"></i> {{ flight.latitude }}, {{ flight.longitude }}</small>
+                        </td>
+                        <td><a href="{{ url_for("drone.drone", drone_id=flight.drone_id) }}">{{ flight.drone_name }}</a></td>
+                        <td>
+                            {{ flight.duration }}
+                            {% if flight.landing_count > 1 %}<br><small>{{ flight.landing_count }} take-offs</small>{% endif %}
+                        </td>
+                        <td class="text-nowrap">
+                            {{ flight.type | default("&mdash;", true) | safe }}
+                            {% if flight.description %}<br><small>{{ flight.description }}</small>{% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table></div>
+        </div>
+    </section>
+{% endblock %}

@@ -11,6 +11,7 @@ RUN npm install \
         && mv node_modules/boxicons/fonts/* /vendor/boxicons/fonts \
     && mkdir -p /vendor/jquery && mv node_modules/jquery/dist/*.min.js /vendor/jquery \
     && mkdir -p /vendor/typed.js && mv node_modules/typed.js/lib/*.min.js /vendor/typed.js
+COPY rembish_org/static/vendor/flaticon /vendor/flaticon/
 
 FROM nginx:latest
 
