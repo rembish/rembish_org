@@ -2,9 +2,11 @@ from flask import Blueprint, redirect, url_for
 
 from ..forms.flight import FlightForm
 from ..libraries.database import db
+from ..libraries.geonames import geonames
 from ..libraries.globals import me
 from ..libraries.templating import with_template, with_json
 from ..models.drone import FlightLog, Takeoff
+from ..models.world import Country
 
 root = Blueprint("drone", __name__)
 
@@ -42,6 +44,11 @@ def new_flight():
         for _ in form.takeoffs:
             flightlog.takeoffs.append(Takeoff())
         form.populate_obj(flightlog)
+
+        code = geonames.get_code_by(flightlog.latitude, flightlog.longitude)
+        if code:
+            country = Country.get_by(code)
+            flightlog.country = country
 
         db.session.add(flightlog)
         db.session.commit()

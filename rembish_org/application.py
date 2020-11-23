@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from pkgutil import iter_modules
 
 from flask import Flask, url_for
@@ -13,6 +13,7 @@ from werkzeug.utils import import_string
 from . import blueprints, configuration, commands
 from .libraries.authz import security, datastore
 from .libraries.database import db, migrate
+from .libraries.geonames import geonames
 from .libraries.telegram import telegram
 from .models.user import Guest
 from .version import __version__
@@ -26,6 +27,8 @@ def create_app():
     if migrate:
         migrate.init_app(app, db=db)
     security.init_app(app, datastore=datastore, anonymous_user=Guest, register_blueprint=False)
+
+    geonames.init_app(app)
     telegram.init_app(app)
 
     if app.debug:

@@ -2,6 +2,10 @@
 
 {% block title %}Flight log - Alex Rembish{% endblock %}
 
+{% block css %}
+    <link href="{{ static_url('vendor/flag-icon-css/css/flag-icon.min.css') }}" rel="stylesheet">
+{% endblock %}
+
 {% block main %}
     <section class="flightlog">
         <div class="container">
@@ -77,6 +81,9 @@
                             <small>{{ flight.takeoff }} &ndash; {{ flight.landing }}</small>
                         </td>
                         <td>
+                            {% if flight.country_code %}
+                                <span class="flag-icon flag-icon-{{ flight.country_code | lower }}" title="{{ flight.country }}"></span>
+                            {% endif %}
                             <a href="{{ url_for("drone.flight", flight_id=flight.id) }}">{{ flight.location | default("Untitled") }}</a>
                             {% if flight.description %}<br><small>{{ flight.description }}</small>{% endif %}
                         </td>

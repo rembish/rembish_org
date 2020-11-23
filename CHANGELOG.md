@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Flight log added
-- New flight page added (mock)
+- New flight page added
 - Complete drone/flights models
 - Take-off time helpers
+- Countries with flags added
 
 ### Changed
 - I can obtain user's name and email from Google

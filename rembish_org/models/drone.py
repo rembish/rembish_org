@@ -1,6 +1,7 @@
 from sqlalchemy.dialects import mysql
 
 from .user import User
+from .world import Country
 from ..libraries.database import db
 
 
@@ -64,6 +65,9 @@ class FlightLog(db.Model):
     drone_id = db.Column(db.SmallInteger, db.ForeignKey(Drone.id), nullable=False)
     drone = db.relationship(Drone)
 
+    country_id = db.Column(db.SmallInteger, db.ForeignKey(Country.id))
+    country = db.relationship(Country)
+
     date = db.Column(db.Date, nullable=False, server_default=db.text("NOW()"))
     in_air = db.Column(db.Boolean, default=False)
 
@@ -84,7 +88,7 @@ class FlightLog(db.Model):
         result = []
         for flight in db.session.execute("""
             SELECT 
-                dfl.*, 
+                dfl.*,  c.code  AS `country_code`, c.name AS `country`,
                 COALESCE(d.callsign, d.nickname, CONCAT(dv.name, '', dm.name)) AS `drone_name`,
                 MIN(dt.start) AS `takeoff`, 
                 MAX(dt.finish) AS `landing`,
@@ -97,6 +101,7 @@ class FlightLog(db.Model):
             JOIN drones AS d ON d.id = dfl.drone_id
             JOIN drone_models AS dm ON dm.id = d.model_id
             JOIN drone_vendors AS dv ON dv.id = dm.vendor_id
+            JOIN countries AS c ON c.id = dfl.country_id
             WHERE
                 d.owner_id = :owner_id
             GROUP BY dt.flight_id
@@ -114,6 +119,7 @@ class FlightLog(db.Model):
             SELECT
                 COUNT(DISTINCT dfl.id) AS `flight_count`,
                 COUNT(DISTINCT dt.id) AS `takeoff_count`,
+                COUNT(DISTINCT dfl.country_id) AS `country_count`,
                 SUM(dt.distance) AS `distance`,
                 MAX(dt.altitude) AS `altitude`,
                 SEC_TO_TIME(SUM(TIME_TO_SEC(TIMEDIFF(dt.finish, dt.start)))) AS `duration`

@@ -1,4 +1,3 @@
-from os import environ
 from urllib.parse import urljoin
 
 from requests import get
