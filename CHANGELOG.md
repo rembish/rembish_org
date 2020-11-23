@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.3] - 2020-11-23
+### Added
+- Debugging nginx docker in pipeline :(
+
 ## [0.6.2] - 2020-11-23
 ### Fixing
 - More typos in nginx dockerfile
@@ -93,7 +97,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simple containerization
 - CD based on GitHub Actions
 
-[Unreleased]: https://github.com/rembish/rembish_org/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/rembish/rembish_org/compare/v0.6.3...HEAD
+[0.6.3]: https://github.com/rembish/rembish_org/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/rembish/rembish_org/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/rembish/rembish_org/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/rembish/rembish_org/compare/v0.5.2...v0.6.0
