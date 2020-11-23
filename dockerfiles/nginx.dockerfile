@@ -25,7 +25,7 @@ RUN npm install \
     && mkdir -p /vendor/jquery && mv node_modules/jquery/dist/*.min.js /vendor/jquery \
     && mkdir -p /vendor/moment && mv node_modules/moment/min/*.min.js /vendor/moment \
     && mkdir -p /vendor/typed.js && mv node_modules/typed.js/lib/*.min.js /vendor/typed.js
-COPY node_modules/flag-icon-css/flags /vendor/flag-iconscss/flags/
+COPY node_modules/flag-icon-css/flags /vendor/flag-icon-css/flags/
 COPY rembish_org/static/vendor/flaticon /vendor/flaticon/
 
 FROM nginx:latest
