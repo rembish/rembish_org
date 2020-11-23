@@ -506,7 +506,7 @@ section {
  Flightlog
  */
 /*--------------------------------------------------------------
-# Facts
+# Flightlog
 --------------------------------------------------------------*/
 .flightlog .count-box {
   padding: 30px 30px 25px 30px;
@@ -518,6 +518,18 @@ section {
 }
 
 .flightlog .count-box i {
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 24px;
+  background: #0563bb;
+  padding: 12px;
+  color: #fff;
+  border-radius: 50px;
+}
+
+.flightlog .count-box b {
   position: absolute;
   top: -25px;
   left: 50%;

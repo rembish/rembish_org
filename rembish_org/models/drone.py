@@ -1,3 +1,5 @@
+from sqlalchemy.dialects import mysql
+
 from .user import User
 from ..libraries.database import db
 
@@ -68,21 +70,26 @@ class FlightLog(db.Model):
     location = db.Column(db.String(length=200))
     latitude = db.Column(db.Numeric(10, 8), nullable=False)
     longitude = db.Column(db.Numeric(11, 8), nullable=False)
+    place_id = db.Column(db.String(length=50))
 
-    takeoffs = db.relationship("Takeoff", lazy="select", backref=db.backref("flight", lazy="joined"))
+    takeoffs = db.relationship(
+        "Takeoff", lazy="select", backref=db.backref("flight", lazy="joined"), cascade="all, delete")
 
-    type = db.Column(db.String(length=100))
+    type = db.Column(mysql.SET("photo", "video", "training"), default="photo")
     activity = db.Column(db.String(length=100))
     description = db.Column(db.String(length=200))
 
     @classmethod
     def get_flights_for(cls, user):
-        return db.session.execute("""
+        result = []
+        for flight in db.session.execute("""
             SELECT 
                 dfl.*, 
                 COALESCE(d.callsign, d.nickname, CONCAT(dv.name, '', dm.name)) AS `drone_name`,
                 MIN(dt.start) AS `takeoff`, 
                 MAX(dt.finish) AS `landing`,
+                MAX(dt.altitude) AS `altitude`,
+                SUM(dt.distance) AS `distance`,
                 SEC_TO_TIME(SUM(TIME_TO_SEC(TIMEDIFF(dt.finish, dt.start)))) AS `duration`,
                 COUNT(dt.flight_id) AS `landing_count`
             FROM drone_flight_log AS dfl
@@ -94,7 +101,29 @@ class FlightLog(db.Model):
                 d.owner_id = :owner_id
             GROUP BY dt.flight_id
             ORDER BY dfl.date DESC, dt.start DESC
+        """, {"owner_id": user.id}):
+            row = dict(flight)
+            row["type"] = row["type"].split(",") if row["type"] else []
+            result.append(row)
+
+        return result
+
+    @classmethod
+    def get_statistics_for(cls, user):
+        response = db.session.execute("""
+            SELECT
+                COUNT(DISTINCT dfl.id) AS `flight_count`,
+                COUNT(DISTINCT dt.id) AS `takeoff_count`,
+                SUM(dt.distance) AS `distance`,
+                MAX(dt.altitude) AS `altitude`,
+                SEC_TO_TIME(SUM(TIME_TO_SEC(TIMEDIFF(dt.finish, dt.start)))) AS `duration`
+            FROM drone_flight_log AS dfl
+            JOIN drone_takeoffs AS dt ON dt.flight_id = dfl.id
+            JOIN drones AS d ON d.id = dfl.drone_id
+            WHERE d.owner_id = :owner_id
         """, {"owner_id": user.id})
+        for row in response:
+            return row
 
 
 class Takeoff(db.Model):
@@ -107,3 +136,4 @@ class Takeoff(db.Model):
     start = db.Column(db.Time, nullable=False, server_default=db.text("NOW()"))
     finish = db.Column(db.Time)
     distance = db.Column(db.Integer)
+    altitude = db.Column(db.Integer)

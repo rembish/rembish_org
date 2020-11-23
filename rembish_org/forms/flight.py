@@ -1,33 +1,38 @@
-from datetime import date
+from datetime import date, timedelta
 
 from flask_wtf import FlaskForm
-from wtforms import DateField, StringField, TextAreaField, Form, TimeField, FloatField, FieldList, \
-    FormField, SubmitField, SelectMultipleField
-from wtforms.validators import DataRequired
+from wtforms import DateField, StringField, TextAreaField, Form, TimeField, FieldList, \
+    FormField, SubmitField, SelectMultipleField, HiddenField
+from wtforms.fields.html5 import IntegerField, DecimalField
+from wtforms.validators import DataRequired, Optional
+from wtforms.widgets import HiddenInput
 
 from ..libraries.forms import LazySelectField
 from ..libraries.globals import my_drones
 
 
 class TakeoffForm(Form):
-    start = TimeField(label="Take-off")
-    duration = TimeField(label="Duration")
-    distance = FloatField(label="Distance")
+    start = TimeField(label="Take-off", format="%H:%M:%S", validators=[DataRequired()])
+    finish = TimeField(label="Landing", format="%H:%M:%S", validators=[Optional(strip_whitespace=True)])
+    distance = IntegerField(label="Distance", validators=[Optional(strip_whitespace=True)])
+    altitude = IntegerField(label="Altitude", validators=[Optional(strip_whitespace=True)])
 
 
 class FlightForm(FlaskForm):
     date = DateField(label="Date", default=date.today(), format="%d.%m.%Y")
-    drone = LazySelectField(
+    drone_id = LazySelectField(
         label="Drone",
         choices=lambda: [(drone.id, drone) for drone in my_drones], default=lambda: my_drones[0].id,
         validators=[DataRequired()])
     location = StringField(label="Location")
-    gps = StringField(label="GPS coordinates", validators=[DataRequired()])
+    place_id = HiddenField(validators=[Optional(strip_whitespace=True)])
+    latitude = DecimalField(widget=HiddenInput(), validators=[DataRequired()])
+    longitude = DecimalField(widget=HiddenInput(), validators=[DataRequired()])
     type = SelectMultipleField(label="Type", choices=[
         ('photo', 'Photo'), ('video', 'Video'), ('training', 'Training'),
     ], default=['photo'])
-    activity = StringField(label="Activity")
-    description = TextAreaField(label="Additional information")
+    activity = StringField(label="Activity", validators=[Optional(strip_whitespace=True)])
+    description = TextAreaField(label="Additional information", validators=[Optional(strip_whitespace=True)])
     takeoffs = FieldList(FormField(TakeoffForm), min_entries=1)
     register = SubmitField(label="Register")
 

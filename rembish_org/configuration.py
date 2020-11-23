@@ -40,6 +40,8 @@ class DevelopmentConfiguration(Configuration):
 
     DEBUG_TB_INTERCEPT_REDIRECTS = False
 
+    SQLALCHEMY_POOL_RECYCLE = 599
+
 
 class ProductionConfiguration(Configuration):
-    pass
+    SQLALCHEMY_POOL_RECYCLE = 28799

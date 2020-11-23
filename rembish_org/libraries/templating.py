@@ -1,7 +1,8 @@
 from functools import wraps
 from http import HTTPStatus
 
-from flask import Response, request, render_template, jsonify
+from flask import request, render_template, jsonify
+from werkzeug import Response
 
 
 def with_template(function):
