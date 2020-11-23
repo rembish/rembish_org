@@ -19,14 +19,13 @@ RUN npm install \
     && mkdir -p /vendor/boxicons/css && mkdir -p /vendor/boxicons/fonts \
         && mv node_modules/boxicons/css/*.min.css /vendor/boxicons/css \
         && mv node_modules/boxicons/fonts/* /vendor/boxicons/fonts \
-    && mkdir -p /vendor/flag-icon-css/css && mkdir -p /vendor/flag-icon-css/flags \
+    && mkdir -p /vendor/flag-icon-css/css \
         && mv node_modules/flag-icon-css/css/*.min.css /vendor/flag-icon-css/css \
+        && mv node_modules/flag-icon-css/flags /vendor/flag-icon-css/flags \
     && mkdir -p /vendor/icofont && mv node_modules/@icon/icofont/icofont.* /vendor/icofont \
     && mkdir -p /vendor/jquery && mv node_modules/jquery/dist/*.min.js /vendor/jquery \
     && mkdir -p /vendor/moment && mv node_modules/moment/min/*.min.js /vendor/moment \
-    && mkdir -p /vendor/typed.js && mv node_modules/typed.js/lib/*.min.js /vendor/typed.js \
-    && npm list && ls -al /vendor/
-COPY node_modules/flag-icon-css/flags /vendor/flag-icon-css/flags/
+    && mkdir -p /vendor/typed.js && mv node_modules/typed.js/lib/*.min.js /vendor/typed.js
 COPY rembish_org/static/vendor/flaticon /vendor/flaticon/
 
 FROM nginx:latest
