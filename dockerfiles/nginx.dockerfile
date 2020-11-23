@@ -10,16 +10,16 @@ RUN npm install \
         && mv node_modules/bootstrap-datepicker/dist/css/*.min.css /vendor/bootstrap-datepicker/css \
         && mv node_modules/bootstrap-datepicker/dist/js/*.min.js /vendor/bootstrap-datepicker/js \
         && mv node_modules/bootstrap-datepicker/dist/locales/*.min.js /vendor/bootstrap-datepicker/locales \
-    && mkdir -p /vendor/bootstrap-select/css && mkdir -p /vendor/boostrap-select/js \
+    && mkdir -p /vendor/bootstrap-select/css && mkdir -p /vendor/bootstrap-select/js \
         && mv node_modules/bootstrap-select/dist/css/*.min.css /vendor/bootstrap-select/css \
         && mv node_modules/bootstrap-select/dist/js/*.min.js /vendor/bootstrap-select/js \
-    && mkdir -p /vendor/bootstrap-timepicker/css && mkdir -p /vendor/boostrap-timepicker/js \
+    && mkdir -p /vendor/bootstrap-timepicker/css && mkdir -p /vendor/bootstrap-timepicker/js \
         && mv node_modules/bootstrap-timepicker/css/*.min.css /vendor/bootstrap-timepicker/css \
         && mv node_modules/bootstrap-timepicker/js/*.min.js /vendor/bootstrap-timepicker/js \
     && mkdir -p /vendor/boxicons/css && mkdir -p /vendor/boxicons/fonts \
         && mv node_modules/boxicons/css/*.min.css /vendor/boxicons/css \
         && mv node_modules/boxicons/fonts/* /vendor/boxicons/fonts \
-    && mkdir -p /vendor/flag-icon-css/css \
+    && mkdir -p /vendor/flag-icon-css/css && mkdir -p /vendor/flag-icon-css/flags \
         && mv node_modules/flag-icon-css/css/*.min.css /vendor/flag-icon-css/css \
     && mkdir -p /vendor/icofont && mv node_modules/@icon/icofont/icofont.* /vendor/icofont \
     && mkdir -p /vendor/jquery && mv node_modules/jquery/dist/*.min.js /vendor/jquery \
