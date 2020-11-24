@@ -40,7 +40,7 @@
         <li{{ ' class="active"' | safe if ".index" in request.endpoint }}><a href="{{ url_for('index.index') }}"><i class="bx bx-home"></i> <span>Home</span></a></li>
         <li{{ ' class="active"' | safe if ".cv" in request.endpoint }}><a href="{{ url_for('index.cv') }}"><i class="bx bx-file-blank"></i> <span>Curriculum Vitae</span></a></li>
         <li{{ ' class="active"' | safe if ".contact" in request.endpoint }}><a href="{{ url_for('index.contact') }}"><i class="bx bx-envelope"></i> <span>Contact</span></a></li>
-        <li{{ ' class="active"' | safe if ".flightlog" in request.endpoint }}><a href="{{ url_for('drone.flightlog') }}"><b class="flaticon-drone-14"></b> <span>Flight log</span></a></li>
+        <li{{ ' class="active"' | safe if ".log" in request.endpoint }}><a href="{{ url_for('flights.log') }}"><b class="flaticon-drone-14"></b> <span>Flight log</span></a></li>
       </ul>
       <ul class="lower">
         {% if current_user %}

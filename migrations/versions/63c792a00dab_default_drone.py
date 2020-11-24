@@ -1,4 +1,4 @@
-"""Default drone
+"""Default flights
 
 Revision ID: 63c792a00dab
 Revises: 2655d07019c7

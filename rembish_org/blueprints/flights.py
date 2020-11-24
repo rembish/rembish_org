@@ -5,15 +5,21 @@ from ..libraries.database import db
 from ..libraries.geonames import geonames
 from ..libraries.globals import me
 from ..libraries.templating import with_template, with_json
-from ..models.drone import FlightLog, Takeoff
+from ..models.flight import FlightLog, Takeoff
 from ..models.world import Country
 
-root = Blueprint("drone", __name__)
+root = Blueprint("flights", __name__)
 
 
-@root.route("/flightlog")
+@root.route("/flights")
 @with_template
-def flightlog():
+def map():
+    pass
+
+
+@root.route("/flights/log")
+@with_template
+def log():
     flights = FlightLog.get_flights_for(me)
     stats = FlightLog.get_statistics_for(me)
 
@@ -23,44 +29,41 @@ def flightlog():
     }
 
 
-@root.route("/drones/<int:drone_id>")
+@root.route("/flights/<int:flight_id>")
 @with_template
-def drone(drone_id):
-    pass
+def show(flight_id):
+    flight = FlightLog.query.get_or_404(flight_id)
+    return {
+        "flight": flight,
+    }
 
 
-@root.route("/flight/<int:flight_id>")
+@root.route("/flights/new", methods=("GET", "POST"))
 @with_template
-def flight(flight_id):
-    pass
-
-
-@root.route("/flight/new", methods=("GET", "POST"))
-@with_template
-def new_flight():
+def new():
     form = FlightForm()
     if form.validate_on_submit():
-        flightlog = FlightLog()
+        flight = FlightLog()
         for _ in form.takeoffs:
-            flightlog.takeoffs.append(Takeoff())
-        form.populate_obj(flightlog)
+            flight.takeoffs.append(Takeoff())
+        form.populate_obj(flight)
 
-        code = geonames.get_code_by(flightlog.latitude, flightlog.longitude)
+        code = geonames.get_code_by(flight.latitude, flight.longitude)
         if code:
             country = Country.get_by(code)
-            flightlog.country = country
+            flight.country = country
 
-        db.session.add(flightlog)
+        db.session.add(flight)
         db.session.commit()
 
-        return redirect(url_for("drone.flightlog"))
+        return redirect(url_for("flights.log"))
 
     return {
         "form": form,
     }
 
 
-@root.route("/flight/takeoff", methods=("POST",))
+@root.route("/flights/takeoff", methods=("POST",))
 @with_json
 def takeoff():
     pass

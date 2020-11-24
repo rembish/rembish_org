@@ -57,7 +57,7 @@
 
             {% if current_user.has_role("administrator") %}
             <div class="row">
-                <a href="{{ url_for("drone.new_flight") }}">Register flight</a>
+                <a href="{{ url_for("flights.new") }}">Register flight</a>
             </div>
             {% endif %}
 
@@ -84,11 +84,11 @@
                             {% if flight.country_code %}
                                 <span class="flag-icon flag-icon-{{ flight.country_code | lower }}" title="{{ flight.country }}"></span>
                             {% endif %}
-                            <a href="{{ url_for("drone.flight", flight_id=flight.id) }}">{{ flight.location | default("Untitled") }}</a>
+                            <a href="{{ url_for("flights.show", flight_id=flight.id) }}">{{ flight.location | default("Untitled") }}</a>
                             {% if flight.description %}<br><small>{{ flight.description }}</small>{% endif %}
                         </td>
                         <td>
-                            <a href="{{ url_for("drone.drone", drone_id=flight.drone_id) }}">{{ flight.drone_name }}</a>
+                            <a href="{{ url_for("drones.show", drone_id=flight.drone_id) }}">{{ flight.drone_name }}</a>
                             {% if flight.distance %}<br><small>{{ flight.distance }} m</small>{% endif %}
                         </td>
                         <td>
