@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 
-{% block title %}Flight statistics - Alex Rembish{% endblock %}
+{% block title %}Drone statistics - Alex Rembish{% endblock %}
 
 {% block js %}
     <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ config['GOOGLE_API_KEY'] }}&libraries=places&language=en&callback=initMap"></script>
@@ -45,7 +45,7 @@
     <section class="flightlog">
         <div class="container">
             <div class="section-title">
-                <h2>Flight statistics</h2>
+                <h2>Drone statistics</h2>
             </div>
 
             <div class="row">
@@ -92,7 +92,7 @@
                 </div>
             </div>
 
-            <div id="map" style="height: 500px; margin-bottom: 10px;"></div>
+            <div id="map" style="height: 550px; margin-bottom: 10px;"></div>
         </div>
     </section>
 {% endblock %}
