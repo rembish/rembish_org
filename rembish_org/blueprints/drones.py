@@ -6,6 +6,12 @@ from ..models.drone import Drone
 root = Blueprint("drones", __name__)
 
 
+@root.route("/drones")
+@with_template
+def list():
+    pass
+
+
 @root.route("/drones/<int:drone_id>")
 @with_template
 def show(drone_id):

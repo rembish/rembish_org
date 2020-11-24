@@ -67,10 +67,13 @@ class FlightLog(db.Model):
             SELECT
                 COUNT(DISTINCT dfl.id) AS `flight_count`,
                 COUNT(DISTINCT dt.id) AS `takeoff_count`,
+                COUNT(DISTINCT dfl.place_id) AS `place_count`,
                 COUNT(DISTINCT dfl.country_id) AS `country_count`,
+                COUNT(DISTINCT d.id) AS `drone_count`,
                 SUM(dt.distance) AS `distance`,
                 MAX(dt.altitude) AS `altitude`,
-                SEC_TO_TIME(SUM(TIME_TO_SEC(TIMEDIFF(dt.finish, dt.start)))) AS `duration`
+                SEC_TO_TIME(SUM(TIME_TO_SEC(TIMEDIFF(dt.finish, dt.start)))) AS `duration`,
+                DATEDIFF(MAX(dfl.date), MIN(dfl.date)) AS `days`
             FROM drone_flight_log AS dfl
             JOIN drone_takeoffs AS dt ON dt.flight_id = dfl.id
             JOIN drones AS d ON d.id = dfl.drone_id

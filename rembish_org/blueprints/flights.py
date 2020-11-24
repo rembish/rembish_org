@@ -14,18 +14,19 @@ root = Blueprint("flights", __name__)
 @root.route("/flights")
 @with_template
 def map():
-    pass
+    stats = FlightLog.get_statistics_for(me)
+    return {
+        "stats": stats,
+    }
 
 
 @root.route("/flights/log")
 @with_template
 def log():
     flights = FlightLog.get_flights_for(me)
-    stats = FlightLog.get_statistics_for(me)
 
     return {
         "flights": flights,
-        "stats": stats,
     }
 
 
@@ -67,3 +68,20 @@ def new():
 @with_json
 def takeoff():
     pass
+
+
+@root.route("/flights/places")
+@with_json
+def places():
+    flights = FlightLog.get_flights_for(me)
+    spots = []
+    for flight in flights:
+        spot = {
+            "location": flight["location"],
+            "latitude": float(flight["latitude"]),
+            "longitude": float(flight["longitude"]),
+        }
+        spots.append(spot)
+    return {
+        "places": spots,
+    }

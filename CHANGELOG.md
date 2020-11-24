@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Changed
 - Flights and drones are splat into two different modules
+- Moving flight statistics to flight map page
+
+### Added
+- Flight map
+- Extended flight stats
 
 ## [0.6.4] - 2020-11-23
 ### Fixed
