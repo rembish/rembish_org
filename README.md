@@ -16,7 +16,7 @@ curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.37.1/install.sh | bash
 ```bash
 nvm install node
 ```
-4. Install node modules
+4. Install `node` modules
 ```bash
 npm install
 ```
@@ -36,7 +36,7 @@ poetry install
 ```bash
 make devssl
 ```
-9. Create a `secrets` file (see further instructions in it's comments):
+9. Create a `secrets` file (see further instructions in the example comments):
 ```bash
 cp secrets.example secrets
 vi secrets
@@ -48,23 +48,33 @@ poetry run docker-compose up database
 11. Apply database migrations (or restore a dump if you have one)
 ```bash
 poetry run flask db upgrade
+# or if dump
+cat dump.sql | poetry run docker-compose exec -T database mysql -p<root-password> rembish_org
+```
+12. Check if you have the right `localhost` alias:
+```bash
+sudo vi /etc/hosts
+# Add dev.rembish.org to 127.0.0.1
 ```
 
 ## Starting dev environment
 1. Using `flask` WSGI server:
 ```bash
 env $(cat secrets | xargs) poetry run flask run
+# Server will be spawned on https://dev.rembish.org:5000
 ```
 2. Using `docker`:
 ```bash
 poetry run docker-compose up
+# Server will be started on standard HTTPS port: https://dev.rembish.org
 ```
 
 ## Contributing and deploying
-1. Don't forget about `CHANGELOG.md`
+1. Don't forget to add your changes to `CHANGELOG.md`
 2. To deploy new version:
    - increase version: `poetry run flask version -i [patch|minor|major]`
    - commit changes: `git commit -m "Release X.Y.Z`
    - tag 'em: `git tag vX.Y.Z`
    - and push: `git push --tags origin main`
 3. Github Actions will deploy the application automatically
+4. Check it on https://rembish.org
