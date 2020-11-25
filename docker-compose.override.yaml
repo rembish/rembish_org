@@ -34,7 +34,7 @@ services:
       - database
 
   database:
-    image: mariadb:latest
+    image: mysql:latest
     ports:
       - "3306:3306"
     volumes:
@@ -44,6 +44,7 @@ services:
       MYSQL_DATABASE: rembish_org
       MYSQL_USER: alex
       MYSQL_PASSWORD: 3V1fgJe8Ss0rZiiGkA0R
+    command: mysqld --sql_mode="STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION" --character-set-server=UTF8MB4 --collation-server=utf8mb4_unicode_ci --init-connect='SET NAMES UTF8;' --innodb-flush-log-at-trx-commit=0
 
 volumes:
   db-data:
