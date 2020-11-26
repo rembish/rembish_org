@@ -12,6 +12,28 @@
             mapTypeId: "roadmap",
         });
 
+        const icons = [
+            {}, // No drones with ID = 0
+            {
+                path: google.maps.SymbolPath.CIRCLE,
+                fillColor: '#0563bb',
+                fillOpacity: 0.6,
+                strokeColor: '#00A',
+                strokeOpacity: 0.9,
+                strokeWeight: 1,
+                scale: 4
+            },
+            {
+                path: google.maps.SymbolPath.CIRCLE,
+                fillColor: '#05bb63',
+                fillOpacity: 0.6,
+                strokeColor: '#0A0',
+                strokeOpacity: 0.9,
+                strokeWeight: 1,
+                scale: 4
+            }
+        ]
+
         $.ajax("{{ url_for('flights.places') }}").done(function (data, textStatus, jqXHR) {
             const bounds = new google.maps.LatLngBounds();
 
@@ -22,15 +44,7 @@
                     map,
                     title: place.location,
                     position: position,
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        fillColor: '#0563bb',
-                        fillOpacity: 0.6,
-                        strokeColor: '#00A',
-                        strokeOpacity: 0.9,
-                        strokeWeight: 1,
-                        scale: 4
-                    }
+                    icon: icons[place.drone_id]
                 });
                 bounds.extend(position);
             }
