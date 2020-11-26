@@ -2,7 +2,7 @@ from datetime import date, timedelta
 
 from flask_wtf import FlaskForm
 from wtforms import DateField, StringField, TextAreaField, Form, TimeField, FieldList, \
-    FormField, SubmitField, SelectMultipleField, HiddenField
+    FormField, SubmitField, SelectMultipleField, HiddenField, BooleanField
 from wtforms.fields.html5 import IntegerField, DecimalField
 from wtforms.validators import DataRequired, Optional
 from wtforms.widgets import HiddenInput
@@ -34,5 +34,6 @@ class FlightForm(FlaskForm):
     activity = StringField(label="Activity", validators=[Optional(strip_whitespace=True)])
     description = TextAreaField(label="Additional information", validators=[Optional(strip_whitespace=True)])
     takeoffs = FieldList(FormField(TakeoffForm), min_entries=1)
+    private = BooleanField(label="Is private?", default=False)
     register = SubmitField(label="Register")
 

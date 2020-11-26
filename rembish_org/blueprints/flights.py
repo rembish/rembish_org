@@ -1,4 +1,5 @@
 from flask import Blueprint, redirect, url_for
+from flask_login import current_user
 
 from ..forms.flight import FlightForm
 from ..libraries.database import db
@@ -23,7 +24,7 @@ def map():
 @root.route("/flights/log")
 @with_template
 def log():
-    flights = FlightLog.get_flights_for(me)
+    flights = FlightLog.get_flights_for(me, private=current_user == me)
 
     return {
         "flights": flights,
@@ -73,13 +74,14 @@ def takeoff():
 @root.route("/flights/places")
 @with_json
 def places():
-    flights = FlightLog.get_flights_for(me)
+    flights = FlightLog.get_flights_for(me, private=current_user == me)
     spots = []
     for flight in flights:
         spot = {
             "location": flight["location"],
             "latitude": float(flight["latitude"]),
             "longitude": float(flight["longitude"]),
+            "drone_id": flight["drone_id"],
         }
         spots.append(spot)
     return {

@@ -9,6 +9,7 @@ class FlightLog(db.Model):
     __tablename__ = "drone_flight_log"
 
     id = db.Column(db.Integer, primary_key=True)
+    private = db.Column(db.Boolean, default=False)
 
     drone_id = db.Column(db.SmallInteger, db.ForeignKey(Drone.id), nullable=False)
     drone = db.relationship(Drone)
@@ -32,7 +33,7 @@ class FlightLog(db.Model):
     description = db.Column(db.String(length=200))
 
     @classmethod
-    def get_flights_for(cls, user):
+    def get_flights_for(cls, user, private=False):
         result = []
         for flight in db.session.execute("""
             SELECT 
@@ -51,10 +52,10 @@ class FlightLog(db.Model):
             JOIN drone_vendors AS dv ON dv.id = dm.vendor_id
             JOIN countries AS c ON c.id = dfl.country_id
             WHERE
-                d.owner_id = :owner_id
+                d.owner_id = :owner_id AND dfl.private IN (0, :private)
             GROUP BY dt.flight_id
             ORDER BY dfl.date DESC, dt.start DESC
-        """, {"owner_id": user.id}):
+        """, {"owner_id": user.id, "private": int(private)}):
             row = dict(flight)
             row["type"] = row["type"].split(",") if row["type"] else []
             result.append(row)

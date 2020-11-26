@@ -30,7 +30,7 @@
                 </thead>
                 <tbody>
                 {% for flight in flights %}
-                    <tr>
+                    <tr {% if flight.private %}class="table-secondary"{% endif %}>
                         <th scope="row">{{ loop.index }}</th>
                         <td class="text-nowrap">
                             {{ flight.date.strftime("%d.%m.%Y") }}<br>
@@ -52,7 +52,7 @@
                             {% if flight.landing_count > 1 %}<br><small>{{ flight.landing_count }} take-offs</small>{% endif %}
                         </td>
                         <td class="text-nowrap">
-                            {{ flight.type | join(" / ") | capitalize }}
+                            {{ flight.type | join(" / ") | title }}
                             {% if flight.activity %}<br><small>{{ flight.activity }}</small>{% endif %}
                         </td>
                     </tr>
