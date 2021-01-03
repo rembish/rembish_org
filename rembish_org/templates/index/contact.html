@@ -2,6 +2,41 @@
 
 {% block title %}Contact | Alex Rembish{% endblock %}
 
+{% block js %}
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ config['GOOGLE_API_KEY'] }}&libraries=places&language=en&callback=initMap"></script>
+    <script>
+    let map;
+    function initMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: {lat: 50.08804, lng: 14.42076},  // Default position is Prague
+            zoom: 13,
+            mapTypeId: "roadmap",
+        });
+        codeAddress($("#address").text());
+    }
+
+    function codeAddress(address) {
+        geocoder = new google.maps.Geocoder();
+        geocoder.geocode({
+            'address': address
+        }, function(results, status) {
+            if (status === google.maps.GeocoderStatus.OK) {
+                const location = results[0].geometry.location;
+                const marker = new google.maps.Marker({
+                    map: map,
+                    position: location
+                });
+
+                const bounds = new google.maps.LatLngBounds();
+                bounds.extend(location);
+                map.fitBounds(bounds);
+                map.setZoom(15);
+            }
+        });
+    }
+    </script>
+{% endblock %}
+
 {% block main %}
     <!-- ======= Contact Section ======= -->
     <section id="contact" class="contact">
@@ -10,9 +45,7 @@
                 <h2>Contact</h2>
             </div>
 
-            <div>
-                <iframe class="map" src="https://frame.mapy.cz/s/{{ config.CONTACTS_MAP_CODE }}"></iframe>
-            </div>
+            <div id="map" style="height: 300px"></div>
 
             <div class="row mt-1">
                 <div class="col-lg-4">
@@ -20,7 +53,7 @@
                         <div class="address">
                             <i class="icofont icofont-google-map"></i>
                             <h4>Location: <a class="icofont icofont-briefcase badge badge-light float-right" href="{{ static_url('files/alex-rembish.vcf') }}"> vCard</a></h4>
-                            <p>Hornokrčská 706/9, 140 00 Praha 4 - Krč, Czech Republic</p>
+                            <p id="address">Hornokrčská 706/9, 140 00 Praha 4 - Krč, Czech Republic</p>
                         </div>
 
                         <div class="email">

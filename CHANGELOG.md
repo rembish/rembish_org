@@ -5,21 +5,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- Mapy.cz was replaced by Google Maps on Contacts page
 
 ## [0.7.4] - 2020-12-07
-## Changed
+### Changed
 - Address changed after moving
 - I'm ending to work at Seznam
 
 ## [0.7.3] - 2020-11-26
-## Changed
+### Changed
 - Different colors for different drones on map
 
 ## [0.7.2] - 2020-11-26
-## Added
+### Added
 - Private flights
 
-## Changed
+### Changed
 - Moved back to MySQL, because Digital Ocean provides it as a service
 
 ## [0.7.1] - 2020-11-24
