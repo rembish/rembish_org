@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Mapy.cz was replaced by Google Maps on Contacts page
 
+### Added
+- New work: Shoptet!
+
 ## [0.7.4] - 2020-12-07
 ### Changed
 - Address changed after moving

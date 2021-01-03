@@ -5,17 +5,17 @@ N:Rembish;Alex;;;
 GENDER:M
 BDAY:19850512
 EMAIL;type=HOME,INTERNET:alex@rembish.org
-EMAIL;type=WORK,INTERNET:aleksey.rembish@firma.seznam.cz
+EMAIL;type=WORK,INTERNET:alex.rembish@shoptet.cz
 KEY;PGP:https://rembish.org/static/files/alex-rembish.asc
 TEL;TYPE=CELL:+420775054554
 ADR;TYPE=HOME:;;Hornokrčská 706/9;Prague;;14000;Czech Republic
-ADR;CHARSET=UTF-8;TYPE=WORK:;;Radlická 3294/10;Prague;;15000;Czech Republic
-TITLE:Head of Development
+ADR;CHARSET=UTF-8;TYPE=WORK:;;Rohanské nábřeží 670/17;Prague;;18600;Czech Republic
+TITLE:Software Achitect
 ROLE:Programmer
-ORG:Seznam.cz a.s.
+ORG:Shoptet, a.s.
 URL:https://rembish.org
-URL;type=WORK:https://seznam.cz
+URL;type=WORK:https://shoptet.cz
 TZ:Europe/Prague
 SOURCE:https://rembish.org/static/files/alex-rembish.vcf
-REV:2020-10-16T16:04:57.231Z
+REV:2021-01-03T10:22:00.000Z
 END:VCARD
