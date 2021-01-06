@@ -5,7 +5,7 @@ N:Rembish;Alex;;;
 GENDER:M
 BDAY:19850512
 EMAIL;type=HOME,INTERNET:alex@rembish.org
-EMAIL;type=WORK,INTERNET:alex.rembish@shoptet.cz
+EMAIL;type=WORK,INTERNET:rembish@shoptet.cz
 KEY;PGP:https://rembish.org/static/files/alex-rembish.asc
 TEL;TYPE=CELL:+420775054554
 ADR;TYPE=HOME:;;Hornokrčská 706/9;Prague;;14000;Czech Republic
@@ -17,5 +17,5 @@ URL:https://rembish.org
 URL;type=WORK:https://shoptet.cz
 TZ:Europe/Prague
 SOURCE:https://rembish.org/static/files/alex-rembish.vcf
-REV:2021-01-03T10:22:00.000Z
+REV:2021-01-06T11:40:00.000Z
 END:VCARD
