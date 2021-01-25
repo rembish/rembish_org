@@ -33,3 +33,19 @@ class Country(db.Model):
         db.session.add(instance)
         db.session.commit()
         return instance
+
+
+class Settlement(db.Model):
+    __tablename__ = "settlements"
+
+    id = db.Column(db.Integer, primary_key=True)
+    place_id = db.Column(db.String(length=50), unique=True)
+    geoname_id = db.Column(db.Integer, nullable=False)
+
+    country_id = db.Column(db.SmallInteger, db.ForeignKey(Country.id), nullable=False)
+    country = db.relationship(Country)
+
+    name = db.Column(db.String(255), nullable=False)
+
+    latitude = db.Column(db.Numeric(10, 8), nullable=False)
+    longitude = db.Column(db.Numeric(11, 8), nullable=False)

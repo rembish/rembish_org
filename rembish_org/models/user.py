@@ -8,6 +8,8 @@ class User(UserMixin, db.Model):
     __tablename__ = "users"
 
     id = db.Column(db.SmallInteger, primary_key=True)
+    name = db.Column(db.String(255), nullable=True)
+    surname = db.Column(db.String(255), nullable=True)
     email = db.Column(db.String(255), unique=True)
     password = db.Column(db.String(255))
     active = db.Column(db.Boolean())

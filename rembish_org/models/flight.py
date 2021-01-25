@@ -1,6 +1,7 @@
 from sqlalchemy.dialects import mysql
 
 from .drone import Drone
+from .trip import Trip
 from .world import Country
 from ..libraries.database import db
 
@@ -16,6 +17,9 @@ class FlightLog(db.Model):
 
     country_id = db.Column(db.SmallInteger, db.ForeignKey(Country.id))
     country = db.relationship(Country)
+
+    trip_id = db.Column(db.Integer, db.ForeignKey(Trip.id), nullable=True)
+    trip = db.relationship(Trip)
 
     date = db.Column(db.Date, nullable=False, server_default=db.text("NOW()"))
     in_air = db.Column(db.Boolean, default=False)
