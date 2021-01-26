@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+
+{% block title %}Travel map - Alex Rembish{% endblock %}
+
+{% block js %}
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ config['GOOGLE_API_KEY'] }}&libraries=places&language=en&callback=initMap"></script>
+    <script>
+    function initMap() {
+        const map = new google.maps.Map(document.getElementById("map"), {
+            center: {lat: 50.08804, lng: 14.42076},  // Default position is Prague
+            zoom: 13,
+            mapTypeId: "roadmap",
+        });
+    }
+    </script>
+{% endblock %}
+
+{% block main %}
+    <section class="travelmap">
+        <div class="container">
+            <div class="section-title">
+                <h2>Travel map</h2>
+            </div>
+
+            <div class="row">
+                <div class="col-4">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="{{ url_for("trips.index") }}">Total trips</a> <span class="badge badge-primary badge-pill">TBD</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div id="map" style="height: 550px; margin-bottom: 10px;"></div>
+        </div>
+    </section>
+{% endblock %}

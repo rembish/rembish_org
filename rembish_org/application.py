@@ -27,6 +27,7 @@ def create_app():
     if migrate:
         migrate.init_app(app, db=db)
     security.init_app(app, datastore=datastore, anonymous_user=Guest, register_blueprint=False)
+    app.login_manager.login_view = "google.login"
 
     geonames.init_app(app)
     telegram.init_app(app)

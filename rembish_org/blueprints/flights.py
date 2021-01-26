@@ -1,5 +1,5 @@
 from flask import Blueprint, redirect, url_for
-from flask_login import current_user
+from flask_login import current_user, login_required
 
 from ..forms.flight import FlightForm
 from ..libraries.database import db
@@ -41,6 +41,7 @@ def show(flight_id):
 
 
 @root.route("/flights/new", methods=("GET", "POST"))
+@login_required
 @with_template
 def new():
     form = FlightForm()

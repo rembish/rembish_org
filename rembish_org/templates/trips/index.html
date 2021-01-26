@@ -1,28 +1,32 @@
 {% extends "layout.html" %}
 
-{% block title %}Travel map - Alex Rembish{% endblock %}
-
-{% block js %}
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ config['GOOGLE_API_KEY'] }}&libraries=places&language=en&callback=initMap"></script>
-    <script>
-    function initMap() {
-        const map = new google.maps.Map(document.getElementById("map"), {
-            center: {lat: 50.08804, lng: 14.42076},  // Default position is Prague
-            zoom: 13,
-            mapTypeId: "roadmap",
-        });
-    }
-    </script>
-{% endblock %}
+{% block title %}Trips index - Alex Rembish{% endblock %}
 
 {% block main %}
-    <section class="travelmap">
+    <section class="trips">
         <div class="container">
             <div class="section-title">
-                <h2>Travel map</h2>
+                <h2>Trips index</h2>
             </div>
 
-            <div id="map" style="height: 550px; margin-bottom: 10px;"></div>
+            {% if current_user.has_role("administrator") %}
+                <p class="text-right"><a href="{{ url_for("trips.add") }}" class="btn btn-primary btn-lg" role="button">Add a new trip</a></p>
+            {% endif %}
+
+            <div class="table-responsive"><table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th scope="col">#</th>
+                        <th scope="col">Dates</th>
+                        <th scope="col">Companions</th>
+                        <th scope="col">Countries</th>
+                        <th scope="col">Settlements</th>
+                        <th scope="col">Type</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table></div>
         </div>
     </section>
 {% endblock %}

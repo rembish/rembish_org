@@ -20,6 +20,7 @@ trip_companions = db.Table(
     "trip_companions",
     db.Column("trip_id", db.Integer(), db.ForeignKey(Trip.id)),
     db.Column("companion_id", db.SmallInteger(), db.ForeignKey("users.id")),
+    db.Column("partial", db.Boolean(), default=False),
     PrimaryKeyConstraint("trip_id", "companion_id")
 )
 
