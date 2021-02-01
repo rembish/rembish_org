@@ -40,6 +40,55 @@
                     </div>
                     <div class="form-group col-3">{{ form.type(class_="form-control selectpicker") }}</div>
                 </div>
+                <div class="form-row">
+                    <div class="form-group col">Companion</div>
+                    <div class="form-group col-1">Partial?</div>
+                    <div class="form-group col-1">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-dark dropdown-toggle" type="button" id="companion-add" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <span class="icofont icofont-plus"></span>
+                            </button>
+                            <div class="dropdown-menu" aria-labelledby="companion-add">
+                                <a class="dropdown-item" href="#">Known</a>
+                                <a class="dropdown-item" href="#">New</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="companions">
+                    <div class="form-row">
+                        <div class=""></div>
+                    </div>
+
+                {% for companion in form.companions %}
+
+                {% endfor %}
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-2">Date</div>
+                    <div class="form-group col">Settlement</div>
+                    <div class="form-group col-1">Slightly?</div>
+                    <div class="form-group col-1"><button class="btn btn-outline-dark" id="settlement-add"><span class="icofont icofont-plus"></span></button></div>
+                </div>
+
+                <div id="settlements">
+                    <div class="form-row"></div>
+
+                {% for row in form.settlements %}
+                    <div class="form-row">
+                        <div class="form-group col-2">
+                            <div class="input-group date" data-provide="datepicker" data-date-format="dd.mm.yyyy" data-date-week-start="1">
+                                {{ row.date(class_="form-control") }}
+                                <div class="input-group-append">
+                                    <div class="input-group-text"><span class="icofont icofont-calendar"></span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group col">{{ row.settlement(class_="form-control", placeholder=row.settlement.label.text) }}</div>
+                    </div>
+                {% endfor %}
+                </div>
             </form>
         </div>
     </section>

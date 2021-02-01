@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 
 from flask_wtf import FlaskForm
 from wtforms import DateField, StringField, TextAreaField, Form, TimeField, FieldList, \

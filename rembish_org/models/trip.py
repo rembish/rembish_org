@@ -1,6 +1,7 @@
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy.dialects import mysql
 
+from .user import User
 from ..libraries.database import db
 
 
@@ -8,6 +9,7 @@ class Trip(db.Model):
     __tablename__ = "trips"
 
     id = db.Column(db.Integer, primary_key=True)
+    traveler_id = db.Column(db.SmallInteger, db.ForeignKey(User.id), nullable=False)
 
     start_date = db.Column(db.Date, nullable=False, unique=True)
     finish_date = db.Column(db.Date, nullable=True)
