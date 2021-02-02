@@ -18,8 +18,22 @@ class User(UserMixin, db.Model):
         Role, secondary=roles_users, backref=db.backref("users", lazy="dynamic")
     )
 
+    @property
+    def fullname(self):
+        return f"{self.name} {self.surname}"
+
+    @property
+    def initials(self):
+        if not self.surname:
+            return self.name[0].upper()
+        return f"{self.name[0]}{self.surname[0]}".upper()
+
     def __repr__(self):
         return f"<{self.__class__.__name__}#{self.id}: {self.email}>"
+
+    @classmethod
+    def get_all_but(cls, me):
+        return cls.query.filter(User.id != me.id)
 
 
 class Guest(AnonymousUser):

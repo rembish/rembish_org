@@ -5,11 +5,40 @@
 {% block css %}
     <link href="{{ static_url('vendor/bootstrap-datepicker/css/bootstrap-datepicker3.min.css') }}" rel="stylesheet">
     <link href="{{ static_url('vendor/bootstrap-select/css/bootstrap-select.min.css') }}" rel="stylesheet">
+    <style>
+        #companions label {
+            margin-left: 5px;
+        }
+    </style>
 {% endblock %}
 
 {% block js %}
     <script src="{{ static_url('vendor/bootstrap-datepicker/js/bootstrap-datepicker.min.js') }}"></script>
-  <script src="{{ static_url('vendor/bootstrap-select/js/bootstrap-select.min.js') }}"></script>
+    <script src="{{ static_url('vendor/bootstrap-select/js/bootstrap-select.min.js') }}"></script>
+    <script>
+        $(document).ready(() => {
+            $(".btn-group-toggle input").change((e) => {
+                $(e.currentTarget).parent().toggleClass("btn-secondary").toggleClass("btn-primary");
+            });
+
+            $("#companion_ids").on('changed.bs.select', (e, clickedIndex, isSelected, previousValue) => {
+                const selected = $("option:eq(" + clickedIndex + ")", $("#companion_ids"));
+                console.log(selected.html());
+                const index = selected.val();
+                const ns = selected.html().split(" ").map((n) => n[0]).join("");
+
+                if (isSelected) {
+                    let label = $("#companions>label:first").clone(true, true);
+                    $("input:eq(0)", label).prop("id", "companions-" + index).prop("name", "companions-" + index);
+                    $("span:eq(0)", label).html(ns);
+                    label.removeClass("d-none");
+                    $(label).insertAfter("#companions>label:last");
+                } else {
+                    $("#companions-" + index).parent().remove();
+                }
+            });
+        });
+    </script>
 {% endblock %}
 
 {% block main %}
@@ -41,28 +70,22 @@
                     <div class="form-group col-3">{{ form.type(class_="form-control selectpicker") }}</div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group col">Companion</div>
-                    <div class="form-group col-1">Partial?</div>
-                    <div class="form-group col-1">
-                        <div class="dropdown">
-                            <button class="btn btn-outline-dark dropdown-toggle" type="button" id="companion-add" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <span class="icofont icofont-plus"></span>
-                            </button>
-                            <div class="dropdown-menu" aria-labelledby="companion-add">
-                                <a class="dropdown-item" href="#">Known</a>
-                                <a class="dropdown-item" href="#">New</a>
-                            </div>
+                    <div class="form-group col-4">
+                        {{ form.companion_ids(class_="form-control selectpicker", data_none_selected_text="Companions", data_selected_text_format="static", data_live_search="true") }}
+                    </div>
+                    <div class="form-group col">
+                        <div class="btn-group-toggle" data-toggle="buttons" id="companions">
+                          <label class="btn btn-primary active d-none">
+                            <input type="checkbox" checked autocomplete="off"> <span></span>
+                          </label>
+                        {% for sub in form.companions %}
+                          <label class="btn btn-{{ "primary active" if sub.full.data else "secondary" }}">
+                            <input type="checkbox" autocomplete="off"{{ " checked" if sub.full.data }} name="companions-{{ sub.user_id.data }}" id="companions-{{ sub.user_id.data }}">
+                            <span>{{ sub.user.initials }}</span>
+                          </label>
+                        {% endfor %}
                         </div>
                     </div>
-                </div>
-                <div id="companions">
-                    <div class="form-row">
-                        <div class=""></div>
-                    </div>
-
-                {% for companion in form.companions %}
-
-                {% endfor %}
                 </div>
 
                 <div class="form-row">
@@ -89,6 +112,8 @@
                     </div>
                 {% endfor %}
                 </div>
+
+                {{ form.add(class_="form-control") }}
             </form>
         </div>
     </section>
