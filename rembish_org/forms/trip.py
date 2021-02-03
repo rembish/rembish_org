@@ -4,14 +4,14 @@ from flask_wtf import FlaskForm
 from wtforms import DateField, SelectMultipleField, Form, StringField, BooleanField, FieldList, FormField, HiddenField, \
     SubmitField
 
-from ..libraries.forms import LazySelectField, LazySelectMultipleField
+from ..libraries.forms import LazySelectMultipleField
 from ..libraries.globals import me
 from ..models.user import User
 
 
 class CompanionForm(Form):
     user_id = HiddenField()
-    full = BooleanField(label="Partial", default=False)
+    full = BooleanField(default=False)
 
     @cached_property
     def user(self):
@@ -21,7 +21,8 @@ class CompanionForm(Form):
 class SettlementForm(Form):
     date = DateField(label="Day", format="%d.%m.%Y")
     settlement = StringField(label="Settlement")
-    slightly = BooleanField(label="Slightly", default=False)
+    json = HiddenField()
+    slightly = BooleanField(default=False)
 
 
 class TripForm(FlaskForm):

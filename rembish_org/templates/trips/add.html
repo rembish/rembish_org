@@ -15,7 +15,65 @@
 {% block js %}
     <script src="{{ static_url('vendor/bootstrap-datepicker/js/bootstrap-datepicker.min.js') }}"></script>
     <script src="{{ static_url('vendor/bootstrap-select/js/bootstrap-select.min.js') }}"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ config['GOOGLE_API_KEY'] }}&libraries=places&language=en&callback=initMap"></script>
+
     <script>
+        function initMap() {
+            const map = new google.maps.Map(document.getElementById("map"), {
+                center: {lat: 50.08804, lng: 14.42076},  // Default position is Prague
+                zoom: 13,
+                mapTypeId: "roadmap",
+            });
+
+            const settlementInput = document.getElementById("settlement");
+            const settlement = $(settlementInput);
+            const searchBox = new google.maps.places.SearchBox(settlementInput);
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position => {
+                    const latitude  = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+                    map.setCenter(new google.maps.LatLng(latitude, longitude));
+                }));
+            }
+
+            map.addListener("bounds_changed", () => {
+                searchBox.setBounds(map.getBounds());
+            });
+
+            searchBox.addListener("places_changed", () => {
+                const places = searchBox.getPlaces();
+                if (places.length === 0 || !places[0].geometry) {
+                    return;
+                }
+                settlement.removeClass("is-invalid");
+
+                const place = places[0];
+                if (!place.types.includes("locality")) {
+                    settlement.addClass("is-invalid");
+                    return;
+                }
+
+                let iso = null;
+                for (const component of place.address_components) {
+                    if (component.types.includes("country")) {
+                        iso = component.short_name;
+                    }
+                }
+
+                const data = {
+                    name: place.name,
+                    country_code: iso,
+                    location: [place.geometry.location.lat(), place.geometry.location.lng()],
+                    id: place.place_id
+                }
+
+                const index = parseInt(settlement.data("index"));
+                $("#settlements-" + index + "-json").val(JSON.stringify(data));
+            });
+        }
+
+        let settlements = 0;
         $(document).ready(() => {
             $(".btn-group-toggle input").change((e) => {
                 $(e.currentTarget).parent().toggleClass("btn-secondary").toggleClass("btn-primary");
@@ -37,6 +95,18 @@
                     $("#companions-" + index).parent().remove();
                 }
             });
+
+            $("#settlement-add").click(() => {
+                settlements++;
+                let div = $("#settlements>div:first").clone(true, true);
+                $("input", div).each((i, element) => {
+                    $(element).prop("id", $(element).prop("id").replace("--", "-" + takeoffs + "-"));
+                    $(element).prop("name", $(element).prop("id"));
+                });
+                div.removeClass("d-none");
+                $(div).insertAfter("#takeoffs>div:last");
+                return false;
+            });
         });
     </script>
 {% endblock %}
@@ -53,7 +123,7 @@
                 <div class="form-row">
                     <div class="form-group col-2">
                         <div class="input-group date" data-provide="datepicker" data-date-format="dd.mm.yyyy" data-date-week-start="1">
-                            {{ form.start_date(class_="form-control") }}
+                            {{ form.start_date(class_="form-control", placeholder="From") }}
                             <div class="input-group-append">
                                 <div class="input-group-text"><span class="icofont icofont-calendar"></span></div>
                             </div>
@@ -61,7 +131,7 @@
                     </div>
                     <div class="form-group col-2">
                         <div class="input-group date" data-provide="datepicker" data-date-format="dd.mm.yyyy" data-date-week-start="1">
-                            {{ form.finish_date(class_="form-control") }}
+                            {{ form.finish_date(class_="form-control", placeholder="To") }}
                             <div class="input-group-append">
                                 <div class="input-group-text"><span class="icofont icofont-calendar"></span></div>
                             </div>
@@ -88,6 +158,8 @@
                     </div>
                 </div>
 
+                <div id="map" style="height: 300px; margin-bottom: 10px;"></div>
+
                 <div class="form-row">
                     <div class="form-group col-2">Date</div>
                     <div class="form-group col">Settlement</div>
@@ -96,19 +168,36 @@
                 </div>
 
                 <div id="settlements">
-                    <div class="form-row"></div>
-
+                    <div class="form-row d-none">
+                        <div class="form-group col-2">
+                            <div class="input-group date" data-provide="datepicker" data-date-format="dd.mm.yyyy" data-date-week-start="1" data-date-clear-btn="true">
+                                <input class="form-control" id="settlements--date" placeholder="Optional" type="text" value="">
+                                <div class="input-group-append"><div class="input-group-text"><span class="icofont icofont-calendar"></span></div></div>
+                            </div>
+                        </div>
+                        <div class="form-group col">
+                            <input class="form-control pac-target-input" data-index="" id="settlement-dummy" placeholder="" type="text" value="" autocomplete="off">
+                            <div class="invalid-feedback">Not a settlement</div>
+                            <input id="settlements--json" type="hidden" value="">
+                        </div>
+                        <div class="form-group col-1"><input class="form-control" id="settlements--slightly" type="checkbox" value="y"></div>
+                        <div class="form-group col-1"><button class="btn btn-outline-danger settlement-delete"><span class="icofont icofont-trash"></span></button></div>
+                    </div>
                 {% for row in form.settlements %}
                     <div class="form-row">
                         <div class="form-group col-2">
-                            <div class="input-group date" data-provide="datepicker" data-date-format="dd.mm.yyyy" data-date-week-start="1">
-                                {{ row.date(class_="form-control") }}
-                                <div class="input-group-append">
-                                    <div class="input-group-text"><span class="icofont icofont-calendar"></span></div>
-                                </div>
+                            <div class="input-group date" data-provide="datepicker" data-date-format="dd.mm.yyyy" data-date-week-start="1" data-date-clear-btn="true">
+                                {{ row.date(class_="form-control", placeholder="Optional") }}
+                                <div class="input-group-append"><div class="input-group-text"><span class="icofont icofont-calendar"></span></div></div>
                             </div>
                         </div>
-                        <div class="form-group col">{{ row.settlement(class_="form-control", placeholder=row.settlement.label.text) }}</div>
+                        <div class="form-group col">
+                            {{ row.settlement(class_="form-control", placeholder=row.settlement.label.name, id="settlement", data_index=loop.index0) }}
+                            <div class="invalid-feedback">Not a settlement</div>
+                            {{ row.json }}
+                        </div>
+                        <div class="form-group col-1">{{ row.slightly(class_="form-control") }}</div>
+                        <div class="form-group col-1"><button class="btn btn-outline-danger settlement-delete"><span class="icofont icofont-trash"></span></button></div>
                     </div>
                 {% endfor %}
                 </div>
