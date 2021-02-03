@@ -44,7 +44,10 @@ def add():
             data[f"companions-{i}-user_id"] = user_id
             i += 1
 
+    print(data)
+
     form = TripForm(formdata=data)
+    print(form.data)
     if form.validate_on_submit():
         pass
 

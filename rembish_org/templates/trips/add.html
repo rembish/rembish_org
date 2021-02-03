@@ -69,11 +69,10 @@
                 }
 
                 const index = parseInt(settlement.data("index"));
-                $("#settlements-" + index + "-json").val(JSON.stringify(data));
+                $("#json").val(JSON.stringify(data));
             });
         }
 
-        let settlements = 0;
         $(document).ready(() => {
             $(".btn-group-toggle input").change((e) => {
                 $(e.currentTarget).parent().toggleClass("btn-secondary").toggleClass("btn-primary");
@@ -96,15 +95,49 @@
                 }
             });
 
+            $(".settlement-delete").click(function() {
+                $(this).closest(".form-row").remove();
+                return false;
+            });
+
             $("#settlement-add").click(() => {
-                settlements++;
+                let button = $("#settlement-add");
+                button.prop('disabled', true);
+
+                const settlement = $("#settlement");
+                let index = parseInt(settlement.data("index"));
+                const json = $("#json");
+
+                if (settlement.hasClass("is-invalid") || !json.val()) {
+                    button.prop('disabled', false);
+                    return false;
+                }
+
+                let row = $(this).closest(".form-row");
                 let div = $("#settlements>div:first").clone(true, true);
                 $("input", div).each((i, element) => {
-                    $(element).prop("id", $(element).prop("id").replace("--", "-" + takeoffs + "-"));
-                    $(element).prop("name", $(element).prop("id"));
+                    const old_id = $(element).prop("id").replace("--", "-" + index + "-");
+                    const new_id = $(element).prop("id").replace("--", "-" + (index + 1) + "-");
+
+                    const old = $("input[name='" + old_id + "']");
+                    const value = old.val();
+                    old.prop("name", new_id);
+
+                    $(element).prop("id", old_id).prop("name", old_id).val(value);
+
+                    if (old.prop("checked")) {
+                        $(element).prop("checked", old.prop("checked"));
+                    }
                 });
                 div.removeClass("d-none");
-                $(div).insertAfter("#takeoffs>div:last");
+                $(div).insertAfter("#settlements>div:first");
+
+                index++;
+                settlement.val("").removeClass("is-invalid").data("index", index);
+                json.val("");
+                $("#slightly").prop("checked", false);
+                button.prop("disabled", false);
+
                 return false;
             });
         });
@@ -164,7 +197,7 @@
                     <div class="form-group col-2">Date</div>
                     <div class="form-group col">Settlement</div>
                     <div class="form-group col-1">Slightly?</div>
-                    <div class="form-group col-1"><button class="btn btn-outline-dark" id="settlement-add"><span class="icofont icofont-plus"></span></button></div>
+                    <div class="form-group col-1">&nbsp;</div>
                 </div>
 
                 <div id="settlements">
@@ -176,8 +209,7 @@
                             </div>
                         </div>
                         <div class="form-group col">
-                            <input class="form-control pac-target-input" data-index="" id="settlement-dummy" placeholder="" type="text" value="" autocomplete="off">
-                            <div class="invalid-feedback">Not a settlement</div>
+                            <input class="form-control" id="settlements--settlement" readonly type="text" value="">
                             <input id="settlements--json" type="hidden" value="">
                         </div>
                         <div class="form-group col-1"><input class="form-control" id="settlements--slightly" type="checkbox" value="y"></div>
@@ -192,12 +224,18 @@
                             </div>
                         </div>
                         <div class="form-group col">
-                            {{ row.settlement(class_="form-control", placeholder=row.settlement.label.name, id="settlement", data_index=loop.index0) }}
+                            {{ row.settlement(class_="form-control", placeholder=row.settlement.label.name, id="settlement" if loop.last, data_index=loop.index0, readonly=not loop.last) }}
                             <div class="invalid-feedback">Not a settlement</div>
-                            {{ row.json }}
+                            {{ row.json(id="json" if loop.last) }}
                         </div>
-                        <div class="form-group col-1">{{ row.slightly(class_="form-control") }}</div>
-                        <div class="form-group col-1"><button class="btn btn-outline-danger settlement-delete"><span class="icofont icofont-trash"></span></button></div>
+                        <div class="form-group col-1">{{ row.slightly(class_="form-control", id="slightly" if loop.last) }}</div>
+                        <div class="form-group col-1">
+                            {% if loop.last %}
+                            <button class="btn btn-outline-dark" id="settlement-add"><span class="icofont icofont-plus"></span></button>
+                            {% else %}
+                            <button class="btn btn-outline-danger settlement-delete"><span class="icofont icofont-trash"></span></button>
+                            {% endif %}
+                        </div>
                     </div>
                 {% endfor %}
                 </div>
