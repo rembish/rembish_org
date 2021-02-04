@@ -1,4 +1,6 @@
-from wtforms import SelectField, SelectMultipleField
+from json import dumps, loads
+
+from wtforms import SelectField, SelectMultipleField, StringField
 
 
 class LazySelectField(SelectField):
@@ -34,3 +36,25 @@ class LazySelectMultipleField(SelectMultipleField):
         if callable(self.choices):
             self.choices = self.choices()
         super().pre_validate(form)
+
+
+class JSONField(StringField):
+    def _value(self):
+        return dumps(self.data) if self.data else ''
+
+    def process_formdata(self, valuelist):
+        if valuelist:
+            try:
+                self.data = loads(valuelist[0])
+            except ValueError:
+                raise ValueError('This field contains invalid JSON')
+        else:
+            self.data = None
+
+    def pre_validate(self, form):
+        super().pre_validate(form)
+        if self.data:
+            try:
+                dumps(self.data)
+            except TypeError:
+                raise ValueError('This field contains invalid JSON')

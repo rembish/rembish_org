@@ -1,9 +1,13 @@
-from flask import Blueprint, request
-from flask_login import login_required
+from flask import Blueprint, request, redirect, url_for
+from flask_login import login_required, current_user
 from werkzeug.datastructures import MultiDict
 
 from ..forms.trip import TripForm
+from ..libraries.database import db
 from ..libraries.templating import with_template
+from ..models.trip import Trip, TripCompanion, TripSettlement
+from ..models.user import User
+from ..models.world import Settlement
 
 root = Blueprint("trips", __name__)
 
@@ -44,12 +48,23 @@ def add():
             data[f"companions-{i}-user_id"] = user_id
             i += 1
 
-    print(data)
-
     form = TripForm(formdata=data)
-    print(form.data)
     if form.validate_on_submit():
-        pass
+        with db.session.no_autoflush:
+            trip = Trip(traveler=current_user)
+            for row in form.companions:
+                tc = TripCompanion(companion=User.get_by(row.data["user_id"]))
+                trip.companions.append(tc)
+            for row in form.settlements:
+                ts = TripSettlement(settlement=Settlement.get_or_create(**row.data["json"]))
+                trip.settlements.append(ts)
+            form.populate_obj(trip)
+            db.session.add(trip)
+
+        db.session.commit()
+        return redirect(url_for("trips.index"))
+
+    print(form.errors)
 
     return {
         "form": form,

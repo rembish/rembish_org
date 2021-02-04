@@ -25,9 +25,11 @@
                 mapTypeId: "roadmap",
             });
 
-            const settlementInput = document.getElementById("settlement");
-            const settlement = $(settlementInput);
-            const searchBox = new google.maps.places.SearchBox(settlementInput);
+            const locationInput = document.getElementById("location");
+            const location = $(locationInput);
+            const searchBox = new google.maps.places.SearchBox(locationInput);
+
+            let lastMarker = null, markers = [];
 
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition((position => {
@@ -46,11 +48,11 @@
                 if (places.length === 0 || !places[0].geometry) {
                     return;
                 }
-                settlement.removeClass("is-invalid");
+                location.removeClass("is-invalid");
 
                 const place = places[0];
                 if (!place.types.includes("locality")) {
-                    settlement.addClass("is-invalid");
+                    location.addClass("is-invalid");
                     return;
                 }
 
@@ -65,11 +67,35 @@
                     name: place.name,
                     country_code: iso,
                     location: [place.geometry.location.lat(), place.geometry.location.lng()],
-                    id: place.place_id
+                    place_id: place.place_id
                 }
 
-                const index = parseInt(settlement.data("index"));
+                const index = parseInt(location.data("index"));
                 $("#json").val(JSON.stringify(data));
+
+                const bounds = new google.maps.LatLngBounds();
+                const icon = {
+                    url: place.icon,
+                    size: new google.maps.Size(71, 71),
+                    origin: new google.maps.Point(0, 0),
+                    anchor: new google.maps.Point(17, 34),
+                    scaledSize: new google.maps.Size(25, 25),
+                };
+                const placeLocation = place.geometry.location;
+
+                lastMarker = new google.maps.Marker({
+                  map, icon,
+                  title: place.name,
+                  position: placeLocation,
+                });
+
+                if (place.geometry.viewport) {
+                    bounds.union(place.geometry.viewport);
+                } else {
+                    bounds.extend(place.geometry.location);
+                }
+
+                map.fitBounds(bounds)
             });
         }
 
@@ -101,14 +127,14 @@
             });
 
             $("#settlement-add").click(() => {
+                let location = $("#location");
                 let button = $("#settlement-add");
                 button.prop('disabled', true);
 
-                const settlement = $("#settlement");
-                let index = parseInt(settlement.data("index"));
+                let index = parseInt(location.data("index"));
                 const json = $("#json");
 
-                if (settlement.hasClass("is-invalid") || !json.val()) {
+                if (location.hasClass("is-invalid") || !json.val()) {
                     button.prop('disabled', false);
                     return false;
                 }
@@ -130,10 +156,10 @@
                     }
                 });
                 div.removeClass("d-none");
-                $(div).insertAfter("#settlements>div:first");
+                $(div).insertBefore("#settlements>div:last");
 
                 index++;
-                settlement.val("").removeClass("is-invalid").data("index", index);
+                location.val("").removeClass("is-invalid").data("index", index);
                 json.val("");
                 $("#slightly").prop("checked", false);
                 button.prop("disabled", false);
@@ -209,7 +235,7 @@
                             </div>
                         </div>
                         <div class="form-group col">
-                            <input class="form-control" id="settlements--settlement" readonly type="text" value="">
+                            <input class="form-control" id="settlements--location" readonly type="text" value="">
                             <input id="settlements--json" type="hidden" value="">
                         </div>
                         <div class="form-group col-1"><input class="form-control" id="settlements--slightly" type="checkbox" value="y"></div>
@@ -224,7 +250,7 @@
                             </div>
                         </div>
                         <div class="form-group col">
-                            {{ row.settlement(class_="form-control", placeholder=row.settlement.label.name, id="settlement" if loop.last, data_index=loop.index0, readonly=not loop.last) }}
+                            {{ row.location(class_="form-control", placeholder=row.location.label.name, id="location" if loop.last, data_index=loop.index0, readonly=not loop.last) }}
                             <div class="invalid-feedback">Not a settlement</div>
                             {{ row.json(id="json" if loop.last) }}
                         </div>
@@ -239,6 +265,7 @@
                     </div>
                 {% endfor %}
                 </div>
+                <div class="form-row"><div class="form-group col">{{ form.description(class_="form-control", placeholder=form.description.label.text) }}</div></div>
 
                 {{ form.add(class_="form-control") }}
             </form>

@@ -32,5 +32,13 @@ class Geonames:
         json = response.json()
         return json["geonames"][0]
 
+    def get_settlement_by(self, name, country):
+        response = self.call("/search", name=name, lang=self.language, country=country, featureClass="P", type="json")
+        json = response.json()
+        try:
+            return json["geonames"][0]
+        except (KeyError, IndexError):
+            return None
+
 
 geonames = Geonames()

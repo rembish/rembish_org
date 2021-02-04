@@ -35,6 +35,10 @@ class User(UserMixin, db.Model):
     def get_all_but(cls, me):
         return cls.query.filter(User.id != me.id)
 
+    @classmethod
+    def get_by(cls, user_id):
+        return cls.query.get(user_id)
+
 
 class Guest(AnonymousUser):
     def __repr__(self):

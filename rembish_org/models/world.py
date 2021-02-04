@@ -14,6 +14,9 @@ class Country(db.Model):
     north = db.Column(db.Numeric(10, 8), nullable=False)
     east = db.Column(db.Numeric(11, 8), nullable=False)
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__}:{self.code} {self.name}>"
+
     @classmethod
     def get_by(cls, code):
         instance = cls.query.filter_by(code=code).first()
@@ -49,3 +52,22 @@ class Settlement(db.Model):
 
     latitude = db.Column(db.Numeric(10, 8), nullable=False)
     longitude = db.Column(db.Numeric(11, 8), nullable=False)
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}s:{self.id} {self.name} ({self.country.code})>"
+
+    @classmethod
+    def get_or_create(cls, place_id, country_code, name, location):
+        instance = cls.query.filter_by(place_id=place_id).first()
+        if instance:
+            return instance
+
+        country = Country.get_by(country_code)
+        instance = cls(place_id=place_id, country=country, name=name, latitude=location[0], longitude=location[1])
+        json = geonames.get_settlement_by(name, country_code)
+        instance.geoname_id = json["geonameId"]
+
+        db.session.add(instance)
+        db.session.commit()
+        return instance
+
