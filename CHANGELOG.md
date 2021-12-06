@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.7] - 2021-12-06
+### Changed
+- CV updated
+
 ## [0.7.6] - 2021-01-06
 ### Changed
 - Right work email applied
