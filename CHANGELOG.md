@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Fixed
 - Missing `cryptography` in dependencies
+- Missing db update
 
 ## [0.7.8] - 2022-01-24
 ### Fixed
