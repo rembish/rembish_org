@@ -73,7 +73,7 @@ poetry run docker-compose up
 1. Don't forget to add your changes to `CHANGELOG.md`
 2. To deploy new version:
    - increase version: `poetry run flask version -i [patch|minor|major]`
-   - commit changes: `git commit -m "Release X.Y.Z`
+   - commit changes: git commit -a -m "Release` X.Y.Z`
    - tag 'em: `git tag vX.Y.Z`
    - and push: `git push --tags origin main`
 3. Github Actions will deploy the application automatically
