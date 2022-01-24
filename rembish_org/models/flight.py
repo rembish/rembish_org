@@ -21,7 +21,7 @@ class FlightLog(db.Model):
     trip_id = db.Column(db.Integer, db.ForeignKey(Trip.id), nullable=True)
     trip = db.relationship(Trip)
 
-    date = db.Column(db.Date, nullable=False, server_default=db.text("NOW()"))
+    date = db.Column(db.Date, nullable=False, server_default=db.text("(CURRENT_DATE)"))
     in_air = db.Column(db.Boolean, default=False)
 
     location = db.Column(db.String(length=200))
@@ -95,7 +95,7 @@ class Takeoff(db.Model):
 
     flight_id = db.Column(db.Integer, db.ForeignKey(FlightLog.id), nullable=False)
 
-    start = db.Column(db.Time, nullable=False, server_default=db.text("NOW()"))
+    start = db.Column(db.Time, nullable=False, server_default=db.text("(CURRENT_DATE)"))
     finish = db.Column(db.Time)
     distance = db.Column(db.Integer)
     altitude = db.Column(db.Integer)

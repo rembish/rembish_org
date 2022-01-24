@@ -2,8 +2,7 @@ from datetime import date
 
 from flask_wtf import FlaskForm
 from wtforms import DateField, StringField, TextAreaField, Form, TimeField, FieldList, \
-    FormField, SubmitField, SelectMultipleField, HiddenField, BooleanField
-from wtforms.fields.html5 import IntegerField, DecimalField
+    FormField, SubmitField, SelectMultipleField, HiddenField, BooleanField, IntegerField, DecimalField
 from wtforms.validators import DataRequired, Optional
 from wtforms.widgets import HiddenInput
 

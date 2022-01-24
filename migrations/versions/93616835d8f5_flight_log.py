@@ -20,7 +20,7 @@ def upgrade():
     op.create_table('drone_flight_log',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('drone_id', sa.SmallInteger(), nullable=False),
-    sa.Column('date', sa.Date(), server_default=sa.text('NOW()'), nullable=False),
+    sa.Column('date', sa.Date(), server_default=sa.text("(CURRENT_DATE)"), nullable=False),
     sa.Column('location', sa.String(length=200), nullable=True),
     sa.Column('latitude', sa.Numeric(precision=10, scale=8), nullable=False),
     sa.Column('longitude', sa.Numeric(precision=11, scale=8), nullable=False),
@@ -33,7 +33,7 @@ def upgrade():
     op.create_table('drone_takeoffs',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('flight_id', sa.Integer(), nullable=False),
-    sa.Column('start', sa.Time(), server_default=sa.text('NOW()'), nullable=False),
+    sa.Column('start', sa.Time(), server_default=sa.text('(CURRENT_DATE)'), nullable=False),
     sa.Column('finish', sa.Time(), nullable=True),
     sa.ForeignKeyConstraint(['flight_id'], ['drone_flight_log.id'], ),
     sa.PrimaryKeyConstraint('id')
