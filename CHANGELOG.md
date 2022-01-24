@@ -1,10 +1,15 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.7.8] - 2022-01-24
+### Fixed
+- Updating and Fixed dependencies
 
 ## [0.7.7] - 2021-12-06
 ### Changed
@@ -15,11 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Right work email applied
 
 ## [0.7.5] - 2021-01-03
-### Changed
-- Mapy.cz was replaced by Google Maps on Contacts page
-
 ### Added
 - New work: Shoptet!
+
+### Changed
+- Mapy.cz was replaced by Google Maps on Contacts page
 
 ## [0.7.4] - 2020-12-07
 ### Changed
@@ -42,28 +47,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Minor layout tweaks
 
 ## [0.7.0] - 2020-11-24
-### Changed
-- Flights and drones are splat into two different modules
-- Moving flight statistics to flight map page
-
 ### Added
 - Flight map
 - Extended flight stats
 
+### Changed
+- Flights and drones are splat into two different modules
+- Moving flight statistics to flight map page
+
 ## [0.6.4] - 2020-11-23
 ### Fixed
-- Problem with flags fixed
+- Problem with flags Fixed
 
 ## [0.6.3] - 2020-11-23
 ### Added
 - Debugging nginx docker in pipeline :(
 
 ## [0.6.2] - 2020-11-23
-### Fixing
+### Fixed
 - More typos in nginx dockerfile
 
 ## [0.6.1] - 2020-11-23
-### Fixing
+### Fixed
 - Typo in nginx dockerfile
 
 ## [0.6.0] - 2020-11-23
@@ -78,11 +83,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - I can obtain user's name and email from Google
 
 ## [0.5.2] - 2020-10-26
-### Fixing
+### Fixed
 - Downgrading `node` image, because of https://github.com/nodejs/docker-node/issues/1379.
 
 ## [0.5.1] - 2020-10-26
-### Fixing
+### Fixed
 - `flask version` command didn't change URL in Changelog footer
 - `npm cache clean --force` added to nginx image
 
@@ -92,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MySQL database added
 - Login/logout added
 
-### Fixing
+### Fixed
 - Table `users_roles` doesn't have PK
 
 ## [0.4.0] - 2020-10-21
@@ -145,7 +150,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simple containerization
 - CD based on GitHub Actions
 
-[Unreleased]: https://github.com/rembish/rembish_org/compare/v0.7.6...HEAD
+[Unreleased]: https://github.com/rembish/rembish_org/compare/v0.7.8...HEAD
+[0.7.8]: https://github.com/rembish/rembish_org/compare/v0.7.7...v0.7.8
+[0.7.7]: https://github.com/rembish/rembish_org/compare/v0.7.6...v0.7.7
 [0.7.6]: https://github.com/rembish/rembish_org/compare/v0.7.5...v0.7.6
 [0.7.5]: https://github.com/rembish/rembish_org/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/rembish/rembish_org/compare/v0.7.3...v0.7.4
