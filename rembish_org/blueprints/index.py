@@ -62,10 +62,10 @@ def message():
             "errors": form.errors,
         }
 
-    message = render_template("messages/contact.md", **form.data)
+    text = render_template("messages/contact.md", **form.data)
 
     try:
-        telegram.send(message, parse_mode="Markdown")
+        telegram.send(text, parse_mode="Markdown")
     except TelegramError as tge:
         return {
             "status": tge.code,

@@ -3,8 +3,9 @@ from urllib.parse import urljoin
 from requests import get
 
 
-class TelegramError:
+class TelegramError(BaseException):
     def __init__(self, code, message):
+        super().__init__()
         self.code = code
         self.message = message
 
