@@ -4,13 +4,13 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "rembish_org"
-version = "0.7.9"
+version = "0.8.0"
 description = "Personal website"
 authors = [ "Alex Rembish <alex@rembish.org>",]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-Flask = ">2"
+Flask = "^2.1.2"
 uWSGI = "^2.0.20"
 markdown2 = "^2.4.3"
 Flask-WTF = "^1.0.1"
