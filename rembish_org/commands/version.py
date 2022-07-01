@@ -24,12 +24,12 @@ def version(increment):
     new = getattr(previous, f"bump_{increment}")()
 
     with open("rembish_org/version.py", "w") as fd:
-       fd.write(f"__version__ = '{new}'")
+        fd.write(f"__version__ = '{new}'")
 
     pyproject = toml_load("pyproject.toml")
     pyproject["tool"]["poetry"]["version"] = str(new)
     with open("pyproject.toml", "w") as fd:
-       toml_dump(pyproject, fd)
+        toml_dump(pyproject, fd)
 
     with open("package.json", "r") as fd:
         data = json_load(fd)

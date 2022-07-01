@@ -70,4 +70,3 @@ class Settlement(db.Model):
         db.session.add(instance)
         db.session.commit()
         return instance
-

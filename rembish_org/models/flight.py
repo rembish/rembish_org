@@ -40,10 +40,10 @@ class FlightLog(db.Model):
     def get_flights_for(cls, user, private=False):
         result = []
         for flight in db.session.execute("""
-            SELECT 
+            SELECT
                 dfl.*,  c.code  AS `country_code`, c.name AS `country`,
                 COALESCE(d.callsign, d.nickname, CONCAT(dv.name, '', dm.name)) AS `drone_name`,
-                MIN(dt.start) AS `takeoff`, 
+                MIN(dt.start) AS `takeoff`,
                 MAX(dt.finish) AS `landing`,
                 MAX(dt.altitude) AS `altitude`,
                 SUM(dt.distance) AS `distance`,

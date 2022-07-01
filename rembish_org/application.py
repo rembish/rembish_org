@@ -6,7 +6,8 @@ from flask import Flask, url_for
 try:
     from flask_debugtoolbar import DebugToolbarExtension
 except ImportError:
-    DebugToolbarExtension = lambda app: None
+    def DebugToolbarExtension():
+        pass
 
 from werkzeug.utils import import_string
 

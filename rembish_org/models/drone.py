@@ -52,5 +52,3 @@ class Drone(db.Model):
     @classmethod
     def find_by(cls, owner):
         return cls.query.filter_by(owner=owner).order_by(cls.default.desc()).all()
-
-

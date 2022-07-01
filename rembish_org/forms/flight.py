@@ -35,4 +35,3 @@ class FlightForm(FlaskForm):
     takeoffs = FieldList(FormField(TakeoffForm), min_entries=1)
     private = BooleanField(label="Is private?", default=False)
     register = SubmitField(label="Register")
-
