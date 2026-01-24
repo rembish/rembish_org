@@ -1,0 +1,54 @@
+services:
+  frontend:
+    build:
+      context: ./app/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./app/frontend/src:/app/src:ro
+      - ./app/frontend/public:/app/public:ro
+      - ./app/frontend/index.html:/app/index.html:ro
+      - ./app/frontend/vite.config.ts:/app/vite.config.ts:ro
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./app/backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app/backend/src:/app/src:ro
+    env_file:
+      - ./app/backend/.env.dev
+    environment:
+      DATABASE_URL: mysql+pymysql://app:devpassword@database:3306/rembish_org
+    depends_on:
+      database:
+        condition: service_healthy
+
+  database:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    volumes:
+      - dev-db-data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootdevpassword
+      MYSQL_DATABASE: rembish_org
+      MYSQL_USER: app
+      MYSQL_PASSWORD: devpassword
+    command: >
+      mysqld
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  dev-db-data:

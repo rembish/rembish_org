@@ -5,3 +5,14 @@ dist/
 node_modules/
 ssl/
 secrets
+
+# New app
+app/frontend/node_modules/
+app/frontend/dist/
+*.pyc
+.ruff_cache/
+
+# Environment files (keep .env.example)
+.env
+.env.*
+!.env.example
