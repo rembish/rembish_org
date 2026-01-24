@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { BiHome, BiFileBlank, BiEnvelope, BiMenu, BiX, BiLogIn, BiLogOut } from 'react-icons/bi'
+import { SiAnthropic } from 'react-icons/si'
 import { useAuth } from '../hooks/useAuth'
 
 interface LayoutProps {
@@ -75,6 +76,10 @@ export default function Layout({ children }: LayoutProps) {
         <div className="credits">
           Source code can be found on{' '}
           <a href="https://github.com/rembish/rembish_org">GitHub</a>
+        </div>
+        <div className="credits">
+          Built with <SiAnthropic className="claude-icon" />{' '}
+          <a href="https://claude.ai">Claude</a>
         </div>
       </footer>
     </>

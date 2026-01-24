@@ -7,7 +7,7 @@ export default function CV() {
       <div className="container">
         <div className="section-title">
           <h2>Curriculum Vitae</h2>
-          <p>IT manager / Senior team leader / Python professional</p>
+          <p>Software Engineer / Python Expert / Test Infrastructure</p>
         </div>
 
         <div className="cv-grid">
@@ -124,13 +124,13 @@ export default function CV() {
             <div className="resume-item">
               <h4>Alex Rembish</h4>
               <p>
-                I have more than 16 years of active programming experience including 9 years as a Python
-                expert, 5+ years as a team leader and the last 3 years as the head of backend development.
+                Over 18 years of programming experience with deep expertise in Python, including leadership
+                roles spanning team lead to head of development. Currently focused on test infrastructure,
+                Python modernization, and performance testing at enterprise scale.
               </p>
               <p>
-                I'm now looking for a new opportunity with an interesting startup or an older project with
-                a rich history and complex issues that need to be solved. Feel free to <Link to="/contact">contact me</Link> if you're
-                interested in a technical leader, an architect, or a Python evangelist.
+                Passionate about code quality, automation, and solving complex technical challenges.
+                Feel free to <Link to="/contact">contact me</Link> for collaboration or consulting opportunities.
               </p>
               <p>CZ/EU citizen</p>
             </div>
@@ -138,8 +138,24 @@ export default function CV() {
             <h3 className="resume-title">Professional Experience</h3>
 
             <div className="resume-item">
+              <h4>Member of Technical Staff-5</h4>
+              <h5>Feb 2023 - Present</h5>
+              <p><em><a href="https://www.purestorage.com">Pure Storage</a> | Prague</em></p>
+              <p>
+                Part of the devtest team building and maintaining test infrastructure for FlashArray
+                and FlashBlade storage systems. Driving Python modernization efforts across the codebase
+                including migrations, linting standardization, and performance testing frameworks.
+              </p>
+              <ul>
+                <li>Main contributor to "Workloads as Code" — internal performance testing framework</li>
+                <li>Python codebase modernization and linting improvements</li>
+                <li>Test infrastructure development for enterprise storage products</li>
+              </ul>
+            </div>
+
+            <div className="resume-item">
               <h4>Head of Development</h4>
-              <h5>Oct 2021 - Present</h5>
+              <h5>Oct 2021 - Sep 2022</h5>
               <p><em><a href="https://shoptet.cz">Shoptet, a.s.</a> | Prague</em></p>
               <p>
                 Managing 4 teams (20 programmers and tech leaders). Setting up better agile processes,

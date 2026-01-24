@@ -3,9 +3,9 @@ import {
   BiLogoLinkedinSquare,
   BiLogoGithub,
   BiLogoInstagramAlt,
-  BiLogoTwitter,
   BiLogoFacebookSquare,
 } from 'react-icons/bi'
+import { FaXTwitter } from 'react-icons/fa6'
 
 const typedItems = [
   'a Senior Team Leader',
@@ -26,7 +26,7 @@ const socialLinks = [
   { href: 'https://linkedin.com/in/rembish/', icon: BiLogoLinkedinSquare },
   { href: 'https://github.com/rembish', icon: BiLogoGithub },
   { href: 'https://instagram.com/arembish/', icon: BiLogoInstagramAlt },
-  { href: 'https://twitter.com/rembish', icon: BiLogoTwitter },
+  { href: 'https://x.com/rembish', icon: FaXTwitter },
   { href: 'https://facebook.com/rembish/', icon: BiLogoFacebookSquare },
 ]
 

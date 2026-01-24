@@ -306,7 +306,7 @@ a {
 
 /* Footer */
 #footer {
-  background: var(--color-bg-secondary);
+  background: var(--color-bg);
   color: var(--color-text-secondary);
   padding: 2rem 1rem;
   text-align: end;
@@ -323,6 +323,11 @@ a {
   & .credits {
     font-size: 0.8125rem;
     opacity: 0.85;
+  }
+
+  & .claude-icon {
+    vertical-align: middle;
+    color: #d97757;
   }
 }
 

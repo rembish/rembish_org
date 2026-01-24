@@ -18,11 +18,12 @@
 
 ## Content
 
-- [ ] Update CV content (owner task - content is outdated)
+- [x] Update CV content with current job (Pure Storage)
 
 ## Features
 
 - [ ] Generate PDF from CV data (single source of truth, build-time generation)
+- [ ] Update CV PDF to match web version
 
 ## Phase 2: Production
 
