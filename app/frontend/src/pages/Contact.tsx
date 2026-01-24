@@ -1,7 +1,7 @@
 import { useState, useRef, FormEvent } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
-import { BiMap, BiPhone, BiEnvelope, BiLogoTelegram, BiLogoWhatsapp } from 'react-icons/bi'
+import { BiMap, BiPhone, BiEnvelope, BiLogoTelegram, BiLogoWhatsapp, BiIdCard, BiKey } from 'react-icons/bi'
 import 'leaflet/dist/leaflet.css'
 
 // Fix for default marker icon in Leaflet + Vite
@@ -109,6 +109,12 @@ export default function Contact() {
               </a>
               <a href="https://wa.me/420775054554" title="WhatsApp" aria-label="WhatsApp">
                 <BiLogoWhatsapp />
+              </a>
+              <a href="/alex-rembish.vcf" title="Download vCard" aria-label="Download vCard" download>
+                <BiIdCard />
+              </a>
+              <a href="/alex-rembish.asc" title="PGP Public Key" aria-label="PGP Public Key">
+                <BiKey />
               </a>
             </div>
           </div>

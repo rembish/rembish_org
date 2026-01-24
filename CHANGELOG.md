@@ -3,8 +3,11 @@
 ## 0.9.1 (2026-01-24)
 
 - Google OAuth login for admin access
+- Added vCard and PGP key links to contact page
+- Keybase verification file exposed
 - Fixed download button icon visibility on CV page
 - Fixed navigation spacing for auth buttons
+- Removed legacy Flask codebase (trips, drone flights, old templates)
 
 ## 0.9.0 (2026-01-24)
 
