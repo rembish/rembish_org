@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
 
-declare module '*/package.json' {
-  export const version: string
+declare module "*/package.json" {
+  export const version: string;
 }

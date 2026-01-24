@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..auth.session import get_admin_user
 from ..database import get_db
-from ..models import User, UNCountry, TCCDestination, Visit, Microstate, NMRegion
+from ..models import Microstate, NMRegion, TCCDestination, UNCountry, User, Visit
 
 router = APIRouter(prefix="/v1/travels", tags=["travels"])
 
@@ -61,7 +61,7 @@ class TravelData(BaseModel):
 
 
 @router.get("/data", response_model=TravelData)
-def get_travel_data(db: Session = Depends(get_db)):
+def get_travel_data(db: Session = Depends(get_db)) -> TravelData:
     """Get travel statistics and visited map regions for the map."""
 
     # Count UN countries
@@ -116,8 +116,9 @@ def get_travel_data(db: Session = Depends(get_db)):
 
     for dest, first_visit in visited_tcc_with_polygon:
         if dest.map_region_code and first_visit:
-            if dest.map_region_code not in visited_map_regions or first_visit < visited_map_regions[dest.map_region_code]:
-                visited_map_regions[dest.map_region_code] = first_visit
+            code = dest.map_region_code
+            if code not in visited_map_regions or first_visit < visited_map_regions[code]:
+                visited_map_regions[code] = first_visit
             visited_countries.append(dest.name)
 
     # Get all microstates
@@ -133,9 +134,7 @@ def get_travel_data(db: Session = Depends(get_db)):
     ]
 
     # Convert dates to ISO strings
-    visited_map_regions_iso = {
-        code: d.isoformat() for code, d in visited_map_regions.items()
-    }
+    visited_map_regions_iso = {code: d.isoformat() for code, d in visited_map_regions.items()}
 
     # Get all UN countries with their earliest visit date
     all_un_countries = db.query(UNCountry).order_by(UNCountry.continent, UNCountry.name).all()
@@ -171,13 +170,9 @@ def get_travel_data(db: Session = Depends(get_db)):
 
     # Get NM stats and regions
     nm_total = db.query(func.count(NMRegion.id)).scalar() or 0
-    nm_visited = db.query(func.count(NMRegion.id)).filter(NMRegion.visited == True).scalar() or 0
+    nm_visited = db.query(func.count(NMRegion.id)).filter(NMRegion.visited.is_(True)).scalar() or 0
 
-    all_nm = (
-        db.query(NMRegion)
-        .order_by(NMRegion.country, NMRegion.name)
-        .all()
-    )
+    all_nm = db.query(NMRegion).order_by(NMRegion.country, NMRegion.name).all()
 
     nm_regions_data = [
         NMRegionData(
@@ -229,7 +224,7 @@ async def upload_nm_regions(
     file: Annotated[UploadFile, File()],
     admin: Annotated[User, Depends(get_admin_user)],
     db: Session = Depends(get_db),
-):
+) -> UploadResult:
     """Upload NomadMania regions XLSX file (admin only)."""
     if not file.filename or not file.filename.endswith(".xlsx"):
         raise HTTPException(status_code=400, detail="File must be an .xlsx file")
@@ -252,13 +247,15 @@ async def upload_nm_regions(
             continue
 
         try:
-            parsed_regions.append({
-                "name": str(name),
-                "country": extract_country(str(name)),
-                "visited": row[1] == 1,
-                "first_visited_year": int(row[2]) if row[2] else None,
-                "last_visited_year": int(row[3]) if row[3] else None,
-            })
+            parsed_regions.append(
+                {
+                    "name": str(name),
+                    "country": extract_country(str(name)),
+                    "visited": row[1] == 1,
+                    "first_visited_year": int(row[2]) if row[2] else None,
+                    "last_visited_year": int(row[3]) if row[3] else None,
+                }
+            )
         except (ValueError, TypeError) as e:
             raise HTTPException(
                 status_code=400,

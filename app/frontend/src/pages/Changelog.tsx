@@ -1,19 +1,19 @@
-import { useEffect, useState } from 'react'
-import Markdown from 'react-markdown'
+import { useEffect, useState } from "react";
+import Markdown from "react-markdown";
 
 export default function Changelog() {
-  const [changelog, setChangelog] = useState('')
+  const [changelog, setChangelog] = useState("");
 
   useEffect(() => {
-    fetch('/CHANGELOG.md')
+    fetch("/CHANGELOG.md")
       .then((res) => res.text())
       .then((text) => {
         // Remove the "# Changelog" header since we use section-title
-        const withoutHeader = text.replace(/^#\s+Changelog\s*\n+/, '')
-        setChangelog(withoutHeader)
+        const withoutHeader = text.replace(/^#\s+Changelog\s*\n+/, "");
+        setChangelog(withoutHeader);
       })
-      .catch(() => setChangelog('## Error\n\n- Failed to load changelog.'))
-  }, [])
+      .catch(() => setChangelog("## Error\n\n- Failed to load changelog."));
+  }, []);
 
   return (
     <section className="changelog">
@@ -28,5 +28,5 @@ export default function Changelog() {
         </div>
       </div>
     </section>
-  )
+  );
 }

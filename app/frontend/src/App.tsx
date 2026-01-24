@@ -1,11 +1,11 @@
-import { Routes, Route } from 'react-router-dom'
-import Layout from './components/Layout'
-import Home from './pages/Home'
-import CV from './pages/CV'
-import Projects from './pages/Projects'
-import Travels from './pages/Travels'
-import Contact from './pages/Contact'
-import Changelog from './pages/Changelog'
+import { Routes, Route } from "react-router-dom";
+import Layout from "./components/Layout";
+import Home from "./pages/Home";
+import CV from "./pages/CV";
+import Projects from "./pages/Projects";
+import Travels from "./pages/Travels";
+import Contact from "./pages/Contact";
+import Changelog from "./pages/Changelog";
 
 function App() {
   return (
@@ -19,7 +19,7 @@ function App() {
         <Route path="/changelog" element={<Changelog />} />
       </Routes>
     </Layout>
-  )
+  );
 }
 
-export default App
+export default App;

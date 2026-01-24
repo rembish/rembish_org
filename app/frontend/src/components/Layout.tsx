@@ -1,28 +1,38 @@
-import { useState } from 'react'
-import { NavLink, Link } from 'react-router-dom'
-import { BiHome, BiFileBlank, BiLayer, BiGlobe, BiEnvelope, BiMenu, BiX, BiLogIn, BiLogOut } from 'react-icons/bi'
-import { SiAnthropic } from 'react-icons/si'
-import { useAuth } from '../hooks/useAuth'
-import { version } from '../../package.json'
+import { useState } from "react";
+import { NavLink, Link } from "react-router-dom";
+import {
+  BiHome,
+  BiFileBlank,
+  BiLayer,
+  BiGlobe,
+  BiEnvelope,
+  BiMenu,
+  BiX,
+  BiLogIn,
+  BiLogOut,
+} from "react-icons/bi";
+import { SiAnthropic } from "react-icons/si";
+import { useAuth } from "../hooks/useAuth";
+import { version } from "../../package.json";
 
 interface LayoutProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 const navItems = [
-  { to: '/', icon: BiHome, label: 'Home' },
-  { to: '/cv', icon: BiFileBlank, label: 'Curriculum Vitae' },
-  { to: '/projects', icon: BiLayer, label: 'Projects' },
-  { to: '/travels', icon: BiGlobe, label: 'Travels' },
-  { to: '/contact', icon: BiEnvelope, label: 'Contact' },
-]
+  { to: "/", icon: BiHome, label: "Home" },
+  { to: "/cv", icon: BiFileBlank, label: "Curriculum Vitae" },
+  { to: "/projects", icon: BiLayer, label: "Projects" },
+  { to: "/travels", icon: BiGlobe, label: "Travels" },
+  { to: "/contact", icon: BiEnvelope, label: "Contact" },
+];
 
 export default function Layout({ children }: LayoutProps) {
-  const [mobileNavActive, setMobileNavActive] = useState(false)
-  const { user, loading, login, logout } = useAuth()
+  const [mobileNavActive, setMobileNavActive] = useState(false);
+  const { user, loading, login, logout } = useAuth();
 
-  const toggleMobileNav = () => setMobileNavActive(!mobileNavActive)
-  const closeMobileNav = () => setMobileNavActive(false)
+  const toggleMobileNav = () => setMobileNavActive(!mobileNavActive);
+  const closeMobileNav = () => setMobileNavActive(false);
 
   return (
     <>
@@ -34,17 +44,22 @@ export default function Layout({ children }: LayoutProps) {
         {mobileNavActive ? <BiX /> : <BiMenu />}
       </button>
 
-      <header id="header" className={mobileNavActive ? 'mobile-nav-active' : ''}>
+      <header
+        id="header"
+        className={mobileNavActive ? "mobile-nav-active" : ""}
+      >
         <nav>
           <ul className="nav-menu">
             {navItems.map(({ to, icon: Icon, label }) => (
               <li key={to}>
                 <NavLink
                   to={to}
-                  className={({ isActive }) => isActive ? 'active' : ''}
+                  className={({ isActive }) => (isActive ? "active" : "")}
                   onClick={closeMobileNav}
                 >
-                  <span className="nav-icon"><Icon /></span>
+                  <span className="nav-icon">
+                    <Icon />
+                  </span>
                   <span className="nav-label">{label}</span>
                 </NavLink>
               </li>
@@ -55,12 +70,16 @@ export default function Layout({ children }: LayoutProps) {
               <li>
                 {user ? (
                   <button onClick={logout} className="nav-auth-btn">
-                    <span className="nav-icon"><BiLogOut /></span>
+                    <span className="nav-icon">
+                      <BiLogOut />
+                    </span>
                     <span className="nav-label">Logout</span>
                   </button>
                 ) : (
                   <button onClick={login} className="nav-auth-btn">
-                    <span className="nav-icon"><BiLogIn /></span>
+                    <span className="nav-icon">
+                      <BiLogIn />
+                    </span>
                     <span className="nav-label">Login</span>
                   </button>
                 )}
@@ -74,16 +93,20 @@ export default function Layout({ children }: LayoutProps) {
 
       <footer id="footer">
         <div className="copyright">
-          Content copyright &copy; <strong>Alex Rembish</strong> 2013&ndash;{new Date().getFullYear()}{' '}
-          (<Link to="/changelog" className="version-link">v{version}</Link>)
+          Content copyright &copy; <strong>Alex Rembish</strong> 2013&ndash;
+          {new Date().getFullYear()} (
+          <Link to="/changelog" className="version-link">
+            v{version}
+          </Link>
+          )
         </div>
         <div className="credits">
-          Source code on{' '}
-          <a href="https://github.com/rembish/rembish_org">GitHub</a>, built with{' '}
-          <SiAnthropic className="claude-icon" />{' '}
+          Source code on{" "}
+          <a href="https://github.com/rembish/rembish_org">GitHub</a>, built
+          with <SiAnthropic className="claude-icon" />{" "}
           <a href="https://claude.ai">Claude</a>
         </div>
       </footer>
     </>
-  )
+  );
 }

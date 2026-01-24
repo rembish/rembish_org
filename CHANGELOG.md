@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.2 (2026-01-24)
+
+- Added development tooling: linting, formatting, type checking
+- CI pipeline blocks deployment if code quality checks fail
+- Version management: `make version`, `make version-check`, `make version-sync`
+- CI verifies git tag matches code versions before deployment
+
 ## 0.10.1 (2026-01-24)
 
 - Added birthplace and home markers on travel map

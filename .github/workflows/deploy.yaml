@@ -1,5 +1,6 @@
 # Production deployment workflow for rembish.org
 # Triggered on version tags (v*)
+# Requires CI checks to pass before deploying
 
 name: Deploy to Cloud Run
 
@@ -17,7 +18,90 @@ env:
   MIGRATE_JOB: rembish-org-migrate
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: app/frontend/package-lock.json
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e "app/backend[dev]"
+
+      - name: Install frontend dependencies
+        run: cd app/frontend && npm ci
+
+      - name: Backend lint
+        run: ruff check app/backend/src/
+
+      - name: Backend typecheck
+        run: cd app/backend && mypy src/
+
+      - name: Frontend lint
+        run: cd app/frontend && npm run lint
+
+      - name: Frontend typecheck
+        run: cd app/frontend && npx tsc --noEmit
+
+      - name: Verify tag matches code versions
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "Tag version: $TAG_VERSION"
+          ERRORS=0
+
+          PKG=$(grep -o '"version": "[^"]*"' app/frontend/package.json | cut -d'"' -f4)
+          if [ "$PKG" != "$TAG_VERSION" ]; then
+            echo "MISMATCH package.json: $PKG"
+            ERRORS=1
+          else
+            echo "OK package.json: $PKG"
+          fi
+
+          PYPROJ=$(grep '^version = ' app/backend/pyproject.toml | cut -d'"' -f2)
+          if [ "$PYPROJ" != "$TAG_VERSION" ]; then
+            echo "MISMATCH pyproject.toml: $PYPROJ"
+            ERRORS=1
+          else
+            echo "OK pyproject.toml: $PYPROJ"
+          fi
+
+          FASTAPI=$(grep -o 'version="[^"]*"' app/backend/src/main.py | head -1 | cut -d'"' -f2)
+          if [ "$FASTAPI" != "$TAG_VERSION" ]; then
+            echo "MISMATCH main.py (FastAPI): $FASTAPI"
+            ERRORS=1
+          else
+            echo "OK main.py (FastAPI): $FASTAPI"
+          fi
+
+          INFO=$(grep -o '"version": "[^"]*"' app/backend/src/main.py | cut -d'"' -f4)
+          if [ "$INFO" != "$TAG_VERSION" ]; then
+            echo "MISMATCH main.py (info): $INFO"
+            ERRORS=1
+          else
+            echo "OK main.py (info): $INFO"
+          fi
+
+          if [ $ERRORS -ne 0 ]; then
+            echo "Version mismatch! Update versions with 'make version-sync' before tagging."
+            exit 1
+          fi
+          echo "All versions match tag!"
+
   deploy:
+    needs: check
     runs-on: ubuntu-latest
     permissions:
       contents: read

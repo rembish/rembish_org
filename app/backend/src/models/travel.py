@@ -22,9 +22,7 @@ class UNCountry(Base):
         Text, nullable=False
     )  # Comma-separated codes for territories
 
-    tcc_destinations: Mapped[list["TCCDestination"]] = relationship(
-        back_populates="un_country"
-    )
+    tcc_destinations: Mapped[list["TCCDestination"]] = relationship(back_populates="un_country")
 
     def __repr__(self) -> str:
         return f"<UNCountry #{self.id}: {self.name}>"
@@ -74,7 +72,8 @@ class Visit(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     def __repr__(self) -> str:
-        return f"<Visit #{self.id}: {self.tcc_destination.name if self.tcc_destination else 'Unknown'}>"
+        name = self.tcc_destination.name if self.tcc_destination else "Unknown"
+        return f"<Visit #{self.id}: {name}>"
 
 
 class Microstate(Base):

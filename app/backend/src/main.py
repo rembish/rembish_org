@@ -1,14 +1,17 @@
 import time
+from collections.abc import Callable
+from typing import Any
+
 import httpx
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, Form, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import EmailStr
-from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 
-from .config import settings
-from .logging import setup_logging, get_logger
 from .auth import router as auth_router
+from .config import settings
+from .logging import get_logger, setup_logging
 from .travels import router as travels_router
 
 # Initialize logging
@@ -17,7 +20,7 @@ log = get_logger(__name__)
 
 app = FastAPI(
     title="rembish.org API",
-    version="0.9.5",
+    version="0.10.2",
     docs_url="/docs" if settings.debug else None,
     redoc_url="/redoc" if settings.debug else None,
     openapi_url="/openapi.json" if settings.debug else None,
@@ -37,8 +40,10 @@ app.add_middleware(
 
 # Security headers middleware
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Any]
+    ) -> Response:
+        response: Response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
@@ -68,11 +73,14 @@ def send_telegram_message(text: str) -> bool:
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     try:
-        response = httpx.post(url, json={
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "Markdown",
-        })
+        response = httpx.post(
+            url,
+            json={
+                "chat_id": chat_id,
+                "text": text,
+                "parse_mode": "Markdown",
+            },
+        )
         if response.is_success:
             log.info("Telegram notification sent")
             return True
@@ -85,15 +93,15 @@ def send_telegram_message(text: str) -> bool:
 
 
 @app.get("/health")
-def health():
+def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
 @app.get("/api/v1/info")
-def info():
+def info() -> dict[str, str]:
     return {
         "name": "rembish.org",
-        "version": "0.9.4",
+        "version": "0.10.2",
     }
 
 
@@ -111,7 +119,7 @@ def verify_turnstile(token: str) -> bool:
             },
         )
         result = response.json()
-        return result.get("success", False)
+        return bool(result.get("success", False))
     except Exception:
         log.exception("Turnstile verification failed")
         return False
@@ -126,7 +134,7 @@ def contact(
     website: str = Form(""),  # Honeypot
     ts: str = Form("0"),  # Timestamp when form was loaded
     cf_turnstile_response: str = Form(""),  # Turnstile token
-):
+) -> dict[str, str]:
     # Spam check 1: Honeypot field should be empty
     if website:
         log.info(f"Honeypot triggered from {email}")

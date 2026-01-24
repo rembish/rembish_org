@@ -1,34 +1,34 @@
-import { TypeAnimation } from 'react-type-animation'
+import { TypeAnimation } from "react-type-animation";
 import {
   BiLogoLinkedinSquare,
   BiLogoGithub,
   BiLogoInstagramAlt,
   BiLogoFacebookSquare,
-} from 'react-icons/bi'
-import { FaXTwitter } from 'react-icons/fa6'
+} from "react-icons/bi";
+import { FaXTwitter } from "react-icons/fa6";
 
 const typedItems = [
-  'a Senior Team Leader',
+  "a Senior Team Leader",
   2000,
-  'a Python professional',
+  "a Python professional",
   2000,
-  'an IT Manager',
+  "an IT Manager",
   2000,
-  'a Traveller',
+  "a Traveller",
   2000,
-  'an Aerial Photographer',
+  "an Aerial Photographer",
   2000,
-  'a Drone Pilot',
+  "a Drone Pilot",
   2000,
-]
+];
 
 const socialLinks = [
-  { href: 'https://linkedin.com/in/rembish/', icon: BiLogoLinkedinSquare },
-  { href: 'https://github.com/rembish', icon: BiLogoGithub },
-  { href: 'https://instagram.com/arembish/', icon: BiLogoInstagramAlt },
-  { href: 'https://x.com/rembish', icon: FaXTwitter },
-  { href: 'https://facebook.com/rembish/', icon: BiLogoFacebookSquare },
-]
+  { href: "https://linkedin.com/in/rembish/", icon: BiLogoLinkedinSquare },
+  { href: "https://github.com/rembish", icon: BiLogoGithub },
+  { href: "https://instagram.com/arembish/", icon: BiLogoInstagramAlt },
+  { href: "https://x.com/rembish", icon: FaXTwitter },
+  { href: "https://facebook.com/rembish/", icon: BiLogoFacebookSquare },
+];
 
 export default function Home() {
   return (
@@ -36,7 +36,7 @@ export default function Home() {
       <div className="container">
         <h1>Alex Rembish</h1>
         <p>
-          I'm{' '}
+          I'm{" "}
           <TypeAnimation
             sequence={typedItems}
             wrapper="span"
@@ -55,5 +55,5 @@ export default function Home() {
         </div>
       </div>
     </section>
-  )
+  );
 }

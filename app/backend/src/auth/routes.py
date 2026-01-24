@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, cast
 
 from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -22,10 +22,12 @@ log = get_logger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 # OAuth setup
-config = Config(environ={
-    "GOOGLE_CLIENT_ID": settings.google_client_id,
-    "GOOGLE_CLIENT_SECRET": settings.google_client_secret,
-})
+config = Config(
+    environ={
+        "GOOGLE_CLIENT_ID": settings.google_client_id,
+        "GOOGLE_CLIENT_SECRET": settings.google_client_secret,
+    }
+)
 oauth = OAuth(config)
 oauth.register(
     name="google",
@@ -69,7 +71,7 @@ def _validate_redirect(redirect: str | None) -> str:
 
 
 @router.get("/login")
-async def login(request: Request, redirect: str | None = None):
+async def login(request: Request, redirect: str | None = None) -> RedirectResponse:
     """Redirect to Google OAuth login."""
     if not settings.google_client_id:
         log.warning("OAuth login attempted but not configured")
@@ -79,7 +81,9 @@ async def login(request: Request, redirect: str | None = None):
         )
     log.debug("Initiating Google OAuth login")
     redirect_uri = f"{settings.frontend_url}/api/auth/callback"
-    response = await oauth.google.authorize_redirect(request, redirect_uri)
+    response = cast(
+        RedirectResponse, await oauth.google.authorize_redirect(request, redirect_uri)
+    )
     # Store intended redirect in cookie for callback to read
     validated_redirect = _validate_redirect(redirect)
     if validated_redirect != "/":
@@ -95,7 +99,7 @@ async def login(request: Request, redirect: str | None = None):
 
 
 @router.get("/callback")
-async def callback(request: Request, db: Session = Depends(get_db)):
+async def callback(request: Request, db: Session = Depends(get_db)) -> RedirectResponse:
     """Handle OAuth callback from Google."""
     # Get redirect target from cookie (set during login)
     redirect_path = request.cookies.get(REDIRECT_COOKIE_NAME, "/")
@@ -172,7 +176,7 @@ async def callback(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/logout")
-def logout(redirect: str | None = None):
+def logout(redirect: str | None = None) -> RedirectResponse:
     """Log out by clearing the session cookie."""
     log.debug("User logged out")
     redirect_path = _validate_redirect(redirect)
@@ -183,6 +187,6 @@ def logout(redirect: str | None = None):
 
 
 @router.get("/logout")
-def logout_get(redirect: str | None = None):
+def logout_get(redirect: str | None = None) -> RedirectResponse:
     """Log out (GET version for simple links)."""
     return logout(redirect)

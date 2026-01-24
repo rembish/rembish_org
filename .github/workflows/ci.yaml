@@ -1,0 +1,57 @@
+# CI workflow - runs linters and type checkers
+# Blocks deployment if checks fail
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: app/frontend/package-lock.json
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e "app/backend[dev]"
+
+      - name: Install frontend dependencies
+        run: |
+          cd app/frontend && npm ci
+
+      - name: Backend lint (ruff)
+        run: ruff check app/backend/src/
+
+      - name: Backend format check (ruff)
+        run: ruff format app/backend/src/ --check
+
+      - name: Backend typecheck (mypy)
+        run: cd app/backend && mypy src/
+
+      - name: Frontend lint (eslint)
+        run: cd app/frontend && npm run lint
+
+      - name: Frontend format check (prettier)
+        run: cd app/frontend && npm run format:check
+
+      - name: Frontend typecheck (tsc)
+        run: cd app/frontend && npx tsc --noEmit

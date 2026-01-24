@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Any, cast
 
 from fastapi import Cookie, Depends, HTTPException, status
 from itsdangerous import BadSignature, URLSafeTimedSerializer
@@ -19,10 +19,10 @@ def create_session_token(user_id: int) -> str:
     return serializer.dumps({"user_id": user_id})
 
 
-def verify_session_token(token: str) -> dict | None:
+def verify_session_token(token: str) -> dict[str, Any] | None:
     """Verify and decode a session token. Returns None if invalid."""
     try:
-        return serializer.loads(token, max_age=SESSION_MAX_AGE)
+        return cast(dict[str, Any], serializer.loads(token, max_age=SESSION_MAX_AGE))
     except BadSignature:
         return None
 
