@@ -91,7 +91,7 @@ def health():
 def info():
     return {
         "name": "rembish.org",
-        "version": "0.9.3",
+        "version": "0.9.4",
     }
 
 

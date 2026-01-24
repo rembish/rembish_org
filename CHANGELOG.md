@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.6 (2026-01-24)
+
+- Added Projects page with GitHub repositories (TextAtAnyCost, Miette, cfb, fit)
+- Added shining star animation for popular projects
+- Added GitHub profile link to Projects page
+- Map on Contact page now centers on Prague with wider view
+- Version number in footer linking to changelog page
+- Changelog page with timeline-style layout
+
 ## 0.9.5 (2026-01-24)
 
 - Added Cloudflare Turnstile CAPTCHA to contact form

@@ -17,6 +17,8 @@ const markerIcon = new L.Icon({
 
 // Wichterlova 2372/8, Prague 8
 const LOCATION: [number, number] = [50.12237421115734, 14.467198995032321]
+// Prague center (Old Town Square area)
+const PRAGUE_CENTER: [number, number] = [50.0875, 14.4213]
 
 // Cloudflare Turnstile site key (production only)
 const TURNSTILE_SITE_KEY = window.location.hostname === 'rembish.org'
@@ -119,7 +121,7 @@ export default function Contact() {
         </div>
 
         <div className="contact-map">
-          <MapContainer center={LOCATION} zoom={12} scrollWheelZoom={false}>
+          <MapContainer center={PRAGUE_CENTER} zoom={10} scrollWheelZoom={false}>
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

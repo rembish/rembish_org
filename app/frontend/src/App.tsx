@@ -2,7 +2,9 @@ import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
 import Home from './pages/Home'
 import CV from './pages/CV'
+import Projects from './pages/Projects'
 import Contact from './pages/Contact'
+import Changelog from './pages/Changelog'
 
 function App() {
   return (
@@ -10,7 +12,9 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/cv" element={<CV />} />
+        <Route path="/projects" element={<Projects />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/changelog" element={<Changelog />} />
       </Routes>
     </Layout>
   )

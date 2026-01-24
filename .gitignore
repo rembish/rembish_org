@@ -9,6 +9,7 @@ secrets
 # New app
 app/frontend/node_modules/
 app/frontend/dist/
+app/frontend/public/CHANGELOG.md
 *.pyc
 .ruff_cache/
 

@@ -59,7 +59,7 @@ jobs:
             -f app/frontend/Dockerfile.prod \
             -t ${{ env.REGISTRY }}/${{ env.FRONTEND_SERVICE }}:${{ steps.version.outputs.VERSION }} \
             -t ${{ env.REGISTRY }}/${{ env.FRONTEND_SERVICE }}:latest \
-            app/frontend
+            .
           docker push ${{ env.REGISTRY }}/${{ env.FRONTEND_SERVICE }}:${{ steps.version.outputs.VERSION }}
           docker push ${{ env.REGISTRY }}/${{ env.FRONTEND_SERVICE }}:latest
 

@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
-import { BiHome, BiFileBlank, BiEnvelope, BiMenu, BiX, BiLogIn, BiLogOut } from 'react-icons/bi'
+import { NavLink, Link } from 'react-router-dom'
+import { BiHome, BiFileBlank, BiLayer, BiEnvelope, BiMenu, BiX, BiLogIn, BiLogOut } from 'react-icons/bi'
 import { SiAnthropic } from 'react-icons/si'
 import { useAuth } from '../hooks/useAuth'
+import { version } from '../../package.json'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -11,6 +12,7 @@ interface LayoutProps {
 const navItems = [
   { to: '/', icon: BiHome, label: 'Home' },
   { to: '/cv', icon: BiFileBlank, label: 'Curriculum Vitae' },
+  { to: '/projects', icon: BiLayer, label: 'Projects' },
   { to: '/contact', icon: BiEnvelope, label: 'Contact' },
 ]
 
@@ -71,14 +73,13 @@ export default function Layout({ children }: LayoutProps) {
 
       <footer id="footer">
         <div className="copyright">
-          Content copyright &copy; <strong>Alex Rembish</strong> 2013&ndash;{new Date().getFullYear()}
+          Content copyright &copy; <strong>Alex Rembish</strong> 2013&ndash;{new Date().getFullYear()}{' '}
+          (<Link to="/changelog" className="version-link">v{version}</Link>)
         </div>
         <div className="credits">
-          Source code can be found on{' '}
-          <a href="https://github.com/rembish/rembish_org">GitHub</a>
-        </div>
-        <div className="credits">
-          Built with <SiAnthropic className="claude-icon" />{' '}
+          Source code on{' '}
+          <a href="https://github.com/rembish/rembish_org">GitHub</a>, built with{' '}
+          <SiAnthropic className="claude-icon" />{' '}
           <a href="https://claude.ai">Claude</a>
         </div>
       </footer>
