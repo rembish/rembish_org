@@ -5,7 +5,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # App
-    debug: bool = True
+    env: str = "production"
+    debug: bool = False
     frontend_url: str = "http://localhost:5173"
 
     # Database

@@ -13,7 +13,12 @@ from .auth import router as auth_router
 setup_logging()
 log = get_logger(__name__)
 
-app = FastAPI(title="rembish.org API", version="0.1.0")
+app = FastAPI(
+    title="rembish.org API",
+    version="0.9.3",
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
+)
 
 # Session middleware for OAuth state
 app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
@@ -69,7 +74,7 @@ def health():
 def info():
     return {
         "name": "rembish.org",
-        "version": "0.1.0",
+        "version": "0.9.3",
     }
 
 

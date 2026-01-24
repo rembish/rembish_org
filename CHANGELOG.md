@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.3 (2026-01-24)
+
+- Production deployment setup for GCP Cloud Run
+
 ## 0.9.2 (2026-01-24)
 
 - Updated CV with current position (Pure Storage)

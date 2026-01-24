@@ -1,0 +1,84 @@
+# Production deployment workflow for rembish.org
+# Triggered on version tags (v*)
+
+name: Deploy to Cloud Run
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  PROJECT_ID: rembish-main
+  REGION: europe-west3
+  REGISTRY: europe-west3-docker.pkg.dev/rembish-main/apps
+  BACKEND_SERVICE: rembish-org-backend
+  FRONTEND_SERVICE: rembish-org-frontend
+  MIGRATE_JOB: rembish-org-migrate
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for Workload Identity
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push backend image
+        run: |
+          docker build \
+            -f app/backend/Dockerfile.prod \
+            -t ${{ env.REGISTRY }}/${{ env.BACKEND_SERVICE }}:${{ steps.version.outputs.VERSION }} \
+            -t ${{ env.REGISTRY }}/${{ env.BACKEND_SERVICE }}:latest \
+            app/backend
+          docker push ${{ env.REGISTRY }}/${{ env.BACKEND_SERVICE }}:${{ steps.version.outputs.VERSION }}
+          docker push ${{ env.REGISTRY }}/${{ env.BACKEND_SERVICE }}:latest
+
+      - name: Build and push frontend image
+        run: |
+          docker build \
+            -f app/frontend/Dockerfile.prod \
+            -t ${{ env.REGISTRY }}/${{ env.FRONTEND_SERVICE }}:${{ steps.version.outputs.VERSION }} \
+            -t ${{ env.REGISTRY }}/${{ env.FRONTEND_SERVICE }}:latest \
+            app/frontend
+          docker push ${{ env.REGISTRY }}/${{ env.FRONTEND_SERVICE }}:${{ steps.version.outputs.VERSION }}
+          docker push ${{ env.REGISTRY }}/${{ env.FRONTEND_SERVICE }}:latest
+
+      - name: Run database migrations
+        run: |
+          gcloud run jobs execute ${{ env.MIGRATE_JOB }} \
+            --region ${{ env.REGION }} \
+            --wait
+
+      - name: Deploy backend to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.BACKEND_SERVICE }} \
+            --image ${{ env.REGISTRY }}/${{ env.BACKEND_SERVICE }}:${{ steps.version.outputs.VERSION }} \
+            --region ${{ env.REGION }} \
+            --platform managed
+
+      - name: Deploy frontend to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.FRONTEND_SERVICE }} \
+            --image ${{ env.REGISTRY }}/${{ env.FRONTEND_SERVICE }}:${{ steps.version.outputs.VERSION }} \
+            --region ${{ env.REGION }} \
+            --platform managed

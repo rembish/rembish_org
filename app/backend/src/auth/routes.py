@@ -136,7 +136,7 @@ async def callback(request: Request, db: Session = Depends(get_db)):
         path="/",
         httponly=True,
         samesite="lax",
-        secure=False,  # Set to True in production with HTTPS
+        secure=settings.env == "production",
     )
     return response
 
