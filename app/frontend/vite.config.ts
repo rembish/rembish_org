@@ -10,6 +10,7 @@ export default defineConfig({
       '/api': {
         target: 'http://backend:8000',
         changeOrigin: true,
+        cookieDomainRewrite: '',
       },
       '/health': {
         target: 'http://backend:8000',

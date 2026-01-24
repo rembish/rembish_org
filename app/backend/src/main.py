@@ -1,19 +1,33 @@
-import os
 import time
 import httpx
 from fastapi import FastAPI, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import EmailStr
+from starlette.middleware.sessions import SessionMiddleware
+
+from .config import settings
+from .logging import setup_logging, get_logger
+from .auth import router as auth_router
+
+# Initialize logging
+setup_logging()
+log = get_logger(__name__)
 
 app = FastAPI(title="rembish.org API", version="0.1.0")
 
+# Session middleware for OAuth state
+app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[settings.frontend_url],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include auth routes
+app.include_router(auth_router, prefix="/api")
 
 # Spam protection settings
 MIN_SUBMISSION_TIME_MS = 3000  # Reject forms submitted faster than 3 seconds
@@ -21,20 +35,29 @@ MIN_SUBMISSION_TIME_MS = 3000  # Reject forms submitted faster than 3 seconds
 
 def send_telegram_message(text: str) -> bool:
     """Send message to Telegram chat."""
-    token = os.getenv("TELEGRAM_TOKEN")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    token = settings.telegram_token
+    chat_id = settings.telegram_chat_id
 
     if not token or not chat_id:
-        # Telegram not configured, skip silently in dev
+        log.debug("Telegram not configured, skipping notification")
         return False
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    response = httpx.post(url, json={
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "Markdown",
-    })
-    return response.is_success
+    try:
+        response = httpx.post(url, json={
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "Markdown",
+        })
+        if response.is_success:
+            log.info("Telegram notification sent")
+            return True
+        else:
+            log.error(f"Telegram API error: {response.status_code} - {response.text}")
+            return False
+    except Exception:
+        log.exception("Failed to send Telegram notification")
+        return False
 
 
 @app.get("/health")
@@ -61,7 +84,7 @@ def contact(
 ):
     # Spam check 1: Honeypot field should be empty
     if website:
-        # Pretend success to not reveal detection
+        log.info(f"Honeypot triggered from {email}")
         return {"status": "ok"}
 
     # Spam check 2: Form submitted too quickly
@@ -69,10 +92,13 @@ def contact(
         loaded_ts = int(ts)
         elapsed_ms = int(time.time() * 1000) - loaded_ts
         if elapsed_ms < MIN_SUBMISSION_TIME_MS:
-            # Pretend success to not reveal detection
+            log.info(f"Speed check triggered from {email} ({elapsed_ms}ms)")
             return {"status": "ok"}
     except ValueError:
+        log.warning(f"Invalid timestamp from {email}")
         raise HTTPException(status_code=400, detail="Invalid form data")
+
+    log.info(f"Contact form submitted: {name} <{email}> - {subject or 'No subject'}")
 
     # Format message for Telegram
     subject_text = subject if subject else "No subject"

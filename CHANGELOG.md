@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.1 (2026-01-24)
+
+- Google OAuth login for admin access
+- Fixed download button icon visibility on CV page
+- Fixed navigation spacing for auth buttons
+
 ## 0.9.0 (2026-01-24)
 
 - New React frontend + FastAPI backend (rewrite in progress)

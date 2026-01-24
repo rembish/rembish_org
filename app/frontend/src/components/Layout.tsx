@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { BiHome, BiFileBlank, BiEnvelope, BiMenu, BiX } from 'react-icons/bi'
+import { BiHome, BiFileBlank, BiEnvelope, BiMenu, BiX, BiLogIn, BiLogOut } from 'react-icons/bi'
+import { useAuth } from '../hooks/useAuth'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -14,6 +15,7 @@ const navItems = [
 
 export default function Layout({ children }: LayoutProps) {
   const [mobileNavActive, setMobileNavActive] = useState(false)
+  const { user, loading, login, logout } = useAuth()
 
   const toggleMobileNav = () => setMobileNavActive(!mobileNavActive)
   const closeMobileNav = () => setMobileNavActive(false)
@@ -44,6 +46,23 @@ export default function Layout({ children }: LayoutProps) {
               </li>
             ))}
           </ul>
+          {!loading && (
+            <ul className="nav-menu nav-menu-auth">
+              <li>
+                {user ? (
+                  <button onClick={logout} className="nav-auth-btn">
+                    <span className="nav-icon"><BiLogOut /></span>
+                    <span className="nav-label">Logout</span>
+                  </button>
+                ) : (
+                  <button onClick={login} className="nav-auth-btn">
+                    <span className="nav-icon"><BiLogIn /></span>
+                    <span className="nav-label">Login</span>
+                  </button>
+                )}
+              </li>
+            </ul>
+          )}
         </nav>
       </header>
 
