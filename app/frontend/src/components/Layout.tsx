@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Link } from 'react-router-dom'
-import { BiHome, BiFileBlank, BiLayer, BiEnvelope, BiMenu, BiX, BiLogIn, BiLogOut } from 'react-icons/bi'
+import { BiHome, BiFileBlank, BiLayer, BiGlobe, BiEnvelope, BiMenu, BiX, BiLogIn, BiLogOut } from 'react-icons/bi'
 import { SiAnthropic } from 'react-icons/si'
 import { useAuth } from '../hooks/useAuth'
 import { version } from '../../package.json'
@@ -13,6 +13,7 @@ const navItems = [
   { to: '/', icon: BiHome, label: 'Home' },
   { to: '/cv', icon: BiFileBlank, label: 'Curriculum Vitae' },
   { to: '/projects', icon: BiLayer, label: 'Projects' },
+  { to: '/travels', icon: BiGlobe, label: 'Travels' },
   { to: '/contact', icon: BiEnvelope, label: 'Contact' },
 ]
 

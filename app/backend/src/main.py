@@ -9,6 +9,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from .config import settings
 from .logging import setup_logging, get_logger
 from .auth import router as auth_router
+from .travels import router as travels_router
 
 # Initialize logging
 setup_logging()
@@ -48,8 +49,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 
-# Include auth routes
+# Include routers
 app.include_router(auth_router, prefix="/api")
+app.include_router(travels_router, prefix="/api")
 
 # Spam protection settings
 MIN_SUBMISSION_TIME_MS = 3000  # Reject forms submitted faster than 3 seconds

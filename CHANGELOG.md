@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.0 (2026-01-24)
+
+- Added Travels page with interactive world map
+- Travel statistics: UN countries (193), TCC destinations (330), NomadMania regions (1301)
+- Map color gradient based on visit dates (older visits = lighter blue, 2010 baseline)
+- Three tabs: Map view, UN Countries list, TCC Destinations list
+- Microstate markers for small countries not visible on map
+- Admin-only NomadMania regions XLSX upload with safe transaction handling
+- Database migrations for travel tables, microstates, and NM regions
+
 ## 0.9.6 (2026-01-24)
 
 - Added Projects page with GitHub repositories (TextAtAnyCost, Miette, cfb, fit)
