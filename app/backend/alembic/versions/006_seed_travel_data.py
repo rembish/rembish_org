@@ -14,6 +14,7 @@ NomadMania regions are NOT seeded here - use admin upload instead.
 """
 
 from alembic import op
+from sqlalchemy import text
 
 
 revision = "006"
@@ -795,13 +796,13 @@ def upgrade():
 
     # 1. Insert UN countries
     for name, a2, a3, num, codes, continent in UN_COUNTRIES:
-        conn.execute(
+        conn.execute(text(
             f"""INSERT INTO un_countries (name, iso_alpha2, iso_alpha3, iso_numeric, map_region_codes, continent)
                 VALUES ('{name.replace("'", "''")}', '{a2}', '{a3}', '{num}', '{codes}', '{continent}')"""
-        )
+        ))
 
     # 2. Build UN country ID lookup
-    result = conn.execute("SELECT id, name FROM un_countries")
+    result = conn.execute(text("SELECT id, name FROM un_countries"))
     un_ids = {row[1]: row[0] for row in result}
 
     # 3. Insert TCC destinations
@@ -815,36 +816,36 @@ def upgrade():
         name_escaped = name.replace("'", "''")
         region_escaped = region.replace("'", "''")
 
-        conn.execute(
+        conn.execute(text(
             f"""INSERT INTO tcc_destinations (name, tcc_region, tcc_index, un_country_id, map_region_code)
                 VALUES ('{name_escaped}', '{region_escaped}', {tcc_idx}, {un_id_sql}, {map_code_sql})"""
-        )
+        ))
 
     # 4. Build TCC destination ID lookup
-    result = conn.execute("SELECT id, tcc_index FROM tcc_destinations")
+    result = conn.execute(text("SELECT id, tcc_index FROM tcc_destinations"))
     tcc_ids = {row[1]: row[0] for row in result}
 
     # 5. Insert visits
     for tcc_idx, visit_date in VISITS.items():
         tcc_id = tcc_ids.get(tcc_idx)
         if tcc_id:
-            conn.execute(
+            conn.execute(text(
                 f"""INSERT INTO visits (tcc_destination_id, first_visit_date)
                     VALUES ({tcc_id}, '{visit_date}')"""
-            )
+            ))
 
     # 6. Insert microstates
     for name, lon, lat, code in MICROSTATES:
         name_escaped = name.replace("'", "''")
-        conn.execute(
+        conn.execute(text(
             f"""INSERT INTO microstates (name, longitude, latitude, map_region_code)
                 VALUES ('{name_escaped}', {lon}, {lat}, '{code}')"""
-        )
+        ))
 
 
 def downgrade():
     conn = op.get_bind()
-    conn.execute("DELETE FROM visits")
-    conn.execute("DELETE FROM microstates")
-    conn.execute("DELETE FROM tcc_destinations")
-    conn.execute("DELETE FROM un_countries")
+    conn.execute(text("DELETE FROM visits"))
+    conn.execute(text("DELETE FROM microstates"))
+    conn.execute(text("DELETE FROM tcc_destinations"))
+    conn.execute(text("DELETE FROM un_countries"))

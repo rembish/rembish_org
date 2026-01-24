@@ -63,8 +63,11 @@ jobs:
           docker push ${{ env.REGISTRY }}/${{ env.FRONTEND_SERVICE }}:${{ steps.version.outputs.VERSION }}
           docker push ${{ env.REGISTRY }}/${{ env.FRONTEND_SERVICE }}:latest
 
-      - name: Run database migrations
+      - name: Update and run database migrations
         run: |
+          gcloud run jobs update ${{ env.MIGRATE_JOB }} \
+            --image ${{ env.REGISTRY }}/${{ env.BACKEND_SERVICE }}:${{ steps.version.outputs.VERSION }} \
+            --region ${{ env.REGION }}
           gcloud run jobs execute ${{ env.MIGRATE_JOB }} \
             --region ${{ env.REGION }} \
             --wait
