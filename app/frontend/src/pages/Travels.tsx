@@ -255,6 +255,33 @@ export default function Travels() {
                 </Marker>
               )
             })}
+            {/* Special location markers */}
+            <Marker coordinates={[82.9357, 55.0084]}>
+              <circle
+                r={1.5}
+                fill="#ffffff"
+                stroke="#333333"
+                strokeWidth={0.3}
+                style={{ cursor: 'pointer' }}
+                onMouseEnter={(e) => {
+                  setTooltip({ name: 'Birthplace', x: e.clientX, y: e.clientY })
+                }}
+                onMouseLeave={() => setTooltip(null)}
+              />
+            </Marker>
+            <Marker coordinates={[14.4378, 50.0755]}>
+              <circle
+                r={1.5}
+                fill="#ffffff"
+                stroke="#333333"
+                strokeWidth={0.3}
+                style={{ cursor: 'pointer' }}
+                onMouseEnter={(e) => {
+                  setTooltip({ name: 'Home', x: e.clientX, y: e.clientY })
+                }}
+                onMouseLeave={() => setTooltip(null)}
+              />
+            </Marker>
           </ZoomableGroup>
         </ComposableMap>
         {tooltip && (

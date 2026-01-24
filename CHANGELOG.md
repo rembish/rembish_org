@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.1 (2026-01-24)
+
+- Added birthplace and home markers on travel map
+
 ## 0.10.0 (2026-01-24)
 
 - Added Travels page with interactive world map
