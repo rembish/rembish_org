@@ -26,11 +26,13 @@ export function useAuth() {
   }, [])
 
   const login = () => {
-    window.location.href = '/api/auth/login'
+    const redirect = encodeURIComponent(window.location.pathname)
+    window.location.href = `/api/auth/login?redirect=${redirect}`
   }
 
   const logout = () => {
-    window.location.href = '/api/auth/logout'
+    const redirect = encodeURIComponent(window.location.pathname)
+    window.location.href = `/api/auth/logout?redirect=${redirect}`
   }
 
   return { user, loading, login, logout }

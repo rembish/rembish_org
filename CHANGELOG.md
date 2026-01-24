@@ -9,6 +9,8 @@
 - Microstate markers for small countries not visible on map
 - Admin-only NomadMania regions XLSX upload with safe transaction handling
 - Database migrations for travel tables, microstates, and NM regions
+- Login/logout now returns to the current page instead of home
+- Fixed map coloring for UAE, Vatican, Yemen, Somalia, and territory visits
 
 ## 0.9.6 (2026-01-24)
 
