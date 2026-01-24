@@ -16,7 +16,7 @@ log = get_logger(__name__)
 
 app = FastAPI(
     title="rembish.org API",
-    version="0.9.4",
+    version="0.9.5",
     docs_url="/docs" if settings.debug else None,
     redoc_url="/redoc" if settings.debug else None,
     openapi_url="/openapi.json" if settings.debug else None,
@@ -95,6 +95,26 @@ def info():
     }
 
 
+def verify_turnstile(token: str) -> bool:
+    """Verify Cloudflare Turnstile token."""
+    if not settings.turnstile_secret:
+        return True  # Skip verification if not configured (dev)
+
+    try:
+        response = httpx.post(
+            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+            data={
+                "secret": settings.turnstile_secret,
+                "response": token,
+            },
+        )
+        result = response.json()
+        return result.get("success", False)
+    except Exception:
+        log.exception("Turnstile verification failed")
+        return False
+
+
 @app.post("/api/v1/contact")
 def contact(
     name: str = Form(..., min_length=2),
@@ -103,6 +123,7 @@ def contact(
     message: str = Form(..., min_length=10),
     website: str = Form(""),  # Honeypot
     ts: str = Form("0"),  # Timestamp when form was loaded
+    cf_turnstile_response: str = Form(""),  # Turnstile token
 ):
     # Spam check 1: Honeypot field should be empty
     if website:
@@ -119,6 +140,11 @@ def contact(
     except ValueError:
         log.warning(f"Invalid timestamp from {email}")
         raise HTTPException(status_code=400, detail="Invalid form data")
+
+    # Spam check 3: Turnstile verification (production only)
+    if settings.turnstile_secret and not verify_turnstile(cf_turnstile_response):
+        log.info(f"Turnstile verification failed from {email}")
+        return {"status": "ok"}
 
     log.info(f"Contact form submitted: {name} <{email}> - {subject or 'No subject'}")
 

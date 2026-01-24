@@ -23,5 +23,8 @@ class Settings(BaseSettings):
     telegram_token: str = ""
     telegram_chat_id: str = ""
 
+    # Cloudflare Turnstile (CAPTCHA)
+    turnstile_secret: str = ""  # Empty in dev = disabled
+
 
 settings = Settings()

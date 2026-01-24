@@ -1,4 +1,4 @@
-import { useState, useRef, FormEvent } from 'react'
+import { useState, useRef, useEffect, FormEvent } from 'react'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import { BiMap, BiPhone, BiEnvelope, BiLogoTelegram, BiLogoWhatsapp, BiIdCard, BiKey } from 'react-icons/bi'
@@ -18,6 +18,20 @@ const markerIcon = new L.Icon({
 // Wichterlova 2372/8, Prague 8
 const LOCATION: [number, number] = [50.12237421115734, 14.467198995032321]
 
+// Cloudflare Turnstile site key (production only)
+const TURNSTILE_SITE_KEY = window.location.hostname === 'rembish.org'
+  ? '0x4AAAAAACOtDa7rH4uKbUZD'
+  : ''
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (container: string | HTMLElement, options: { sitekey: string; callback: (token: string) => void }) => string
+      reset: (widgetId: string) => void
+    }
+  }
+}
+
 interface FormState {
   status: 'idle' | 'submitting' | 'success' | 'error'
   message?: string
@@ -25,7 +39,36 @@ interface FormState {
 
 export default function Contact() {
   const [formState, setFormState] = useState<FormState>({ status: 'idle' })
+  const [turnstileToken, setTurnstileToken] = useState('')
   const loadedAt = useRef(Date.now())
+  const turnstileRef = useRef<HTMLDivElement>(null)
+  const widgetId = useRef<string>('')
+
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY || !turnstileRef.current) return
+
+    const renderWidget = () => {
+      if (window.turnstile && turnstileRef.current && !widgetId.current) {
+        widgetId.current = window.turnstile.render(turnstileRef.current, {
+          sitekey: TURNSTILE_SITE_KEY,
+          callback: (token: string) => setTurnstileToken(token),
+        })
+      }
+    }
+
+    // Turnstile script might not be loaded yet
+    if (window.turnstile) {
+      renderWidget()
+    } else {
+      const interval = setInterval(() => {
+        if (window.turnstile) {
+          renderWidget()
+          clearInterval(interval)
+        }
+      }, 100)
+      return () => clearInterval(interval)
+    }
+  }, [])
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -36,6 +79,11 @@ export default function Contact() {
 
     // Add timing data for spam protection
     formData.set('ts', loadedAt.current.toString())
+
+    // Add Turnstile token if available
+    if (turnstileToken) {
+      formData.set('cf_turnstile_response', turnstileToken)
+    }
 
     try {
       const response = await fetch('/api/v1/contact', {
@@ -49,6 +97,11 @@ export default function Contact() {
         setFormState({ status: 'success', message: 'Your message has been sent. Thank you!' })
         form.reset()
         loadedAt.current = Date.now() // Reset timer for next submission
+        // Reset Turnstile widget
+        if (window.turnstile && widgetId.current) {
+          window.turnstile.reset(widgetId.current)
+          setTurnstileToken('')
+        }
       } else {
         setFormState({ status: 'error', message: data.detail || 'Failed to send message' })
       }
@@ -172,6 +225,11 @@ export default function Contact() {
                 autoComplete="off"
               />
             </div>
+
+            {/* Cloudflare Turnstile widget (production only) */}
+            {TURNSTILE_SITE_KEY && (
+              <div ref={turnstileRef} className="turnstile-widget" />
+            )}
 
             {formState.status === 'error' && (
               <div className="form-message form-error">{formState.message}</div>

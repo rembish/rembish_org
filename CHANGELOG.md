@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.5 (2026-01-24)
+
+- Added Cloudflare Turnstile CAPTCHA to contact form
+
 ## 0.9.4 (2026-01-24)
 
 - Security hardening for production
