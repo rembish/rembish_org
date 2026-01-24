@@ -47,11 +47,17 @@ jobs:
       - name: Backend lint
         run: ruff check app/backend/src/
 
+      - name: Backend format check
+        run: ruff format app/backend/src/ --check
+
       - name: Backend typecheck
         run: cd app/backend && mypy src/
 
       - name: Frontend lint
         run: cd app/frontend && npm run lint
+
+      - name: Frontend format check
+        run: cd app/frontend && npm run format:check
 
       - name: Frontend typecheck
         run: cd app/frontend && npx tsc --noEmit

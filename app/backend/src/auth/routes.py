@@ -81,9 +81,7 @@ async def login(request: Request, redirect: str | None = None) -> RedirectRespon
         )
     log.debug("Initiating Google OAuth login")
     redirect_uri = f"{settings.frontend_url}/api/auth/callback"
-    response = cast(
-        RedirectResponse, await oauth.google.authorize_redirect(request, redirect_uri)
-    )
+    response = cast(RedirectResponse, await oauth.google.authorize_redirect(request, redirect_uri))
     # Store intended redirect in cookie for callback to read
     validated_redirect = _validate_redirect(redirect)
     if validated_redirect != "/":
