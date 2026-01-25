@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.11.0 (2026-01-25)
+
+### Territory Flags
+- 68 TCC territories now display their own flags instead of parent country flags
+- British overseas territories: Anguilla, Bermuda, British Virgin Islands, Cayman Islands, Falkland Islands, Gibraltar, Montserrat, Pitcairn, St. Helena, Ascension, Tristan da Cunha, Turks and Caicos, British Indian Ocean Territory
+- US territories: Puerto Rico, US Virgin Islands, Guam, Northern Marianas, American Samoa
+- French territories: French Polynesia, New Caledonia, Martinique, Guadeloupe, French Guiana, Reunion, Mayotte, St. Barthélemy, St. Martin, St. Pierre and Miquelon, Wallis and Futuna
+- Dutch territories: Aruba, Curaçao, Sint Maarten, Bonaire
+- UK nations: England, Scotland, Wales, Northern Ireland (with their own flags)
+- Other: Faroe Islands, Hong Kong, Macau, Taiwan, Crown Dependencies (Jersey, Guernsey, Isle of Man)
+- Custom flags for Somaliland and Northern Cyprus from Wikipedia Commons
+- SVG flags from lipis/flag-icons (MIT license)
+
+### Life Events
+- Trip types: regular, work, relocation (replaces is_work_trip boolean)
+- Birthday marker (May 1985, Novosibirsk) shown at end of stats timeline
+- Relocation events marked with 📦 icon in stats
+- Special background highlighting for life event months
+
+### Stats Page Improvements
+- Months now display newest to oldest (matching year order)
+- Flag deduplication when visiting country and its dependency in same month
+
+### Fixes
+- Fixed version-sync corrupting pyproject.toml Python version settings
+
 ## 0.10.3 (2026-01-25)
 
 - Travel map loads progressively: map appears immediately, tab data loads in background

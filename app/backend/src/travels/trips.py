@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..auth.session import get_admin_user
 from ..database import get_db
-from ..models import Trip, TripCity, TripDestination, TripParticipant, User
+from ..models import Trip, TripDestination, TripParticipant, User
 from .models import TripCityData, TripData, TripDestinationData, TripParticipantData, TripsResponse
 
 router = APIRouter()

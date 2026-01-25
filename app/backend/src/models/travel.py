@@ -63,7 +63,9 @@ class TCCDestination(Base):
     iso_alpha2: Mapped[str | None] = mapped_column(String(10), nullable=True)
 
     visit: Mapped["Visit | None"] = relationship(back_populates="tcc_destination")
-    trip_destinations: Mapped[list["TripDestination"]] = relationship(back_populates="tcc_destination")
+    trip_destinations: Mapped[list["TripDestination"]] = relationship(
+        back_populates="tcc_destination"
+    )
 
     def __repr__(self) -> str:
         return f"<TCCDestination #{self.id}: {self.name}>"

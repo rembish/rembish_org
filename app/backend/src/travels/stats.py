@@ -1,15 +1,13 @@
 """Public travel statistics endpoints."""
 
 from collections import defaultdict
-from datetime import date
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Trip, TripDestination, TCCDestination, UNCountry, Visit
+from ..models import TCCDestination, Trip, TripDestination, Visit
 
 router = APIRouter()
 

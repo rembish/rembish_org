@@ -190,7 +190,7 @@ version-sync: ## Update all version files from VERSION (run after editing VERSIO
 	fi; \
 	echo "Syncing version $$VERSION to all files..."; \
 	sed -i 's/"version": "[^"]*"/"version": "'$$VERSION'"/' $(FRONTEND_DIR)/package.json; \
-	sed -i 's/version = "[^"]*"/version = "'$$VERSION'"/' $(BACKEND_DIR)/pyproject.toml; \
+	sed -i 's/^version = "[^"]*"/version = "'$$VERSION'"/' $(BACKEND_DIR)/pyproject.toml; \
 	sed -i 's/version="[^"]*"/version="'$$VERSION'"/' $(BACKEND_DIR)/src/main.py; \
 	sed -i 's/"version": "[^"]*"/"version": "'$$VERSION'"/' $(BACKEND_DIR)/src/main.py; \
 	cp CHANGELOG.md $(FRONTEND_DIR)/public/; \
