@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.1 (2026-01-25)
+
+### Data Seeding
+- Production data migration with 219 trips, 1388 cities, 125 visits
+- Trip participants linked to companion users (displayed with avatars in admin)
+
+### City Data Cleanup
+- Deduplicated 7 duplicate city entries
+- Fixed country assignments: Berlin, Munich (Germany), Central Asian cities (Uzbekistan, Kazakhstan, Tajikistan), West African cities (Senegal, Mauritania)
+- Fixed UTF-8 diacritics: Plzeň, Špindlerův Mlýn, Kraków, Žilina, Kołobrzeg, etc.
+
 ## 0.11.0 (2026-01-25)
 
 ### Territory Flags
