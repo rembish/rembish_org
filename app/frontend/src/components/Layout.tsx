@@ -10,6 +10,7 @@ import {
   BiX,
   BiLogIn,
   BiLogOut,
+  BiCog,
 } from "react-icons/bi";
 import { SiAnthropic } from "react-icons/si";
 import { useAuth } from "../hooks/useAuth";
@@ -67,6 +68,20 @@ export default function Layout({ children }: LayoutProps) {
           </ul>
           {!loading && (
             <ul className="nav-menu nav-menu-auth">
+              {user?.is_admin && (
+                <li>
+                  <NavLink
+                    to="/admin"
+                    className={({ isActive }) => (isActive ? "active" : "")}
+                    onClick={closeMobileNav}
+                  >
+                    <span className="nav-icon">
+                      <BiCog />
+                    </span>
+                    <span className="nav-label">Admin</span>
+                  </NavLink>
+                </li>
+              )}
               <li>
                 {user ? (
                   <button onClick={logout} className="nav-auth-btn">

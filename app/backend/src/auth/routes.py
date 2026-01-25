@@ -9,7 +9,7 @@ from starlette.config import Config
 
 from ..config import settings
 from ..database import get_db
-from ..logging import get_logger
+from ..log_config import get_logger
 from ..models import User
 from .session import (
     SESSION_COOKIE_NAME,

@@ -11,7 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from .auth import router as auth_router
 from .config import settings
-from .logging import get_logger, setup_logging
+from .log_config import get_logger, setup_logging
 from .travels import router as travels_router
 
 # Initialize logging

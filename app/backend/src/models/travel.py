@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import Date, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
@@ -52,6 +52,7 @@ class TCCDestination(Base):
     map_region_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
 
     visit: Mapped["Visit | None"] = relationship(back_populates="tcc_destination")
+    trip_destinations: Mapped[list["TripDestination"]] = relationship(back_populates="tcc_destination")
 
     def __repr__(self) -> str:
         return f"<TCCDestination #{self.id}: {self.name}>"
@@ -105,3 +106,116 @@ class NMRegion(Base):
 
     def __repr__(self) -> str:
         return f"<NMRegion #{self.id}: {self.name}>"
+
+
+class Trip(Base):
+    """Personal trips with dates and metadata."""
+
+    __tablename__ = "trips"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    # Companions (normalized text, e.g., "Аня, Лёша, +2") - legacy, will be removed
+    companions: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    # Count of unnamed/other participants
+    other_participants_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Trip metadata
+    is_work_trip: Mapped[bool] = mapped_column(Boolean, default=False)
+    flights_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    working_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    rental_car: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    # Original data from spreadsheet (for reference)
+    raw_countries: Mapped[str | None] = mapped_column(Text, nullable=True)
+    raw_cities: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    # Relationships
+    destinations: Mapped[list["TripDestination"]] = relationship(
+        back_populates="trip", cascade="all, delete-orphan"
+    )
+    participants: Mapped[list["TripParticipant"]] = relationship(
+        back_populates="trip", cascade="all, delete-orphan"
+    )
+    cities: Mapped[list["TripCity"]] = relationship(
+        back_populates="trip", cascade="all, delete-orphan", order_by="TripCity.order"
+    )
+
+    def __repr__(self) -> str:
+        return f"<Trip #{self.id}: {self.start_date}>"
+
+
+class TripDestination(Base):
+    """Junction table linking trips to TCC destinations."""
+
+    __tablename__ = "trip_destinations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    trip_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False
+    )
+    tcc_destination_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tcc_destinations.id"), nullable=False
+    )
+
+    # Was this a partial visit (from parentheses in spreadsheet)?
+    is_partial: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Relationships
+    trip: Mapped[Trip] = relationship(back_populates="destinations")
+    tcc_destination: Mapped[TCCDestination] = relationship(back_populates="trip_destinations")
+
+    def __repr__(self) -> str:
+        return f"<TripDestination trip={self.trip_id} tcc={self.tcc_destination_id}>"
+
+
+class TripParticipant(Base):
+    """Junction table linking trips to user participants."""
+
+    __tablename__ = "trip_participants"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    trip_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+
+    # Relationships
+    trip: Mapped[Trip] = relationship(back_populates="participants")
+    user: Mapped["User"] = relationship(back_populates="trip_participations")
+
+    def __repr__(self) -> str:
+        return f"<TripParticipant trip={self.trip_id} user={self.user_id}>"
+
+
+class TripCity(Base):
+    """Cities visited during a trip."""
+
+    __tablename__ = "trip_cities"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    trip_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    is_partial: Mapped[bool] = mapped_column(Boolean, default=False)
+    order: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Relationships
+    trip: Mapped[Trip] = relationship(back_populates="cities")
+
+    def __repr__(self) -> str:
+        return f"<TripCity trip={self.trip_id} name={self.name}>"
+
+
+# Import to complete relationship
+from .user import User  # noqa: E402, F401

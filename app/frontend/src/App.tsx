@@ -4,6 +4,7 @@ import Home from "./pages/Home";
 import CV from "./pages/CV";
 import Projects from "./pages/Projects";
 import Travels from "./pages/Travels";
+import Admin from "./pages/Admin";
 import Contact from "./pages/Contact";
 import Changelog from "./pages/Changelog";
 
@@ -15,6 +16,9 @@ function App() {
         <Route path="/cv" element={<CV />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/travels" element={<Travels />} />
+        <Route path="/admin" element={<Admin />} />
+        <Route path="/admin/:tab" element={<Admin />} />
+        <Route path="/admin/:tab/:year" element={<Admin />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/changelog" element={<Changelog />} />
       </Routes>
