@@ -9,6 +9,7 @@ from ..database import Base
 
 class TripType(str, Enum):
     """Trip type enumeration."""
+
     regular = "regular"
     work = "work"
     relocation = "relocation"
@@ -147,9 +148,7 @@ class Trip(Base):
     raw_countries: Mapped[str | None] = mapped_column(Text, nullable=True)
     raw_cities: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     # Relationships
     destinations: Mapped[list["TripDestination"]] = relationship(

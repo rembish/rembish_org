@@ -6,8 +6,8 @@
 // Custom territory codes mapped to their SVG filenames
 // These territories don't have standard ISO codes in flag-icons
 const CUSTOM_CODES: Record<string, string> = {
-  'xs': 'somaliland',       // Somaliland (custom code)
-  'xn': 'northern-cyprus',  // Northern Cyprus (custom code)
+  xs: "somaliland", // Somaliland (custom code)
+  xn: "northern-cyprus", // Northern Cyprus (custom code)
 };
 
 interface FlagProps {
@@ -17,8 +17,13 @@ interface FlagProps {
   title?: string;
 }
 
-export default function Flag({ code, size = 16, className = '', title }: FlagProps) {
-  if (!code || code === '-') {
+export default function Flag({
+  code,
+  size = 16,
+  className = "",
+  title,
+}: FlagProps) {
+  if (!code || code === "-") {
     return null;
   }
 
@@ -34,13 +39,13 @@ export default function Flag({ code, size = 16, className = '', title }: FlagPro
       style={{
         width: size,
         height: size * 0.75,
-        objectFit: 'cover',
+        objectFit: "cover",
         borderRadius: 2,
-        verticalAlign: 'middle',
+        verticalAlign: "middle",
       }}
       onError={(e) => {
         // Hide broken images
-        (e.target as HTMLImageElement).style.display = 'none';
+        (e.target as HTMLImageElement).style.display = "none";
       }}
     />
   );

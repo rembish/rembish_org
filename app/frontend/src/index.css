@@ -1370,11 +1370,19 @@ a {
 }
 
 .stats-month-birthday {
-  background: linear-gradient(90deg, rgba(255, 200, 100, 0.15) 0%, transparent 50%);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 200, 100, 0.15) 0%,
+    transparent 50%
+  );
 }
 
 .stats-month-relocation {
-  background: linear-gradient(90deg, rgba(100, 180, 255, 0.15) 0%, transparent 50%);
+  background: linear-gradient(
+    90deg,
+    rgba(100, 180, 255, 0.15) 0%,
+    transparent 50%
+  );
 }
 
 .stats-month-bar-empty {
@@ -1616,7 +1624,6 @@ a {
   flex-wrap: wrap;
 }
 
-
 .trip-row-main {
   min-width: 0;
 }
@@ -1743,7 +1750,6 @@ a {
     color: #27ae60;
   }
 }
-
 
 .trips-total {
   text-align: center;

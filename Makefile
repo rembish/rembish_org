@@ -129,7 +129,7 @@ typecheck: backend-typecheck frontend-typecheck ## Run all type checkers
 
 test: backend-test ## Run all tests
 
-check: lint typecheck ## Run linters and type checkers
+check: backend-format-check frontend-format-check lint typecheck ## Run formatters, linters and type checkers
 
 ##@ Version Management
 

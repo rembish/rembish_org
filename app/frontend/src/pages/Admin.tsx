@@ -51,7 +51,9 @@ type AdminTab = "trips";
 // Check if trip overlaps with a given year (for NY trips spanning Dec-Jan)
 function tripOverlapsYear(trip: Trip, year: number): boolean {
   const startYear = new Date(trip.start_date).getFullYear();
-  const endYear = trip.end_date ? new Date(trip.end_date).getFullYear() : startYear;
+  const endYear = trip.end_date
+    ? new Date(trip.end_date).getFullYear()
+    : startYear;
   return year >= startYear && year <= endYear;
 }
 
@@ -60,7 +62,8 @@ function buildFirstVisitMap(trips: Trip[]): Map<string, string> {
   const firstVisit = new Map<string, string>();
   // Sort trips by date ascending to find first visits
   const sorted = [...trips].sort(
-    (a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+    (a, b) =>
+      new Date(a.start_date).getTime() - new Date(b.start_date).getTime(),
   );
   for (const trip of sorted) {
     for (const dest of trip.destinations) {
@@ -73,11 +76,17 @@ function buildFirstVisitMap(trips: Trip[]): Map<string, string> {
 }
 
 // Build a map of TCC destination -> first visit date within a specific year
-function buildFirstVisitInYearMap(trips: Trip[], year: number): Map<string, string> {
+function buildFirstVisitInYearMap(
+  trips: Trip[],
+  year: number,
+): Map<string, string> {
   const firstVisit = new Map<string, string>();
   const yearTrips = trips
     .filter((t) => tripOverlapsYear(t, year))
-    .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+    .sort(
+      (a, b) =>
+        new Date(a.start_date).getTime() - new Date(b.start_date).getTime(),
+    );
 
   for (const trip of yearTrips) {
     for (const dest of trip.destinations) {
@@ -107,8 +116,18 @@ function getYearsWithTrips(trips: Trip[]): number[] {
 // Format date as "D Mon" or "D Mon - D Mon" for ranges
 function formatDateRange(startDate: string, endDate: string | null): string {
   const months = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
   ];
   const start = new Date(startDate);
   const startStr = `${start.getDate()} ${months[start.getMonth()]}`;
@@ -134,7 +153,9 @@ function formatDateRange(startDate: string, endDate: string | null): string {
 function getDuration(startDate: string, endDate: string | null): number {
   const start = new Date(startDate);
   const end = endDate ? new Date(endDate) : start;
-  return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  return (
+    Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+  );
 }
 
 function TripsTab({
@@ -191,20 +212,20 @@ function TripsTab({
 
   // Sort by start date descending within year
   const sortedTrips = [...filteredTrips].sort(
-    (a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+    (a, b) =>
+      new Date(b.start_date).getTime() - new Date(a.start_date).getTime(),
   );
 
   // Calculate stats for selected year
   const yearTrips = sortedTrips;
   const totalDays = yearTrips.reduce(
     (sum, t) => sum + getDuration(t.start_date, t.end_date),
-    0
+    0,
   );
   const workTrips = yearTrips.filter((t) => t.trip_type === "work").length;
   const uniqueDestinations = new Set(
-    yearTrips.flatMap((t) => t.destinations.map((d) => d.name))
+    yearTrips.flatMap((t) => t.destinations.map((d) => d.name)),
   ).size;
-
 
   const handlePrevYear = () => {
     const idx = years.indexOf(selectedYear!);
@@ -262,7 +283,9 @@ function TripsTab({
         {sortedTrips.map((trip) => {
           const isOverlapping =
             new Date(trip.start_date).getFullYear() !==
-            (trip.end_date ? new Date(trip.end_date).getFullYear() : new Date(trip.start_date).getFullYear());
+            (trip.end_date
+              ? new Date(trip.end_date).getFullYear()
+              : new Date(trip.start_date).getFullYear());
 
           return (
             <div
@@ -274,11 +297,21 @@ function TripsTab({
                   {formatDateRange(trip.start_date, trip.end_date)}
                 </span>
                 <div className="trip-date-meta">
-                  <span className="trip-badge days" title={`${getDuration(trip.start_date, trip.end_date)} days`}>
+                  <span
+                    className="trip-badge days"
+                    title={`${getDuration(trip.start_date, trip.end_date)} days`}
+                  >
                     {getDuration(trip.start_date, trip.end_date)}d
                   </span>
                   {trip.trip_type === "work" && (
-                    <span className="trip-badge work" title={trip.working_days ? `${trip.working_days} working days` : "Work trip"}>
+                    <span
+                      className="trip-badge work"
+                      title={
+                        trip.working_days
+                          ? `${trip.working_days} working days`
+                          : "Work trip"
+                      }
+                    >
                       <BiBriefcase />
                       {trip.working_days && <span>{trip.working_days}</span>}
                     </span>
@@ -289,7 +322,10 @@ function TripsTab({
                     </span>
                   )}
                   {trip.flights_count && trip.flights_count > 0 && (
-                    <span className="trip-badge flights" title={`${trip.flights_count} flights`}>
+                    <span
+                      className="trip-badge flights"
+                      title={`${trip.flights_count} flights`}
+                    >
                       <BiPaperPlane />
                       <span>{trip.flights_count}</span>
                     </span>
@@ -305,9 +341,11 @@ function TripsTab({
                 <div className="trip-destinations-row">
                   <span className="trip-destinations">
                     {trip.destinations.map((d, i) => {
-                      const isFirstEver = firstVisitEver.get(d.name) === trip.start_date;
+                      const isFirstEver =
+                        firstVisitEver.get(d.name) === trip.start_date;
                       const isFirstThisYear =
-                        !isFirstEver && firstVisitThisYear.get(d.name) === trip.start_date;
+                        !isFirstEver &&
+                        firstVisitThisYear.get(d.name) === trip.start_date;
                       return (
                         <span key={i}>
                           {i > 0 && ", "}
@@ -327,7 +365,9 @@ function TripsTab({
                     })}
                     {trip.destinations.length === 0 && "—"}
                   </span>
-                  {(trip.participants.length > 0 || (trip.other_participants_count && trip.other_participants_count > 0)) && (
+                  {(trip.participants.length > 0 ||
+                    (trip.other_participants_count &&
+                      trip.other_participants_count > 0)) && (
                     <span className="trip-participants-inline">
                       {trip.participants.map((p) => (
                         <span
@@ -344,18 +384,22 @@ function TripsTab({
                           )}
                         </span>
                       ))}
-                      {trip.other_participants_count && trip.other_participants_count > 0 && (
-                        <span className="participant-count">
-                          +{trip.other_participants_count}
-                        </span>
-                      )}
+                      {trip.other_participants_count &&
+                        trip.other_participants_count > 0 && (
+                          <span className="participant-count">
+                            +{trip.other_participants_count}
+                          </span>
+                        )}
                     </span>
                   )}
                 </div>
                 {trip.cities.length > 0 && (
                   <div className="trip-cities">
                     {trip.cities.map((city, i) => (
-                      <span key={i} className={city.is_partial ? "city-partial" : ""}>
+                      <span
+                        key={i}
+                        className={city.is_partial ? "city-partial" : ""}
+                      >
                         {i > 0 && ", "}
                         {city.name}
                       </span>
@@ -431,7 +475,10 @@ export default function Admin() {
 
         <div className="admin-content">
           {activeTab === "trips" && (
-            <TripsTab selectedYear={selectedYear} onYearChange={setSelectedYear} />
+            <TripsTab
+              selectedYear={selectedYear}
+              onYearChange={setSelectedYear}
+            />
           )}
         </div>
       </div>

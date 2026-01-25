@@ -86,10 +86,12 @@ def get_travel_stats(db: Session = Depends(get_db)) -> TravelStatsResponse:
         trip_to_tccs[td.trip_id].add(td.tcc_destination_id)
 
     # Build year -> month -> stats
-    year_data: dict[int, dict] = defaultdict(lambda: {
-        "trips": [],
-        "months": defaultdict(lambda: {"trips": [], "tccs": set()}),
-    })
+    year_data: dict[int, dict] = defaultdict(
+        lambda: {
+            "trips": [],
+            "months": defaultdict(lambda: {"trips": [], "tccs": set()}),
+        }
+    )
 
     # Track first visits by year/month
     tcc_first_visit_year: dict[int, int] = {}  # tcc_id -> year of first visit
@@ -128,8 +130,7 @@ def get_travel_stats(db: Session = Depends(get_db)) -> TravelStatsResponse:
             year_tccs.update(trip_to_tccs[trip.id])
 
         # New countries this year (first visit was this year)
-        year_new = sum(1 for tcc_id in year_tccs
-                       if tcc_first_visit_year.get(tcc_id) == year)
+        year_new = sum(1 for tcc_id in year_tccs if tcc_first_visit_year.get(tcc_id) == year)
 
         # Monthly breakdown
         month_stats = []
@@ -149,11 +150,13 @@ def get_travel_stats(db: Session = Depends(get_db)) -> TravelStatsResponse:
                 if tcc_id in tcc_info:
                     name, iso_code = tcc_info[tcc_id]
                     is_new = tcc_first_visit_month.get(tcc_id) == (year, month)
-                    month_countries.append(MonthCountry(
-                        name=name,
-                        iso_code=iso_code,
-                        is_new=is_new,
-                    ))
+                    month_countries.append(
+                        MonthCountry(
+                            name=name,
+                            iso_code=iso_code,
+                            is_new=is_new,
+                        )
+                    )
 
             # Sort: new countries first, then alphabetically
             month_countries.sort(key=lambda c: (not c.is_new, c.name))
@@ -166,25 +169,29 @@ def get_travel_stats(db: Session = Depends(get_db)) -> TravelStatsResponse:
             if any(t.trip_type == "relocation" for t in month_trips):
                 event = "relocation"
 
-            month_stats.append(MonthStats(
-                month=month,
-                trips_count=len(month_trips),
-                days=month_days,
-                new_countries=month_new,
-                countries=month_countries,
-                event=event,
-            ))
+            month_stats.append(
+                MonthStats(
+                    month=month,
+                    trips_count=len(month_trips),
+                    days=month_days,
+                    new_countries=month_new,
+                    countries=month_countries,
+                    event=event,
+                )
+            )
 
-        years_stats.append(YearStats(
-            year=year,
-            trips_count=len(year_trips),
-            days=year_days,
-            countries_visited=len(year_tccs),
-            new_countries=year_new,
-            work_trips=year_work_trips,
-            flights=year_flights,
-            months=month_stats,
-        ))
+        years_stats.append(
+            YearStats(
+                year=year,
+                trips_count=len(year_trips),
+                days=year_days,
+                countries_visited=len(year_tccs),
+                new_countries=year_new,
+                work_trips=year_work_trips,
+                flights=year_flights,
+                months=month_stats,
+            )
+        )
 
         all_visited_ever.update(year_tccs)
 

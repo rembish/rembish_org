@@ -145,7 +145,6 @@ interface MonthStats {
   event: "birthday" | "relocation" | null;
 }
 
-
 interface YearStats {
   year: number;
   trips_count: number;
@@ -514,7 +513,20 @@ export default function Travels() {
     </div>
   );
 
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
 
   const renderStats = () => {
     if (!statsData) return null;
@@ -533,52 +545,84 @@ export default function Travels() {
                     <span className="stats-badge">{year.flights} flights</span>
                   )}
                   {year.new_countries > 0 && (
-                    <span className="stats-badge stats-badge-new">+{year.new_countries} new</span>
+                    <span className="stats-badge stats-badge-new">
+                      +{year.new_countries} new
+                    </span>
                   )}
                   {year.work_trips > 0 && (
-                    <span className="stats-badge stats-badge-work">{year.work_trips} work</span>
+                    <span className="stats-badge stats-badge-work">
+                      {year.work_trips} work
+                    </span>
                   )}
                 </div>
               </div>
               <div className="stats-months">
-                {year.months.slice().reverse().map((month) => (
-                  <div key={month.month} className={`stats-month ${month.event ? `stats-month-${month.event}` : ""}`}>
-                    <span className="stats-month-name">{monthNames[month.month - 1]}</span>
-                    {month.days > 0 ? (
-                      <div className="stats-month-bar" style={{ width: `${Math.min(month.days * 1.6, 50)}%` }}>
-                        <span className="stats-month-days">{month.days}d</span>
-                      </div>
-                    ) : (
-                      <div className="stats-month-bar stats-month-bar-empty" />
-                    )}
-                    <div className="stats-month-flags">
-                      {/* Dedupe by ISO code, keep is_new if any */}
-                      {Array.from(
-                        month.countries.reduce((map, country) => {
-                          const code = country.iso_code || country.name;
-                          const existing = map.get(code);
-                          if (!existing || (!existing.is_new && country.is_new)) {
-                            map.set(code, country);
-                          }
-                          return map;
-                        }, new Map<string, MonthCountry>())
-                      ).map(([code, country]) => (
-                        <span
-                          key={code}
-                          className={`stats-flag ${country.is_new ? "stats-flag-new" : ""}`}
+                {year.months
+                  .slice()
+                  .reverse()
+                  .map((month) => (
+                    <div
+                      key={month.month}
+                      className={`stats-month ${month.event ? `stats-month-${month.event}` : ""}`}
+                    >
+                      <span className="stats-month-name">
+                        {monthNames[month.month - 1]}
+                      </span>
+                      {month.days > 0 ? (
+                        <div
+                          className="stats-month-bar"
+                          style={{
+                            width: `${Math.min(month.days * 1.6, 50)}%`,
+                          }}
                         >
-                          <Flag
-                            code={country.iso_code}
-                            size={20}
-                            title={country.name + (country.is_new ? " (new)" : "")}
-                          />
-                        </span>
-                      ))}
-                      {month.event === "birthday" && <span className="stats-event" title="Birthday">🎂</span>}
-                      {month.event === "relocation" && <span className="stats-event" title="Relocation">📦</span>}
+                          <span className="stats-month-days">
+                            {month.days}d
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="stats-month-bar stats-month-bar-empty" />
+                      )}
+                      <div className="stats-month-flags">
+                        {/* Dedupe by ISO code, keep is_new if any */}
+                        {Array.from(
+                          month.countries.reduce((map, country) => {
+                            const code = country.iso_code || country.name;
+                            const existing = map.get(code);
+                            if (
+                              !existing ||
+                              (!existing.is_new && country.is_new)
+                            ) {
+                              map.set(code, country);
+                            }
+                            return map;
+                          }, new Map<string, MonthCountry>()),
+                        ).map(([code, country]) => (
+                          <span
+                            key={code}
+                            className={`stats-flag ${country.is_new ? "stats-flag-new" : ""}`}
+                          >
+                            <Flag
+                              code={country.iso_code}
+                              size={20}
+                              title={
+                                country.name + (country.is_new ? " (new)" : "")
+                              }
+                            />
+                          </span>
+                        ))}
+                        {month.event === "birthday" && (
+                          <span className="stats-event" title="Birthday">
+                            🎂
+                          </span>
+                        )}
+                        {month.event === "relocation" && (
+                          <span className="stats-event" title="Relocation">
+                            📦
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </div>
           ))}
@@ -607,7 +651,9 @@ export default function Travels() {
                 {statsData?.totals.days ?? "..."}
                 <span className="stat-total"> days</span>
               </span>
-              <span className="stat-label">{statsData?.totals.years ?? "..."} years traveling</span>
+              <span className="stat-label">
+                {statsData?.totals.years ?? "..."} years traveling
+              </span>
             </div>
           </div>
           <div className="stat-card">
@@ -620,7 +666,10 @@ export default function Travels() {
               <span className="stat-label">UN Countries</span>
             </div>
             <div className="stat-percent">
-              {Math.round((mapData.stats.un_visited / mapData.stats.un_total) * 100)}%
+              {Math.round(
+                (mapData.stats.un_visited / mapData.stats.un_total) * 100,
+              )}
+              %
             </div>
           </div>
           <a
@@ -728,9 +777,12 @@ export default function Travels() {
 
         <div className="travel-tab-content">
           {activeTab === "map" && renderMap()}
-          {activeTab === "stats" && (statsLoading ? <p>Loading stats...</p> : renderStats())}
-          {activeTab === "un" && (unLoading ? <p>Loading UN countries...</p> : renderUNList())}
-          {activeTab === "tcc" && (tccLoading ? <p>Loading TCC destinations...</p> : renderTCCList())}
+          {activeTab === "stats" &&
+            (statsLoading ? <p>Loading stats...</p> : renderStats())}
+          {activeTab === "un" &&
+            (unLoading ? <p>Loading UN countries...</p> : renderUNList())}
+          {activeTab === "tcc" &&
+            (tccLoading ? <p>Loading TCC destinations...</p> : renderTCCList())}
         </div>
       </div>
     </section>
