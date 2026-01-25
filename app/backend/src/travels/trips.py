@@ -33,10 +33,11 @@ def get_trips(
             id=trip.id,
             start_date=trip.start_date.isoformat(),
             end_date=trip.end_date.isoformat() if trip.end_date else None,
-            is_work_trip=trip.is_work_trip,
+            trip_type=trip.trip_type,
             flights_count=trip.flights_count,
             working_days=trip.working_days,
             rental_car=trip.rental_car,
+            description=trip.description,
             destinations=[
                 TripDestinationData(
                     name=td.tcc_destination.name,

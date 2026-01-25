@@ -1,4 +1,5 @@
 from .travel import (
+    City,
     Microstate,
     NMRegion,
     TCCDestination,
@@ -19,6 +20,7 @@ __all__ = [
     "Microstate",
     "NMRegion",
     "Trip",
+    "City",
     "TripCity",
     "TripDestination",
     "TripParticipant",

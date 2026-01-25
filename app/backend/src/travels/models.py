@@ -88,10 +88,11 @@ class TripData(BaseModel):
     id: int
     start_date: str  # ISO date
     end_date: str | None  # ISO date
-    is_work_trip: bool
+    trip_type: str  # regular, work, relocation
     flights_count: int | None
     working_days: int | None
     rental_car: str | None
+    description: str | None
     destinations: list[TripDestinationData]
     cities: list[TripCityData]
     participants: list[TripParticipantData]

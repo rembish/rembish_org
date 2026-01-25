@@ -1,9 +1,17 @@
 from datetime import date, datetime
+from enum import Enum
 
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
+
+
+class TripType(str, Enum):
+    """Trip type enumeration."""
+    regular = "regular"
+    work = "work"
+    relocation = "relocation"
 
 
 class UNCountry(Base):
@@ -50,6 +58,9 @@ class TCCDestination(Base):
 
     # For territories with their own map polygon (e.g., Somaliland, Kosovo)
     map_region_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
+
+    # ISO code override (Kosovo=XK, Vatican=VA, England=gb-eng, etc.)
+    iso_alpha2: Mapped[str | None] = mapped_column(String(10), nullable=True)
 
     visit: Mapped["Visit | None"] = relationship(back_populates="tcc_destination")
     trip_destinations: Mapped[list["TripDestination"]] = relationship(back_populates="tcc_destination")
@@ -124,10 +135,11 @@ class Trip(Base):
     other_participants_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Trip metadata
-    is_work_trip: Mapped[bool] = mapped_column(Boolean, default=False)
+    trip_type: Mapped[str] = mapped_column(String(20), default="regular")
     flights_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     working_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     rental_car: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Original data from spreadsheet (for reference)
     raw_countries: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -197,6 +209,27 @@ class TripParticipant(Base):
         return f"<TripParticipant trip={self.trip_id} user={self.user_id}>"
 
 
+class City(Base):
+    """Geocoded cities reference table."""
+
+    __tablename__ = "cities"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    country: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    display_name: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    lat: Mapped[float | None] = mapped_column(nullable=True)
+    lng: Mapped[float | None] = mapped_column(nullable=True)
+    geocoded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    confidence: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
+    # Relationships
+    trip_cities: Mapped[list["TripCity"]] = relationship(back_populates="city")
+
+    def __repr__(self) -> str:
+        return f"<City #{self.id}: {self.name}, {self.country}>"
+
+
 class TripCity(Base):
     """Cities visited during a trip."""
 
@@ -209,9 +242,13 @@ class TripCity(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     is_partial: Mapped[bool] = mapped_column(Boolean, default=False)
     order: Mapped[int] = mapped_column(Integer, default=0)
+    city_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("cities.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Relationships
     trip: Mapped[Trip] = relationship(back_populates="cities")
+    city: Mapped[City | None] = relationship(back_populates="trip_cities")
 
     def __repr__(self) -> str:
         return f"<TripCity trip={self.trip_id} name={self.name}>"

@@ -13,6 +13,7 @@
     "sync-changelog": "cp ../../CHANGELOG.md public/ 2>/dev/null || true"
   },
   "dependencies": {
+    "flag-icons": "^7.5.0",
     "leaflet": "^1.9.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

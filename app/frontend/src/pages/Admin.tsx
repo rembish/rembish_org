@@ -30,10 +30,11 @@ interface Trip {
   id: number;
   start_date: string;
   end_date: string | null;
-  is_work_trip: boolean;
+  trip_type: "regular" | "work" | "relocation";
   flights_count: number | null;
   working_days: number | null;
   rental_car: string | null;
+  description: string | null;
   destinations: TripDestination[];
   cities: TripCity[];
   participants: TripParticipant[];
@@ -199,7 +200,7 @@ function TripsTab({
     (sum, t) => sum + getDuration(t.start_date, t.end_date),
     0
   );
-  const workTrips = yearTrips.filter((t) => t.is_work_trip).length;
+  const workTrips = yearTrips.filter((t) => t.trip_type === "work").length;
   const uniqueDestinations = new Set(
     yearTrips.flatMap((t) => t.destinations.map((d) => d.name))
   ).size;
@@ -266,7 +267,7 @@ function TripsTab({
           return (
             <div
               key={trip.id}
-              className={`trip-row ${trip.is_work_trip ? "work-trip" : ""} ${isOverlapping ? "overlapping" : ""}`}
+              className={`trip-row ${trip.trip_type !== "regular" ? `${trip.trip_type}-trip` : ""} ${isOverlapping ? "overlapping" : ""}`}
             >
               <div className="trip-row-date">
                 <span className="trip-date-range">
@@ -276,10 +277,15 @@ function TripsTab({
                   <span className="trip-badge days" title={`${getDuration(trip.start_date, trip.end_date)} days`}>
                     {getDuration(trip.start_date, trip.end_date)}d
                   </span>
-                  {trip.is_work_trip && (
+                  {trip.trip_type === "work" && (
                     <span className="trip-badge work" title={trip.working_days ? `${trip.working_days} working days` : "Work trip"}>
                       <BiBriefcase />
                       {trip.working_days && <span>{trip.working_days}</span>}
+                    </span>
+                  )}
+                  {trip.trip_type === "relocation" && (
+                    <span className="trip-badge relocation" title="Relocation">
+                      📦
                     </span>
                   )}
                   {trip.flights_count && trip.flights_count > 0 && (
@@ -355,6 +361,9 @@ function TripsTab({
                       </span>
                     ))}
                   </div>
+                )}
+                {trip.description && (
+                  <div className="trip-description">{trip.description}</div>
                 )}
               </div>
             </div>

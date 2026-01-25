@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   ComposableMap,
   Geographies,
@@ -13,8 +14,11 @@ import {
   BiUpload,
   BiCheck,
   BiX,
+  BiTrip,
+  BiCalendar,
 } from "react-icons/bi";
 import { useAuth } from "../hooks/useAuth";
+import Flag from "../components/Flag";
 
 // World map TopoJSON - Visionscarto version (local) includes disputed territories
 const geoUrl = "/world-110m.json";
@@ -126,24 +130,70 @@ function groupBy<T>(
   );
 }
 
-type TabType = "map" | "un" | "tcc";
+interface MonthCountry {
+  name: string;
+  iso_code: string | null;
+  is_new: boolean;
+}
+
+interface MonthStats {
+  month: number;
+  trips_count: number;
+  days: number;
+  new_countries: number;
+  countries: MonthCountry[];
+  event: "birthday" | "relocation" | null;
+}
+
+
+interface YearStats {
+  year: number;
+  trips_count: number;
+  days: number;
+  countries_visited: number;
+  new_countries: number;
+  work_trips: number;
+  flights: number;
+  months: MonthStats[];
+}
+
+interface TravelStatsData {
+  years: YearStats[];
+  totals: {
+    trips: number;
+    days: number;
+    countries: number;
+    years: number;
+  };
+}
+
+type TabType = "map" | "un" | "tcc" | "stats";
 
 export default function Travels() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { tab } = useParams<{ tab?: string }>();
+  const activeTab: TabType = (tab as TabType) || "map";
+
+  const setActiveTab = (newTab: TabType) => {
+    navigate(`/travels/${newTab}`);
+  };
+
   // Split state for progressive loading
   const [mapData, setMapData] = useState<MapData | null>(null);
   const [unData, setUnData] = useState<UNCountryData[] | null>(null);
   const [tccData, setTccData] = useState<TCCDestinationData[] | null>(null);
+  const [statsData, setStatsData] = useState<TravelStatsData | null>(null);
   const [mapLoading, setMapLoading] = useState(true);
   const [unLoading, setUnLoading] = useState(true);
   const [tccLoading, setTccLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<{
     name: string;
     x: number;
     y: number;
   } | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>("map");
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<"success" | "error" | null>(
     null,
@@ -155,6 +205,7 @@ export default function Travels() {
     setMapLoading(true);
     setUnLoading(true);
     setTccLoading(true);
+    setStatsLoading(true);
 
     try {
       // Fetch map data first (shows map immediately)
@@ -164,10 +215,11 @@ export default function Travels() {
       setMapData(mapDataResult);
       setMapLoading(false);
 
-      // Fetch UN and TCC data in parallel
-      const [unRes, tccRes] = await Promise.all([
+      // Fetch UN, TCC, and stats data in parallel
+      const [unRes, tccRes, statsRes] = await Promise.all([
         fetch("/api/v1/travels/un-countries"),
         fetch("/api/v1/travels/tcc-destinations"),
+        fetch("/api/v1/travels/stats"),
       ]);
 
       if (unRes.ok) {
@@ -181,11 +233,18 @@ export default function Travels() {
         setTccData(tccResult.destinations);
       }
       setTccLoading(false);
+
+      if (statsRes.ok) {
+        const statsResult = await statsRes.json();
+        setStatsData(statsResult);
+      }
+      setStatsLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
       setMapLoading(false);
       setUnLoading(false);
       setTccLoading(false);
+      setStatsLoading(false);
     }
   };
 
@@ -455,10 +514,102 @@ export default function Travels() {
     </div>
   );
 
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  const renderStats = () => {
+    if (!statsData) return null;
+
+    return (
+      <div className="travel-stats-page">
+        <div className="stats-years">
+          {statsData.years.map((year) => (
+            <div key={year.year} className="stats-year-card">
+              <div className="stats-year-header">
+                <h3 className="stats-year-title">{year.year}</h3>
+                <div className="stats-year-summary">
+                  <span className="stats-badge">{year.trips_count} trips</span>
+                  <span className="stats-badge">{year.days} days</span>
+                  {year.flights > 0 && (
+                    <span className="stats-badge">{year.flights} flights</span>
+                  )}
+                  {year.new_countries > 0 && (
+                    <span className="stats-badge stats-badge-new">+{year.new_countries} new</span>
+                  )}
+                  {year.work_trips > 0 && (
+                    <span className="stats-badge stats-badge-work">{year.work_trips} work</span>
+                  )}
+                </div>
+              </div>
+              <div className="stats-months">
+                {year.months.slice().reverse().map((month) => (
+                  <div key={month.month} className={`stats-month ${month.event ? `stats-month-${month.event}` : ""}`}>
+                    <span className="stats-month-name">{monthNames[month.month - 1]}</span>
+                    {month.days > 0 ? (
+                      <div className="stats-month-bar" style={{ width: `${Math.min(month.days * 1.6, 50)}%` }}>
+                        <span className="stats-month-days">{month.days}d</span>
+                      </div>
+                    ) : (
+                      <div className="stats-month-bar stats-month-bar-empty" />
+                    )}
+                    <div className="stats-month-flags">
+                      {/* Dedupe by ISO code, keep is_new if any */}
+                      {Array.from(
+                        month.countries.reduce((map, country) => {
+                          const code = country.iso_code || country.name;
+                          const existing = map.get(code);
+                          if (!existing || (!existing.is_new && country.is_new)) {
+                            map.set(code, country);
+                          }
+                          return map;
+                        }, new Map<string, MonthCountry>())
+                      ).map(([code, country]) => (
+                        <span
+                          key={code}
+                          className={`stats-flag ${country.is_new ? "stats-flag-new" : ""}`}
+                        >
+                          <Flag
+                            code={country.iso_code}
+                            size={20}
+                            title={country.name + (country.is_new ? " (new)" : "")}
+                          />
+                        </span>
+                      ))}
+                      {month.event === "birthday" && <span className="stats-event" title="Birthday">🎂</span>}
+                      {month.event === "relocation" && <span className="stats-event" title="Relocation">📦</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section id="travels" className="travels">
       <div className="container">
         <div className="travel-stats">
+          <div className="stat-card">
+            <BiTrip className="stat-icon" />
+            <div className="stat-content">
+              <span className="stat-number">
+                {statsData?.totals.trips ?? "..."}
+              </span>
+              <span className="stat-label">Total Trips</span>
+            </div>
+          </div>
+          <div className="stat-card">
+            <BiCalendar className="stat-icon" />
+            <div className="stat-content">
+              <span className="stat-number">
+                {statsData?.totals.days ?? "..."}
+                <span className="stat-total"> days</span>
+              </span>
+              <span className="stat-label">{statsData?.totals.years ?? "..."} years traveling</span>
+            </div>
+          </div>
           <div className="stat-card">
             <BiWorld className="stat-icon" />
             <div className="stat-content">
@@ -556,6 +707,12 @@ export default function Travels() {
             Map
           </button>
           <button
+            className={`travel-tab ${activeTab === "stats" ? "active" : ""}`}
+            onClick={() => setActiveTab("stats")}
+          >
+            Stats
+          </button>
+          <button
             className={`travel-tab ${activeTab === "un" ? "active" : ""}`}
             onClick={() => setActiveTab("un")}
           >
@@ -571,6 +728,7 @@ export default function Travels() {
 
         <div className="travel-tab-content">
           {activeTab === "map" && renderMap()}
+          {activeTab === "stats" && (statsLoading ? <p>Loading stats...</p> : renderStats())}
           {activeTab === "un" && (unLoading ? <p>Loading UN countries...</p> : renderUNList())}
           {activeTab === "tcc" && (tccLoading ? <p>Loading TCC destinations...</p> : renderTCCList())}
         </div>
