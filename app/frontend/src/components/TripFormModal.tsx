@@ -227,7 +227,8 @@ export default function TripFormModal({
     }
 
     // Auto-set trip_type based on working_days
-    const tripType = formData.working_days && formData.working_days > 0 ? "work" : "regular";
+    const tripType =
+      formData.working_days && formData.working_days > 0 ? "work" : "regular";
 
     const dataToSave: TripFormData = {
       ...formData,
@@ -349,7 +350,9 @@ export default function TripFormModal({
               <label>Date Range *</label>
               <DatePicker
                 selectsRange
-                startDate={formData.start_date ? new Date(formData.start_date) : null}
+                startDate={
+                  formData.start_date ? new Date(formData.start_date) : null
+                }
                 endDate={formData.end_date ? new Date(formData.end_date) : null}
                 onChange={(dates) => {
                   const [start, end] = dates as [Date | null, Date | null];
@@ -458,11 +461,18 @@ export default function TripFormModal({
             {formData.cities.length > 0 && (
               <div className="selected-items">
                 {formData.cities.map((city) => (
-                  <div key={city.name} className={`selected-chip ${city.is_partial ? "partial" : ""}`}>
+                  <div
+                    key={city.name}
+                    className={`selected-chip ${city.is_partial ? "partial" : ""}`}
+                  >
                     <span
                       className="chip-name"
                       onClick={() => toggleCityPartial(city.name)}
-                      title={city.is_partial ? "Click to mark as full visit" : "Click to mark as partial"}
+                      title={
+                        city.is_partial
+                          ? "Click to mark as full visit"
+                          : "Click to mark as partial"
+                      }
                     >
                       {city.name}
                     </span>
@@ -502,7 +512,11 @@ export default function TripFormModal({
                       onClick={() => addCity(result)}
                     >
                       {result.country_code && (
-                        <Flag code={result.country_code} size={16} title={result.country || ""} />
+                        <Flag
+                          code={result.country_code}
+                          size={16}
+                          title={result.country || ""}
+                        />
                       )}
                       <span className="city-name">{result.name}</span>
                       {result.country && (
@@ -533,7 +547,11 @@ export default function TripFormModal({
                     onChange={() => toggleParticipant(user.id)}
                   />
                   {user.picture ? (
-                    <img src={user.picture} alt="" className="participant-pic" />
+                    <img
+                      src={user.picture}
+                      alt=""
+                      className="participant-pic"
+                    />
                   ) : (
                     <span className="participant-initial">
                       {(user.nickname || user.name || "?")[0]}

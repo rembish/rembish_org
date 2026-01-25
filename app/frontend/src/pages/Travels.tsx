@@ -54,13 +54,67 @@ interface TravelStats {
 interface MapData {
   stats: TravelStats;
   visited_map_regions: Record<string, string>;
+  visit_counts: Record<string, number>;
   visited_countries: string[];
   microstates: MicrostateData[];
 }
 
-// Calculate color based on visit date (older = brighter/lighter blue)
-// Uses 2010 as baseline - pre-2010 visits are lightest, 2010-now has full gradient
+// Calculate color based on visit count (hue) and visit date (lightness)
+// Hue: 1 visit = blue, many visits = warm colors (green -> yellow -> orange)
+// Lightness: older visits = lighter, recent = darker
 function getVisitColor(
+  visitDate: string,
+  _oldestDate: Date,
+  newestDate: Date,
+  visitCount: number = 1,
+): string {
+  const date = new Date(visitDate);
+  const baselineDate = new Date("2010-01-01");
+
+  // Hue based on visit count (210 = blue -> 120 = green -> 40 = orange)
+  // 1 visit: 210 (blue)
+  // 2-5: 180-150 (cyan/teal)
+  // 6-15: 120-80 (green/yellow-green)
+  // 16-30: 60-40 (yellow/orange)
+  // 31+: 30-15 (orange/red-orange)
+  let hue: number;
+  if (visitCount <= 1) {
+    hue = 210;
+  } else if (visitCount <= 5) {
+    hue = 210 - (visitCount - 1) * 15; // 195 -> 150
+  } else if (visitCount <= 15) {
+    hue = 150 - (visitCount - 5) * 7; // 143 -> 80
+  } else if (visitCount <= 30) {
+    hue = 80 - (visitCount - 15) * 2.5; // 77.5 -> 42.5
+  } else {
+    hue = Math.max(15, 42 - (visitCount - 30) * 0.5); // -> 15 min
+  }
+
+  // Saturation - keep high for vibrant colors
+  const saturation = 70;
+
+  // Lightness based on date (older = darker, recent = lighter)
+  let lightness: number;
+  if (date < baselineDate) {
+    // Pre-2010 visits get darkest
+    lightness = 35;
+  } else {
+    const totalRange = newestDate.getTime() - baselineDate.getTime();
+    if (totalRange === 0) {
+      lightness = 50;
+    } else {
+      // Ratio: 0 = 2010 (darker), 1 = newest (lighter)
+      const ratio = (date.getTime() - baselineDate.getTime()) / totalRange;
+      // Interpolate from 35% (dark) to 60% (light)
+      lightness = 35 + ratio * 25;
+    }
+  }
+
+  return `hsl(${Math.round(hue)}, ${saturation}%, ${Math.round(lightness)}%)`;
+}
+
+// Simple blue gradient for lists (doesn't have visit count context)
+function getListVisitColor(
   visitDate: string,
   _oldestDate: Date,
   newestDate: Date,
@@ -68,30 +122,17 @@ function getVisitColor(
   const date = new Date(visitDate);
   const baselineDate = new Date("2010-01-01");
 
-  // Pre-2010 visits get the lightest color
   if (date < baselineDate) {
-    return "rgb(103, 169, 224)"; // lightest blue
+    return "hsl(210, 70%, 35%)";
   }
 
   const totalRange = newestDate.getTime() - baselineDate.getTime();
-  if (totalRange === 0) return "#0563bb";
+  if (totalRange === 0) return "hsl(210, 70%, 50%)";
 
-  // Linear ratio from 2010 to newest: 0 = 2010, 1 = newest
   const ratio = (date.getTime() - baselineDate.getTime()) / totalRange;
+  const lightness = 35 + ratio * 25;
 
-  // Interpolate from light blue (#67a9e0) to dark blue (#0563bb)
-  const lightR = 103,
-    lightG = 169,
-    lightB = 224;
-  const darkR = 5,
-    darkG = 99,
-    darkB = 187;
-
-  const r = Math.round(lightR + (darkR - lightR) * ratio);
-  const g = Math.round(lightG + (darkG - lightG) * ratio);
-  const b = Math.round(lightB + (darkB - lightB) * ratio);
-
-  return `rgb(${r}, ${g}, ${b})`;
+  return `hsl(210, 70%, ${Math.round(lightness)}%)`;
 }
 
 // Format date as "Mon YYYY"
@@ -190,6 +231,7 @@ export default function Travels() {
   const [error, setError] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<{
     name: string;
+    visitCount?: number;
     x: number;
     y: number;
   } | null>(null);
@@ -336,9 +378,15 @@ export default function Travels() {
                 geographies.map((geo) => {
                   const geoId = String(geo.id);
                   const visitDate = mapData.visited_map_regions[geoId];
+                  const visitCount = mapData.visit_counts[geoId] || 0;
                   const isVisited = !!visitDate;
                   const fillColor = isVisited
-                    ? getVisitColor(visitDate, oldestDate, newestDate)
+                    ? getVisitColor(
+                        visitDate,
+                        oldestDate,
+                        newestDate,
+                        visitCount,
+                      )
                     : "#e6e9ec";
                   const countryName = geo.properties?.name || "";
                   return (
@@ -359,6 +407,7 @@ export default function Travels() {
                       onMouseEnter={(e) => {
                         setTooltip({
                           name: countryName,
+                          visitCount: isVisited ? visitCount : undefined,
                           x: e.clientX,
                           y: e.clientY,
                         });
@@ -368,6 +417,7 @@ export default function Travels() {
                         if (tooltip)
                           setTooltip({
                             name: countryName,
+                            visitCount: isVisited ? visitCount : undefined,
                             x: e.clientX,
                             y: e.clientY,
                           });
@@ -379,9 +429,10 @@ export default function Travels() {
             </Geographies>
             {mapData.microstates.map((m) => {
               const visitDate = mapData.visited_map_regions[m.map_region_code];
+              const visitCount = mapData.visit_counts[m.map_region_code] || 0;
               const isVisited = !!visitDate;
               const fillColor = isVisited
-                ? getVisitColor(visitDate, oldestDate, newestDate)
+                ? getVisitColor(visitDate, oldestDate, newestDate, visitCount)
                 : "#c0c4c8";
               return (
                 <Marker key={m.name} coordinates={[m.longitude, m.latitude]}>
@@ -392,7 +443,12 @@ export default function Travels() {
                     strokeWidth={0.3}
                     style={{ cursor: "pointer" }}
                     onMouseEnter={(e) => {
-                      setTooltip({ name: m.name, x: e.clientX, y: e.clientY });
+                      setTooltip({
+                        name: m.name,
+                        visitCount: isVisited ? visitCount : undefined,
+                        x: e.clientX,
+                        y: e.clientY,
+                      });
                     }}
                     onMouseLeave={() => setTooltip(null)}
                   />
@@ -441,6 +497,13 @@ export default function Travels() {
             }}
           >
             {tooltip.name}
+            {tooltip.visitCount !== undefined && tooltip.visitCount > 0 && (
+              <span className="tooltip-visits">
+                {" "}
+                ({tooltip.visitCount}{" "}
+                {tooltip.visitCount === 1 ? "trip" : "trips"})
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -457,7 +520,11 @@ export default function Travels() {
             <ul className="travel-list-items">
               {countries.map((country) => {
                 const color = country.visit_date
-                  ? getVisitColor(country.visit_date, oldestDate, newestDate)
+                  ? getListVisitColor(
+                      country.visit_date,
+                      oldestDate,
+                      newestDate,
+                    )
                   : undefined;
                 return (
                   <li
@@ -490,7 +557,7 @@ export default function Travels() {
             <ul className="travel-list-items">
               {destinations.map((dest) => {
                 const color = dest.visit_date
-                  ? getVisitColor(dest.visit_date, oldestDate, newestDate)
+                  ? getListVisitColor(dest.visit_date, oldestDate, newestDate)
                   : undefined;
                 return (
                   <li

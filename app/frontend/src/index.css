@@ -1117,6 +1117,11 @@ a {
   white-space: nowrap;
 }
 
+.tooltip-visits {
+  opacity: 0.7;
+  font-weight: 400;
+}
+
 .travel-countries {
   margin-block-end: 2rem;
 

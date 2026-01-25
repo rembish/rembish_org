@@ -8,7 +8,17 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..auth.session import get_admin_user
 from ..database import get_db
-from ..models import City, TCCDestination, Trip, TripCity, TripDestination, TripParticipant, UNCountry, User, Visit
+from ..models import (
+    City,
+    TCCDestination,
+    Trip,
+    TripCity,
+    TripDestination,
+    TripParticipant,
+    UNCountry,
+    User,
+    Visit,
+)
 from .models import (
     CitySearchResponse,
     CitySearchResult,
@@ -21,8 +31,8 @@ from .models import (
     TripDestinationData,
     TripDestinationInput,
     TripParticipantData,
-    TripUpdateRequest,
     TripsResponse,
+    TripUpdateRequest,
     UserOption,
     UserOptionsResponse,
 )
@@ -123,14 +133,11 @@ def get_users_options(
     db: Session = Depends(get_db),
 ) -> UserOptionsResponse:
     """Get all users for participant selector (admin only). Excludes the admin (owner)."""
-    users = (
-        db.query(User)
-        .filter(User.id != admin.id)
-        .order_by(User.name)
-        .all()
-    )
+    users = db.query(User).filter(User.id != admin.id).order_by(User.name).all()
     return UserOptionsResponse(
-        users=[UserOption(id=u.id, name=u.name, nickname=u.nickname, picture=u.picture) for u in users]
+        users=[
+            UserOption(id=u.id, name=u.name, nickname=u.nickname, picture=u.picture) for u in users
+        ]
     )
 
 
@@ -149,7 +156,7 @@ def _search_nominatim(
 
     # Use structured search for better results
     # Using 'country' parameter (name) instead of 'countrycodes' for complete address data
-    params = {
+    params: dict[str, str | int] = {
         "city": query,
         "format": "json",
         "limit": 5,
@@ -180,7 +187,6 @@ def _search_nominatim(
         for item in data:
             address = item.get("addressdetails", {})
             item_name = item.get("name", "")
-            item_type = item.get("type", "")
 
             # Get country info - use fallback if not in address
             country = address.get("country") or country_name
@@ -197,7 +203,18 @@ def _search_nominatim(
             # If no city field, check if the item name is a valid city
             if not city_name:
                 # Skip if name contains region keywords
-                if any(kw in item_name.lower() for kw in ("emirate", "region", "province", "state", "county", "district", "governorate")):
+                if any(
+                    kw in item_name.lower()
+                    for kw in (
+                        "emirate",
+                        "region",
+                        "province",
+                        "state",
+                        "county",
+                        "district",
+                        "governorate",
+                    )
+                ):
                     continue
                 # Accept if it matches the search query (user is explicitly searching for it)
                 if query_lower in item_name.lower():
@@ -234,7 +251,7 @@ def _search_nominatim(
 def search_cities(
     q: str = Query(..., min_length=2),
     country_codes: str | None = Query(None, description="Comma-separated ISO alpha-2 codes"),
-    admin: Annotated[User, Depends(get_admin_user)] = None,
+    admin: Annotated[User | None, Depends(get_admin_user)] = None,
     db: Session = Depends(get_db),
 ) -> CitySearchResponse:
     """Search cities - local DB first, then Nominatim (admin only)."""
@@ -254,7 +271,9 @@ def search_cities(
                 name=city.name,
                 country=city.country,
                 country_code=city.country_code,
-                display_name=city.display_name or f"{city.name}, {city.country}" if city.country else city.name,
+                display_name=city.display_name or f"{city.name}, {city.country}"
+                if city.country
+                else city.name,
                 lat=city.lat,
                 lng=city.lng,
                 source="local",
@@ -280,10 +299,14 @@ def search_cities(
                 # Cache to local DB - only if we have country_code (for flag display)
                 if nr.lat and nr.lng and nr.country_code:
                     # Check for existing by name + country_code (more reliable than country name)
-                    existing = db.query(City).filter(
-                        City.name == nr.name,
-                        City.country_code == nr.country_code,
-                    ).first()
+                    existing = (
+                        db.query(City)
+                        .filter(
+                            City.name == nr.name,
+                            City.country_code == nr.country_code,
+                        )
+                        .first()
+                    )
                     if not existing:
                         db.add(
                             City(
@@ -308,9 +331,7 @@ def _update_visits_for_trip(db: Session, trip: Trip) -> None:
 
     for trip_dest in trip.destinations:
         visit = (
-            db.query(Visit)
-            .filter(Visit.tcc_destination_id == trip_dest.tcc_destination_id)
-            .first()
+            db.query(Visit).filter(Visit.tcc_destination_id == trip_dest.tcc_destination_id).first()
         )
 
         if visit is None:
@@ -424,7 +445,11 @@ def _create_trip_relations(
     """Create trip destinations, cities, and participants."""
     # Add destinations
     for dest_input in destinations:
-        tcc_dest = db.query(TCCDestination).filter(TCCDestination.id == dest_input.tcc_destination_id).first()
+        tcc_dest = (
+            db.query(TCCDestination)
+            .filter(TCCDestination.id == dest_input.tcc_destination_id)
+            .first()
+        )
         if tcc_dest:
             trip.destinations.append(
                 TripDestination(
@@ -471,9 +496,7 @@ def create_trip(
     db.add(trip)
     db.flush()  # Get trip.id
 
-    _create_trip_relations(
-        db, trip, request.destinations, request.cities, request.participant_ids
-    )
+    _create_trip_relations(db, trip, request.destinations, request.cities, request.participant_ids)
 
     db.flush()
 
@@ -484,7 +507,7 @@ def create_trip(
 
     # Reload with relationships
     db.refresh(trip)
-    trip = (
+    loaded_trip = (
         db.query(Trip)
         .options(
             joinedload(Trip.destinations).joinedload(TripDestination.tcc_destination),
@@ -494,8 +517,9 @@ def create_trip(
         .filter(Trip.id == trip.id)
         .first()
     )
+    assert loaded_trip is not None
 
-    return _trip_to_data(trip)
+    return _trip_to_data(loaded_trip)
 
 
 @router.put("/trips/{trip_id}", response_model=TripData)
@@ -536,7 +560,11 @@ def update_trip(
         # Clear existing and recreate
         trip.destinations.clear()
         for dest_input in request.destinations:
-            tcc_dest = db.query(TCCDestination).filter(TCCDestination.id == dest_input.tcc_destination_id).first()
+            tcc_dest = (
+                db.query(TCCDestination)
+                .filter(TCCDestination.id == dest_input.tcc_destination_id)
+                .first()
+            )
             if tcc_dest:
                 trip.destinations.append(
                     TripDestination(
@@ -578,7 +606,7 @@ def update_trip(
     db.commit()
 
     # Reload with relationships
-    trip = (
+    loaded_trip = (
         db.query(Trip)
         .options(
             joinedload(Trip.destinations).joinedload(TripDestination.tcc_destination),
@@ -588,8 +616,9 @@ def update_trip(
         .filter(Trip.id == trip.id)
         .first()
     )
+    assert loaded_trip is not None
 
-    return _trip_to_data(trip)
+    return _trip_to_data(loaded_trip)
 
 
 @router.delete("/trips/{trip_id}")

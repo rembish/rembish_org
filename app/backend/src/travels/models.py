@@ -49,6 +49,7 @@ class TravelData(BaseModel):
 class MapData(BaseModel):
     stats: TravelStats
     visited_map_regions: dict[str, str]  # region_code -> first_visit_date (ISO)
+    visit_counts: dict[str, int]  # region_code -> number of trips
     visited_countries: list[str]
     microstates: list[MicrostateData]
 

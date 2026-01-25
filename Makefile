@@ -3,7 +3,8 @@
         frontend-dev frontend-build frontend-lint frontend-format frontend-typecheck \
         db-migrate db-revision db-shell \
         lint format typecheck test \
-        version version-check version-sync
+        version version-check version-sync \
+        build-prod build-backend-prod build-frontend-prod
 
 .DEFAULT_GOAL := help
 
@@ -130,6 +131,16 @@ typecheck: backend-typecheck frontend-typecheck ## Run all type checkers
 test: backend-test ## Run all tests
 
 check: backend-format-check frontend-format-check lint typecheck ## Run formatters, linters and type checkers
+
+##@ Production Build
+
+build-backend-prod: ## Build backend production Docker image
+	docker build -f $(BACKEND_DIR)/Dockerfile.prod -t rembish-org-backend:test $(BACKEND_DIR)
+
+build-frontend-prod: ## Build frontend production Docker image (uses repo root for CHANGELOG.md)
+	docker build -f $(FRONTEND_DIR)/Dockerfile.prod -t rembish-org-frontend:test .
+
+build-prod: build-backend-prod build-frontend-prod ## Build all production Docker images
 
 ##@ Version Management
 

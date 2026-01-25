@@ -5,7 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Microstate, NMRegion, TCCDestination, UNCountry, Visit
+from ..models import Microstate, NMRegion, TCCDestination, TripDestination, UNCountry, Visit
 from .models import (
     MapData,
     MicrostateData,
@@ -40,7 +40,9 @@ def get_travel_data(db: Session = Depends(get_db)) -> TravelData:
 
     # Count TCC destinations
     tcc_total = db.query(func.count(TCCDestination.id)).scalar() or 0
-    tcc_visited = db.query(func.count(Visit.id)).filter(Visit.first_visit_date.isnot(None)).scalar() or 0
+    tcc_visited = (
+        db.query(func.count(Visit.id)).filter(Visit.first_visit_date.isnot(None)).scalar() or 0
+    )
 
     # Get all map region codes with their first visit dates
     visited_map_regions: dict[str, date] = {}
@@ -185,15 +187,38 @@ def get_map_data(db: Session = Depends(get_db)) -> MapData:
 
     # Count TCC destinations
     tcc_total = db.query(func.count(TCCDestination.id)).scalar() or 0
-    tcc_visited = db.query(func.count(Visit.id)).filter(Visit.first_visit_date.isnot(None)).scalar() or 0
+    tcc_visited = (
+        db.query(func.count(Visit.id)).filter(Visit.first_visit_date.isnot(None)).scalar() or 0
+    )
 
     # Get NM stats
     nm_total = db.query(func.count(NMRegion.id)).scalar() or 0
     nm_visited = db.query(func.count(NMRegion.id)).filter(NMRegion.visited.is_(True)).scalar() or 0
 
-    # Get all map region codes with their first visit dates
+    # Get all map region codes with their first visit dates and trip counts
     visited_map_regions: dict[str, date] = {}
+    visit_counts: dict[str, int] = {}
     visited_countries: list[str] = []
+
+    # Count trips per TCC destination (distinct trips in case of duplicates)
+    trip_counts_query = (
+        db.query(
+            TripDestination.tcc_destination_id, func.count(func.distinct(TripDestination.trip_id))
+        )
+        .group_by(TripDestination.tcc_destination_id)
+        .all()
+    )
+    tcc_trip_counts = {tcc_id: count for tcc_id, count in trip_counts_query}
+
+    # Get trip counts per UN country (count distinct trips, not trip_destinations)
+    un_trip_counts_query = (
+        db.query(TCCDestination.un_country_id, func.count(func.distinct(TripDestination.trip_id)))
+        .join(TripDestination, TripDestination.tcc_destination_id == TCCDestination.id)
+        .filter(TCCDestination.un_country_id.isnot(None))
+        .group_by(TCCDestination.un_country_id)
+        .all()
+    )
+    un_trip_counts = {un_id: count for un_id, count in un_trip_counts_query}
 
     # Get visited UN countries with earliest visit date
     visited_un_data = (
@@ -207,11 +232,14 @@ def get_map_data(db: Session = Depends(get_db)) -> MapData:
 
     for country, first_visit in visited_un_data:
         visited_countries.append(country.name)
+        trip_count = un_trip_counts.get(country.id, 0)
         for code in country.map_region_codes.split(","):
             code = code.strip()
             if code and first_visit:
                 if code not in visited_map_regions or first_visit < visited_map_regions[code]:
                     visited_map_regions[code] = first_visit
+                # Accumulate trip counts for regions with multiple polygons
+                visit_counts[code] = visit_counts.get(code, 0) + trip_count
 
     # Get map regions from TCC destinations with their own polygon
     visited_tcc_with_polygon = (
@@ -220,6 +248,7 @@ def get_map_data(db: Session = Depends(get_db)) -> MapData:
         .filter(
             TCCDestination.map_region_code.isnot(None),
             TCCDestination.un_country_id.is_(None),
+            Visit.first_visit_date.isnot(None),
         )
         .all()
     )
@@ -229,6 +258,7 @@ def get_map_data(db: Session = Depends(get_db)) -> MapData:
             code = dest.map_region_code
             if code not in visited_map_regions or first_visit < visited_map_regions[code]:
                 visited_map_regions[code] = first_visit
+            visit_counts[code] = tcc_trip_counts.get(dest.id, 0)
             visited_countries.append(dest.name)
 
     # Get all microstates
@@ -256,6 +286,7 @@ def get_map_data(db: Session = Depends(get_db)) -> MapData:
             nm_total=nm_total,
         ),
         visited_map_regions=visited_map_regions_iso,
+        visit_counts=visit_counts,
         visited_countries=sorted(visited_countries),
         microstates=microstates_data,
     )

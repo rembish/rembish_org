@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import {
   BiBriefcase,
@@ -182,7 +182,7 @@ function TripsTab({
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [tccOptions, setTccOptions] = useState<TCCDestinationOption[]>([]);
 
-  const fetchTrips = () => {
+  const fetchTrips = useCallback(() => {
     fetch("/api/v1/travels/trips", { credentials: "include" })
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch trips");
@@ -202,7 +202,7 @@ function TripsTab({
         setError(err.message);
         setLoading(false);
       });
-  };
+  }, [selectedYear, onYearChange]);
 
   useEffect(() => {
     fetchTrips();
@@ -211,7 +211,7 @@ function TripsTab({
       .then((res) => res.json())
       .then((data) => setTccOptions(data.destinations || []))
       .catch(() => {});
-  }, []);
+  }, [fetchTrips]);
 
   if (loading) {
     return <p>Loading trips...</p>;
@@ -321,13 +321,15 @@ function TripsTab({
       working_days: editingTrip.working_days,
       rental_car: editingTrip.rental_car,
       description: editingTrip.description,
-      destinations: editingTrip.destinations.map((d) => {
-        const tccOpt = tccOptions.find((o) => o.name === d.name);
-        return {
-          tcc_destination_id: tccOpt?.id || 0,
-          is_partial: d.is_partial,
-        };
-      }).filter((d) => d.tcc_destination_id !== 0),
+      destinations: editingTrip.destinations
+        .map((d) => {
+          const tccOpt = tccOptions.find((o) => o.name === d.name);
+          return {
+            tcc_destination_id: tccOpt?.id || 0,
+            is_partial: d.is_partial,
+          };
+        })
+        .filter((d) => d.tcc_destination_id !== 0),
       cities: editingTrip.cities.map((c) => ({
         name: c.name,
         is_partial: c.is_partial,
