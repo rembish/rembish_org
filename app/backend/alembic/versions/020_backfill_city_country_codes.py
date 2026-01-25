@@ -104,6 +104,20 @@ def upgrade() -> None:
     conn.execute(text("DELETE FROM trip_participants WHERE trip_id = 93"))
     conn.execute(text("DELETE FROM trips WHERE id = 93"))
 
+    # Fix missing TCC to UN country mappings
+    # Cyprus UK bases and Gibraltar -> United Kingdom
+    conn.execute(text("""
+        UPDATE tcc_destinations
+        SET un_country_id = (SELECT id FROM un_countries WHERE name = 'United Kingdom')
+        WHERE id IN (125, 135) AND un_country_id IS NULL
+    """))
+    # Russia, Asia -> Russia
+    conn.execute(text("""
+        UPDATE tcc_destinations
+        SET un_country_id = (SELECT id FROM un_countries WHERE name = 'Russia')
+        WHERE id = 313 AND un_country_id IS NULL
+    """))
+
 
 def downgrade() -> None:
     # Clear all country_codes (will be re-populated on next Nominatim fetch)
