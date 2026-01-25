@@ -33,13 +33,14 @@ def get_travel_data(db: Session = Depends(get_db)) -> TravelData:
         db.query(func.count(func.distinct(TCCDestination.un_country_id)))
         .join(Visit, Visit.tcc_destination_id == TCCDestination.id)
         .filter(TCCDestination.un_country_id.isnot(None))
+        .filter(Visit.first_visit_date.isnot(None))
         .scalar()
         or 0
     )
 
     # Count TCC destinations
     tcc_total = db.query(func.count(TCCDestination.id)).scalar() or 0
-    tcc_visited = db.query(func.count(Visit.id)).scalar() or 0
+    tcc_visited = db.query(func.count(Visit.id)).filter(Visit.first_visit_date.isnot(None)).scalar() or 0
 
     # Get all map region codes with their first visit dates
     visited_map_regions: dict[str, date] = {}
@@ -50,6 +51,7 @@ def get_travel_data(db: Session = Depends(get_db)) -> TravelData:
         db.query(UNCountry, func.min(Visit.first_visit_date).label("first_visit"))
         .join(TCCDestination, TCCDestination.un_country_id == UNCountry.id)
         .join(Visit, Visit.tcc_destination_id == TCCDestination.id)
+        .filter(Visit.first_visit_date.isnot(None))
         .group_by(UNCountry.id)
         .all()
     )
@@ -71,6 +73,7 @@ def get_travel_data(db: Session = Depends(get_db)) -> TravelData:
         .filter(
             TCCDestination.map_region_code.isnot(None),
             TCCDestination.un_country_id.is_(None),  # Only non-UN territories
+            Visit.first_visit_date.isnot(None),
         )
         .all()
     )
@@ -175,13 +178,14 @@ def get_map_data(db: Session = Depends(get_db)) -> MapData:
         db.query(func.count(func.distinct(TCCDestination.un_country_id)))
         .join(Visit, Visit.tcc_destination_id == TCCDestination.id)
         .filter(TCCDestination.un_country_id.isnot(None))
+        .filter(Visit.first_visit_date.isnot(None))
         .scalar()
         or 0
     )
 
     # Count TCC destinations
     tcc_total = db.query(func.count(TCCDestination.id)).scalar() or 0
-    tcc_visited = db.query(func.count(Visit.id)).scalar() or 0
+    tcc_visited = db.query(func.count(Visit.id)).filter(Visit.first_visit_date.isnot(None)).scalar() or 0
 
     # Get NM stats
     nm_total = db.query(func.count(NMRegion.id)).scalar() or 0
@@ -196,6 +200,7 @@ def get_map_data(db: Session = Depends(get_db)) -> MapData:
         db.query(UNCountry, func.min(Visit.first_visit_date).label("first_visit"))
         .join(TCCDestination, TCCDestination.un_country_id == UNCountry.id)
         .join(Visit, Visit.tcc_destination_id == TCCDestination.id)
+        .filter(Visit.first_visit_date.isnot(None))
         .group_by(UNCountry.id)
         .all()
     )
@@ -265,6 +270,7 @@ def get_un_countries(db: Session = Depends(get_db)) -> UNCountriesResponse:
         db.query(UNCountry, func.min(Visit.first_visit_date).label("first_visit"))
         .join(TCCDestination, TCCDestination.un_country_id == UNCountry.id)
         .join(Visit, Visit.tcc_destination_id == TCCDestination.id)
+        .filter(Visit.first_visit_date.isnot(None))
         .group_by(UNCountry.id)
         .all()
     )

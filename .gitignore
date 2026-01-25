@@ -12,6 +12,7 @@ app/frontend/dist/
 app/frontend/public/CHANGELOG.md
 *.pyc
 *.egg-info/
+*.db
 .ruff_cache/
 
 # Environment files (keep .env.example)

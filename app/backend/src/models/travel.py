@@ -218,6 +218,7 @@ class City(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     country: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    country_code: Mapped[str | None] = mapped_column(String(2), nullable=True)  # ISO alpha-2
     display_name: Mapped[str | None] = mapped_column(String(500), nullable=True)
     lat: Mapped[float | None] = mapped_column(nullable=True)
     lng: Mapped[float | None] = mapped_column(nullable=True)

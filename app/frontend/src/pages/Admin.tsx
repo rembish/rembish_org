@@ -6,8 +6,12 @@ import {
   BiChevronLeft,
   BiChevronRight,
   BiPaperPlane,
+  BiPlus,
+  BiPencil,
+  BiTrash,
 } from "react-icons/bi";
 import { useAuth } from "../hooks/useAuth";
+import TripFormModal, { TripFormData } from "../components/TripFormModal";
 
 interface TripDestination {
   name: string;
@@ -44,6 +48,12 @@ interface Trip {
 interface TripsResponse {
   trips: Trip[];
   total: number;
+}
+
+interface TCCDestinationOption {
+  id: number;
+  name: string;
+  region: string;
 }
 
 type AdminTab = "trips";
@@ -168,8 +178,11 @@ function TripsTab({
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
+  const [tccOptions, setTccOptions] = useState<TCCDestinationOption[]>([]);
 
-  useEffect(() => {
+  const fetchTrips = () => {
     fetch("/api/v1/travels/trips", { credentials: "include" })
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch trips");
@@ -189,6 +202,15 @@ function TripsTab({
         setError(err.message);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchTrips();
+    // Fetch TCC options for mapping names to IDs
+    fetch("/api/v1/travels/tcc-options", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => setTccOptions(data.destinations || []))
+      .catch(() => {});
   }, []);
 
   if (loading) {
@@ -241,6 +263,80 @@ function TripsTab({
     }
   };
 
+  const handleAddTrip = () => {
+    setEditingTrip(null);
+    setModalOpen(true);
+  };
+
+  const handleEditTrip = (trip: Trip) => {
+    setEditingTrip(trip);
+    setModalOpen(true);
+  };
+
+  const handleDeleteTrip = async (tripId: number) => {
+    if (!confirm("Are you sure you want to delete this trip?")) return;
+
+    try {
+      const res = await fetch(`/api/v1/travels/trips/${tripId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to delete trip");
+      fetchTrips();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete trip");
+    }
+  };
+
+  const handleSaveTrip = async (data: TripFormData) => {
+    const url = editingTrip
+      ? `/api/v1/travels/trips/${editingTrip.id}`
+      : "/api/v1/travels/trips";
+    const method = editingTrip ? "PUT" : "POST";
+
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.detail || "Failed to save trip");
+    }
+
+    fetchTrips();
+  };
+
+  // Convert Trip to TripFormData for editing
+  const getInitialFormData = (): TripFormData | null => {
+    if (!editingTrip) return null;
+
+    return {
+      start_date: editingTrip.start_date,
+      end_date: editingTrip.end_date,
+      trip_type: editingTrip.trip_type,
+      flights_count: editingTrip.flights_count,
+      working_days: editingTrip.working_days,
+      rental_car: editingTrip.rental_car,
+      description: editingTrip.description,
+      destinations: editingTrip.destinations.map((d) => {
+        const tccOpt = tccOptions.find((o) => o.name === d.name);
+        return {
+          tcc_destination_id: tccOpt?.id || 0,
+          is_partial: d.is_partial,
+        };
+      }).filter((d) => d.tcc_destination_id !== 0),
+      cities: editingTrip.cities.map((c) => ({
+        name: c.name,
+        is_partial: c.is_partial,
+      })),
+      participant_ids: editingTrip.participants.map((p) => p.id),
+      other_participants_count: editingTrip.other_participants_count,
+    };
+  };
+
   return (
     <div className="admin-trips">
       <div className="trips-header">
@@ -269,6 +365,9 @@ function TripsTab({
             disabled={years.indexOf(selectedYear!) <= 0}
           >
             <BiChevronRight />
+          </button>
+          <button className="btn-add-trip" onClick={handleAddTrip}>
+            <BiPlus /> Add Trip
           </button>
         </div>
         <div className="trips-stats">
@@ -409,6 +508,22 @@ function TripsTab({
                 {trip.description && (
                   <div className="trip-description">{trip.description}</div>
                 )}
+                <div className="trip-row-actions">
+                  <button
+                    className="trip-action-btn"
+                    onClick={() => handleEditTrip(trip)}
+                    title="Edit trip"
+                  >
+                    <BiPencil />
+                  </button>
+                  <button
+                    className="trip-action-btn delete"
+                    onClick={() => handleDeleteTrip(trip.id)}
+                    title="Delete trip"
+                  >
+                    <BiTrash />
+                  </button>
+                </div>
               </div>
             </div>
           );
@@ -418,6 +533,14 @@ function TripsTab({
       <div className="trips-total">
         Total: {trips.length} trips across {years.length} years
       </div>
+
+      <TripFormModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={handleSaveTrip}
+        initialData={getInitialFormData()}
+        title={editingTrip ? "Edit Trip" : "Add Trip"}
+      />
     </div>
   );
 }

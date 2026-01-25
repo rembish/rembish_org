@@ -102,3 +102,79 @@ class TripData(BaseModel):
 class TripsResponse(BaseModel):
     trips: list[TripData]
     total: int
+
+
+# Request models for trip CRUD
+class TripDestinationInput(BaseModel):
+    tcc_destination_id: int
+    is_partial: bool = False
+
+
+class TripCityInput(BaseModel):
+    name: str
+    is_partial: bool = False
+
+
+class TripCreateRequest(BaseModel):
+    start_date: str  # YYYY-MM-DD
+    end_date: str | None = None
+    trip_type: str = "regular"
+    flights_count: int | None = None
+    working_days: int | None = None
+    rental_car: str | None = None
+    description: str | None = None
+    destinations: list[TripDestinationInput] = []
+    cities: list[TripCityInput] = []
+    participant_ids: list[int] = []
+    other_participants_count: int | None = None
+
+
+class TripUpdateRequest(BaseModel):
+    start_date: str | None = None
+    end_date: str | None = None
+    trip_type: str | None = None
+    flights_count: int | None = None
+    working_days: int | None = None
+    rental_car: str | None = None
+    description: str | None = None
+    destinations: list[TripDestinationInput] | None = None
+    cities: list[TripCityInput] | None = None
+    participant_ids: list[int] | None = None
+    other_participants_count: int | None = None
+
+
+# Option models for form selectors
+class TCCDestinationOption(BaseModel):
+    id: int
+    name: str
+    region: str
+    country_code: str | None  # ISO alpha-2 for Nominatim filtering
+
+
+class TCCDestinationOptionsResponse(BaseModel):
+    destinations: list[TCCDestinationOption]
+
+
+class CitySearchResult(BaseModel):
+    name: str
+    country: str | None
+    country_code: str | None  # ISO alpha-2 for flag display
+    display_name: str | None
+    lat: float | None
+    lng: float | None
+    source: str  # "local" or "nominatim"
+
+
+class CitySearchResponse(BaseModel):
+    results: list[CitySearchResult]
+
+
+class UserOption(BaseModel):
+    id: int
+    name: str | None
+    nickname: str | None
+    picture: str | None
+
+
+class UserOptionsResponse(BaseModel):
+    users: list[UserOption]

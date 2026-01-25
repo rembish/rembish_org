@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.12.0 (2026-01-25)
+
+### Trip Management (Admin)
+- Add/Edit/Delete trips via modal form in admin panel
+- Date range picker with Monday as week start
+- TCC destination selector with search (collapsed by default, auto-clears on select)
+- City search with Nominatim geocoding and local caching
+- Participant selection with "Other" count for unnamed companions
+- Partial city visits (click to toggle, displayed in grey)
+- First-visit tracking automatically updates when trips are added/edited/deleted
+
+### City Search
+- Local database search with country code filtering
+- Nominatim fallback with 400ms debounce and 1s rate limiting
+- Country flags displayed next to search results
+- Results cached to local database for faster future searches
+- Structured search with country name parameter for accurate results
+
+### Data Integrity
+- Visit dates correctly cleared when all trips to a destination are deleted
+- Duplicate city prevention (checks by name + country_code)
+- City data cleanup: removed entries without country codes
+- Fixed country/code mismatches (Oslo, Katowice)
+
+### Migrations
+- 019: Add country_code field to cities table
+- 020: Backfill country_code for existing cities from UN countries and territory mappings
+
 ## 0.11.1 (2026-01-25)
 
 ### Data Seeding
