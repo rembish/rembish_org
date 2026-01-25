@@ -144,7 +144,20 @@ version: ## Show current version from all sources
 	@echo "main.py (info API):     $$(grep -o '"version": "[^"]*"' $(BACKEND_DIR)/src/main.py | cut -d'"' -f4)"
 
 version-check: ## Verify all version files match VERSION
-	@VERSION=$$(cat $(VERSION_FILE)); \
+	@if [ ! -f "$(VERSION_FILE)" ]; then \
+		echo "ERROR: VERSION file not found at $(VERSION_FILE)"; \
+		echo "The ops repo VERSION file is the source of truth."; \
+		exit 1; \
+	fi; \
+	VERSION=$$(cat $(VERSION_FILE) | tr -d '[:space:]'); \
+	if [ -z "$$VERSION" ]; then \
+		echo "ERROR: VERSION file is empty"; \
+		exit 1; \
+	fi; \
+	if ! echo "$$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+		echo "ERROR: Invalid version format '$$VERSION' (expected X.Y.Z)"; \
+		exit 1; \
+	fi; \
 	ERRORS=0; \
 	echo "Expected version: $$VERSION"; \
 	echo "---"; \
@@ -161,7 +174,20 @@ version-check: ## Verify all version files match VERSION
 	echo "All versions match!"
 
 version-sync: ## Update all version files from VERSION (run after editing VERSION)
-	@VERSION=$$(cat $(VERSION_FILE)); \
+	@if [ ! -f "$(VERSION_FILE)" ]; then \
+		echo "ERROR: VERSION file not found at $(VERSION_FILE)"; \
+		echo "The ops repo VERSION file is the source of truth."; \
+		exit 1; \
+	fi; \
+	VERSION=$$(cat $(VERSION_FILE) | tr -d '[:space:]'); \
+	if [ -z "$$VERSION" ]; then \
+		echo "ERROR: VERSION file is empty"; \
+		exit 1; \
+	fi; \
+	if ! echo "$$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+		echo "ERROR: Invalid version format '$$VERSION' (expected X.Y.Z)"; \
+		exit 1; \
+	fi; \
 	echo "Syncing version $$VERSION to all files..."; \
 	sed -i 's/"version": "[^"]*"/"version": "'$$VERSION'"/' $(FRONTEND_DIR)/package.json; \
 	sed -i 's/version = "[^"]*"/version = "'$$VERSION'"/' $(BACKEND_DIR)/pyproject.toml; \

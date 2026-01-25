@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.3 (2026-01-25)
+
+- Travel map loads progressively: map appears immediately, tab data loads in background
+- Split travel API into three endpoints for faster initial load
+- Version sync now validates VERSION file format before updating
+
 ## 0.10.2 (2026-01-24)
 
 - Added development tooling: linting, formatting, type checking

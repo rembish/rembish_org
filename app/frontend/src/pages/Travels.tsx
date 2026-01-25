@@ -38,13 +38,6 @@ interface TCCDestinationData {
   visit_date: string | null;
 }
 
-interface NMRegionData {
-  name: string;
-  country: string;
-  first_visited_year: number | null;
-  last_visited_year: number | null;
-}
-
 interface TravelStats {
   un_visited: number;
   un_total: number;
@@ -54,14 +47,11 @@ interface TravelStats {
   nm_total: number;
 }
 
-interface TravelData {
+interface MapData {
   stats: TravelStats;
   visited_map_regions: Record<string, string>;
   visited_countries: string[];
   microstates: MicrostateData[];
-  un_countries: UNCountryData[];
-  tcc_destinations: TCCDestinationData[];
-  nm_regions: NMRegionData[];
 }
 
 // Calculate color based on visit date (older = brighter/lighter blue)
@@ -140,8 +130,13 @@ type TabType = "map" | "un" | "tcc";
 
 export default function Travels() {
   const { user } = useAuth();
-  const [data, setData] = useState<TravelData | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Split state for progressive loading
+  const [mapData, setMapData] = useState<MapData | null>(null);
+  const [unData, setUnData] = useState<UNCountryData[] | null>(null);
+  const [tccData, setTccData] = useState<TCCDestinationData[] | null>(null);
+  const [mapLoading, setMapLoading] = useState(true);
+  const [unLoading, setUnLoading] = useState(true);
+  const [tccLoading, setTccLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<{
     name: string;
@@ -154,6 +149,45 @@ export default function Travels() {
     null,
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch all data (used for initial load and after upload)
+  const fetchAllData = async () => {
+    setMapLoading(true);
+    setUnLoading(true);
+    setTccLoading(true);
+
+    try {
+      // Fetch map data first (shows map immediately)
+      const mapRes = await fetch("/api/v1/travels/map-data");
+      if (!mapRes.ok) throw new Error("Failed to fetch map data");
+      const mapDataResult: MapData = await mapRes.json();
+      setMapData(mapDataResult);
+      setMapLoading(false);
+
+      // Fetch UN and TCC data in parallel
+      const [unRes, tccRes] = await Promise.all([
+        fetch("/api/v1/travels/un-countries"),
+        fetch("/api/v1/travels/tcc-destinations"),
+      ]);
+
+      if (unRes.ok) {
+        const unResult = await unRes.json();
+        setUnData(unResult.countries);
+      }
+      setUnLoading(false);
+
+      if (tccRes.ok) {
+        const tccResult = await tccRes.json();
+        setTccData(tccResult.destinations);
+      }
+      setTccLoading(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+      setMapLoading(false);
+      setUnLoading(false);
+      setTccLoading(false);
+    }
+  };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -174,10 +208,8 @@ export default function Travels() {
         const err = await res.json();
         throw new Error(err.detail || "Upload failed");
       }
-      // Refresh data
-      const dataRes = await fetch("/api/v1/travels/data");
-      const newData = await dataRes.json();
-      setData(newData);
+      // Refresh all data
+      await fetchAllData();
       setUploadStatus("success");
       setTimeout(() => setUploadStatus(null), 3000);
     } catch (err) {
@@ -194,22 +226,10 @@ export default function Travels() {
   };
 
   useEffect(() => {
-    fetch("/api/v1/travels/data")
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch travel data");
-        return res.json();
-      })
-      .then((data: TravelData) => {
-        setData(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
-      });
+    fetchAllData();
   }, []);
 
-  if (loading) {
+  if (mapLoading) {
     return (
       <section id="travels" className="travels">
         <div className="container">
@@ -219,7 +239,7 @@ export default function Travels() {
     );
   }
 
-  if (error || !data) {
+  if (error || !mapData) {
     return (
       <section id="travels" className="travels">
         <div className="container">
@@ -230,15 +250,15 @@ export default function Travels() {
   }
 
   // Calculate date range for color gradient
-  const visitDates = Object.values(data.visited_map_regions).map(
+  const visitDates = Object.values(mapData.visited_map_regions).map(
     (d) => new Date(d),
   );
   const oldestDate = new Date(Math.min(...visitDates.map((d) => d.getTime())));
   const newestDate = new Date(Math.max(...visitDates.map((d) => d.getTime())));
 
-  // Group data by region
-  const unByContinent = groupBy(data.un_countries, (c) => c.continent);
-  const tccByRegion = groupBy(data.tcc_destinations, (d) => d.region);
+  // Group data by region (only when data is available)
+  const unByContinent = unData ? groupBy(unData, (c) => c.continent) : {};
+  const tccByRegion = tccData ? groupBy(tccData, (d) => d.region) : {};
 
   const renderMap = () => (
     <>
@@ -257,7 +277,7 @@ export default function Travels() {
               {({ geographies }) =>
                 geographies.map((geo) => {
                   const geoId = String(geo.id);
-                  const visitDate = data.visited_map_regions[geoId];
+                  const visitDate = mapData.visited_map_regions[geoId];
                   const isVisited = !!visitDate;
                   const fillColor = isVisited
                     ? getVisitColor(visitDate, oldestDate, newestDate)
@@ -299,8 +319,8 @@ export default function Travels() {
                 })
               }
             </Geographies>
-            {data.microstates.map((m) => {
-              const visitDate = data.visited_map_regions[m.map_region_code];
+            {mapData.microstates.map((m) => {
+              const visitDate = mapData.visited_map_regions[m.map_region_code];
               const isVisited = !!visitDate;
               const fillColor = isVisited
                 ? getVisitColor(visitDate, oldestDate, newestDate)
@@ -443,13 +463,13 @@ export default function Travels() {
             <BiWorld className="stat-icon" />
             <div className="stat-content">
               <span className="stat-number">
-                {data.stats.un_visited}
-                <span className="stat-total">/{data.stats.un_total}</span>
+                {mapData.stats.un_visited}
+                <span className="stat-total">/{mapData.stats.un_total}</span>
               </span>
               <span className="stat-label">UN Countries</span>
             </div>
             <div className="stat-percent">
-              {Math.round((data.stats.un_visited / data.stats.un_total) * 100)}%
+              {Math.round((mapData.stats.un_visited / mapData.stats.un_total) * 100)}%
             </div>
           </div>
           <a
@@ -461,14 +481,14 @@ export default function Travels() {
             <BiMapAlt className="stat-icon" />
             <div className="stat-content">
               <span className="stat-number">
-                {data.stats.tcc_visited}
-                <span className="stat-total">/{data.stats.tcc_total}</span>
+                {mapData.stats.tcc_visited}
+                <span className="stat-total">/{mapData.stats.tcc_total}</span>
               </span>
               <span className="stat-label">TCC Destinations</span>
             </div>
             <div className="stat-percent">
               {Math.round(
-                (data.stats.tcc_visited / data.stats.tcc_total) * 100,
+                (mapData.stats.tcc_visited / mapData.stats.tcc_total) * 100,
               )}
               %
             </div>
@@ -483,9 +503,9 @@ export default function Travels() {
               <BiGlobe className="stat-icon" />
               <div className="stat-content">
                 <span className="stat-number">
-                  {uploading ? "???" : data.stats.nm_visited}
+                  {uploading ? "???" : mapData.stats.nm_visited}
                   <span className="stat-total">
-                    /{uploading ? "???" : data.stats.nm_total}
+                    /{uploading ? "???" : mapData.stats.nm_total}
                   </span>
                 </span>
                 <span className="stat-label">NM Regions</span>
@@ -494,7 +514,7 @@ export default function Travels() {
                 {uploading ? (
                   <span className="upload-spinner" />
                 ) : (
-                  `${Math.round((data.stats.nm_visited / data.stats.nm_total) * 100)}%`
+                  `${Math.round((mapData.stats.nm_visited / mapData.stats.nm_total) * 100)}%`
                 )}
               </div>
             </a>
@@ -551,8 +571,8 @@ export default function Travels() {
 
         <div className="travel-tab-content">
           {activeTab === "map" && renderMap()}
-          {activeTab === "un" && renderUNList()}
-          {activeTab === "tcc" && renderTCCList()}
+          {activeTab === "un" && (unLoading ? <p>Loading UN countries...</p> : renderUNList())}
+          {activeTab === "tcc" && (tccLoading ? <p>Loading TCC destinations...</p> : renderTCCList())}
         </div>
       </div>
     </section>
