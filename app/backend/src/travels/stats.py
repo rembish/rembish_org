@@ -1,13 +1,17 @@
 """Public travel statistics endpoints."""
 
 from collections import defaultdict
+from datetime import date
+from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from ..auth import get_current_user_optional
 from ..database import get_db
-from ..models import TCCDestination, Trip, TripDestination, Visit
+from ..models import TCCDestination, Trip, TripDestination, User, Visit
 
 router = APIRouter()
 
@@ -25,6 +29,8 @@ class MonthStats(BaseModel):
     new_countries: int  # First-time TCC visits this month
     countries: list[MonthCountry]  # Countries visited this month
     event: str | None = None  # Special event: "birthday", "relocation"
+    is_planned: bool = False  # True if this month contains only future trips
+    has_planned_trips: bool = False  # True if month has any planned trips (for mixed styling)
 
 
 class YearStats(BaseModel):
@@ -61,11 +67,45 @@ def get_trip_month(trip: Trip) -> int:
 
 
 @router.get("/stats", response_model=TravelStatsResponse)
-def get_travel_stats(db: Session = Depends(get_db)) -> TravelStatsResponse:
+def get_travel_stats(
+    db: Session = Depends(get_db),
+    user: Annotated[User | None, Depends(get_current_user_optional)] = None,
+) -> TravelStatsResponse:
     """Get public travel statistics grouped by year."""
 
-    # Get all trips
-    trips = db.query(Trip).order_by(Trip.start_date).all()
+    today = date.today()
+
+    # Get completed trips
+    completed_trips = (
+        db.query(Trip)
+        .filter(
+            or_(
+                Trip.end_date <= today,
+                (Trip.end_date.is_(None)) & (Trip.start_date <= today),
+            )
+        )
+        .order_by(Trip.start_date)
+        .all()
+    )
+
+    # Get future/planned trips
+    future_trips = (
+        db.query(Trip)
+        .filter((Trip.end_date > today) | ((Trip.end_date.is_(None)) & (Trip.start_date > today)))
+        .order_by(Trip.start_date)
+        .all()
+    )
+
+    planned_trips_count = len(future_trips)
+
+    # Include future trips if user is logged in
+    planned_trip_ids: set[int] = set()
+    if user:
+        trips = completed_trips + future_trips
+        # Track which trip IDs are planned
+        planned_trip_ids = {t.id for t in future_trips}
+    else:
+        trips = completed_trips
 
     # Get all first visits (from visits table)
     first_visits = db.query(Visit).filter(Visit.first_visit_date.isnot(None)).all()
@@ -169,6 +209,10 @@ def get_travel_stats(db: Session = Depends(get_db)) -> TravelStatsResponse:
             if any(t.trip_type == "relocation" for t in month_trips):
                 event = "relocation"
 
+            # Check planned status for this month
+            is_month_planned = all(t.id in planned_trip_ids for t in month_trips)
+            has_any_planned = any(t.id in planned_trip_ids for t in month_trips)
+
             month_stats.append(
                 MonthStats(
                     month=month,
@@ -177,6 +221,8 @@ def get_travel_stats(db: Session = Depends(get_db)) -> TravelStatsResponse:
                     new_countries=month_new,
                     countries=month_countries,
                     event=event,
+                    is_planned=is_month_planned,
+                    has_planned_trips=has_any_planned,
                 )
             )
 
@@ -220,6 +266,7 @@ def get_travel_stats(db: Session = Depends(get_db)) -> TravelStatsResponse:
     # Calculate totals
     totals = {
         "trips": len(trips),
+        "planned_trips": planned_trips_count,
         "days": sum(get_trip_days(t) for t in trips),
         "countries": len(all_visited_ever),
         "years": len(year_data),

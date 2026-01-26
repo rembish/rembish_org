@@ -35,6 +35,7 @@ interface UNCountryData {
   continent: string;
   visit_date: string | null;
   visit_count: number;
+  planned_count: number;
 }
 
 interface TCCDestinationData {
@@ -42,13 +43,16 @@ interface TCCDestinationData {
   region: string;
   visit_date: string | null;
   visit_count: number;
+  planned_count: number;
 }
 
 interface TravelStats {
   un_visited: number;
   un_total: number;
+  un_planned: number;
   tcc_visited: number;
   tcc_total: number;
+  tcc_planned: number;
   nm_visited: number;
   nm_total: number;
 }
@@ -164,6 +168,8 @@ interface MonthStats {
   days: number;
   new_countries: number;
   countries: MonthCountry[];
+  is_planned: boolean;
+  has_planned_trips: boolean;
   event: "birthday" | "relocation" | null;
 }
 
@@ -182,6 +188,7 @@ interface TravelStatsData {
   years: YearStats[];
   totals: {
     trips: number;
+    planned_trips: number;
     days: number;
     countries: number;
     years: number;
@@ -418,7 +425,7 @@ export default function Travels() {
                         default: { outline: "none", cursor: "pointer" },
                         hover: {
                           outline: "none",
-                          fill: isVisited ? "#067ded" : "#d0d4d9",
+                          fill: isVisited ? "#e0c080" : "#d0d4d9",
                         },
                         pressed: { outline: "none" },
                       }}
@@ -531,12 +538,13 @@ export default function Travels() {
 
   const renderUNList = () => {
     const filteredByContinent = Object.entries(unByContinent)
-      .map(([continent, countries]) => [
-        continent,
-        showOnlyVisited
-          ? countries.filter((c) => c.visit_date)
-          : countries,
-      ] as [string, UNCountryData[]])
+      .map(
+        ([continent, countries]) =>
+          [
+            continent,
+            showOnlyVisited ? countries.filter((c) => c.visit_date) : countries,
+          ] as [string, UNCountryData[]],
+      )
       .filter(([, countries]) => countries.length > 0);
 
     return (
@@ -577,68 +585,81 @@ export default function Travels() {
           </div>
         </div>
         {filteredByContinent
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([continent, countries]) => {
-          const allInContinent = unByContinent[continent] || [];
-          const visitedCount = allInContinent.filter((c) => c.visit_date).length;
-          const totalCount = allInContinent.length;
-          const percentage = Math.round((visitedCount / totalCount) * 100);
-          return (
-          <div key={continent} className="travel-list-group">
-            <h3 className="travel-list-group-title">
-              {continent}
-              <span className="travel-list-group-stats">
-                {visitedCount}/{totalCount} ({percentage}%)
-              </span>
-            </h3>
-            <ul className="travel-list-items">
-              {countries.map((country) => {
-                const color = country.visit_date
-                  ? getVisitColor(
-                      country.visit_date,
-                      oldestDate,
-                      newestDate,
-                      country.visit_count,
-                    )
-                  : undefined;
-                return (
-                  <li
-                    key={country.name}
-                    className={country.visit_date ? "visited" : ""}
-                    style={color ? { backgroundColor: color } : undefined}
-                  >
-                    <span className="country-name">
-                      {country.name}
-                      {country.visit_count > 0 && (
-                        <span className="visit-count-badge">
-                          {country.visit_count}
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([continent, countries]) => {
+            const allInContinent = unByContinent[continent] || [];
+            const visitedCount = allInContinent.filter(
+              (c) => c.visit_date,
+            ).length;
+            const totalCount = allInContinent.length;
+            const percentage = Math.round((visitedCount / totalCount) * 100);
+            return (
+              <div key={continent} className="travel-list-group">
+                <h3 className="travel-list-group-title">
+                  {continent}
+                  <span className="travel-list-group-stats">
+                    {visitedCount}/{totalCount} ({percentage}%)
+                  </span>
+                </h3>
+                <ul className="travel-list-items">
+                  {countries.map((country) => {
+                    const color = country.visit_date
+                      ? getVisitColor(
+                          country.visit_date,
+                          oldestDate,
+                          newestDate,
+                          country.visit_count,
+                        )
+                      : undefined;
+                    return (
+                      <li
+                        key={country.name}
+                        className={country.visit_date ? "visited" : ""}
+                        style={color ? { backgroundColor: color } : undefined}
+                      >
+                        <span className="country-name">
+                          {country.name}
+                          {country.visit_count > 0 && (
+                            <span className="visit-count-badge">
+                              {country.visit_count}
+                            </span>
+                          )}
+                          {country.planned_count > 0 && (
+                            <span
+                              className="planned-count-badge"
+                              title="In plans"
+                            >
+                              +{country.planned_count}
+                            </span>
+                          )}
                         </span>
-                      )}
-                    </span>
-                    {country.visit_date && (
-                      <span className="visit-date">
-                        {formatDate(country.visit_date)}
-                      </span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        );
-        })}
+                        {country.visit_date && (
+                          <span className="visit-date">
+                            {formatDate(country.visit_date)}
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
       </div>
     );
   };
 
   const renderTCCList = () => {
     const filteredByRegion = Object.entries(tccByRegion)
-      .map(([region, destinations]) => [
-        region,
-        showOnlyVisited
-          ? destinations.filter((d) => d.visit_date)
-          : destinations,
-      ] as [string, TCCDestinationData[]])
+      .map(
+        ([region, destinations]) =>
+          [
+            region,
+            showOnlyVisited
+              ? destinations.filter((d) => d.visit_date)
+              : destinations,
+          ] as [string, TCCDestinationData[]],
+      )
       .filter(([, destinations]) => destinations.length > 0);
 
     return (
@@ -686,48 +707,56 @@ export default function Travels() {
             const totalCount = allInRegion.length;
             const percentage = Math.round((visitedCount / totalCount) * 100);
             return (
-            <div key={region} className="travel-list-group">
-              <h3 className="travel-list-group-title">
-                {region}
-                <span className="travel-list-group-stats">
-                  {visitedCount}/{totalCount} ({percentage}%)
-                </span>
-              </h3>
-              <ul className="travel-list-items">
-                {destinations.map((dest) => {
-                  const color = dest.visit_date
-                    ? getVisitColor(
-                        dest.visit_date,
-                        oldestDate,
-                        newestDate,
-                        dest.visit_count,
-                      )
-                    : undefined;
-                  return (
-                    <li
-                      key={dest.name}
-                      className={dest.visit_date ? "visited" : ""}
-                      style={color ? { backgroundColor: color } : undefined}
-                    >
-                      <span className="country-name">
-                        {dest.name}
-                        {dest.visit_count > 0 && (
-                          <span className="visit-count-badge">
-                            {dest.visit_count}
+              <div key={region} className="travel-list-group">
+                <h3 className="travel-list-group-title">
+                  {region}
+                  <span className="travel-list-group-stats">
+                    {visitedCount}/{totalCount} ({percentage}%)
+                  </span>
+                </h3>
+                <ul className="travel-list-items">
+                  {destinations.map((dest) => {
+                    const color = dest.visit_date
+                      ? getVisitColor(
+                          dest.visit_date,
+                          oldestDate,
+                          newestDate,
+                          dest.visit_count,
+                        )
+                      : undefined;
+                    return (
+                      <li
+                        key={dest.name}
+                        className={dest.visit_date ? "visited" : ""}
+                        style={color ? { backgroundColor: color } : undefined}
+                      >
+                        <span className="country-name">
+                          {dest.name}
+                          {dest.visit_count > 0 && (
+                            <span className="visit-count-badge">
+                              {dest.visit_count}
+                            </span>
+                          )}
+                          {dest.planned_count > 0 && (
+                            <span
+                              className="planned-count-badge"
+                              title="In plans"
+                            >
+                              +{dest.planned_count}
+                            </span>
+                          )}
+                        </span>
+                        {dest.visit_date && (
+                          <span className="visit-date">
+                            {formatDate(dest.visit_date)}
                           </span>
                         )}
-                      </span>
-                      {dest.visit_date && (
-                        <span className="visit-date">
-                          {formatDate(dest.visit_date)}
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          );
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
           })}
       </div>
     );
@@ -790,7 +819,7 @@ export default function Travels() {
                       </span>
                       {month.days > 0 ? (
                         <div
-                          className="stats-month-bar"
+                          className={`stats-month-bar ${month.is_planned ? "stats-month-bar-planned" : month.has_planned_trips ? "stats-month-bar-mixed" : ""}`}
                           style={{
                             width: `${Math.min(month.days * 1.6, 50)}%`,
                           }}
@@ -825,7 +854,8 @@ export default function Travels() {
                               code={country.iso_code}
                               size={20}
                               title={
-                                country.name + (country.is_new ? " (first visit)" : "")
+                                country.name +
+                                (country.is_new ? " (first visit)" : "")
                               }
                             />
                           </span>
@@ -860,6 +890,11 @@ export default function Travels() {
             <div className="stat-content">
               <span className="stat-number">
                 {statsData?.totals.trips ?? "..."}
+                {(statsData?.totals.planned_trips ?? 0) > 0 && (
+                  <span className="stat-planned" title="In plans">
+                    +{statsData?.totals.planned_trips}
+                  </span>
+                )}
               </span>
               <span className="stat-label">Total Trips</span>
             </div>
@@ -881,7 +916,12 @@ export default function Travels() {
             <div className="stat-content">
               <span className="stat-number">
                 {mapData.stats.un_visited}
-                <span className="stat-total">/{mapData.stats.un_total}</span>
+                {mapData.stats.un_planned > 0 && (
+                  <span className="stat-planned" title="In plans">
+                    +{mapData.stats.un_planned}
+                  </span>
+                )}
+                <span className="stat-total"> of {mapData.stats.un_total}</span>
               </span>
               <span className="stat-label">UN Countries</span>
             </div>
@@ -902,7 +942,15 @@ export default function Travels() {
             <div className="stat-content">
               <span className="stat-number">
                 {mapData.stats.tcc_visited}
-                <span className="stat-total">/{mapData.stats.tcc_total}</span>
+                {mapData.stats.tcc_planned > 0 && (
+                  <span className="stat-planned" title="In plans">
+                    +{mapData.stats.tcc_planned}
+                  </span>
+                )}
+                <span className="stat-total">
+                  {" "}
+                  of {mapData.stats.tcc_total}
+                </span>
               </span>
               <span className="stat-label">TCC Destinations</span>
             </div>
@@ -925,7 +973,8 @@ export default function Travels() {
                 <span className="stat-number">
                   {uploading ? "???" : mapData.stats.nm_visited}
                   <span className="stat-total">
-                    /{uploading ? "???" : mapData.stats.nm_total}
+                    {" "}
+                    of {uploading ? "???" : mapData.stats.nm_total}
                   </span>
                 </span>
                 <span className="stat-label">NM Regions</span>

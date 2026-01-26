@@ -168,6 +168,16 @@ function getDuration(startDate: string, endDate: string | null): number {
   );
 }
 
+// Check if trip is in the future (not yet completed)
+function isFutureTrip(trip: Trip): boolean {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const endDate = trip.end_date
+    ? new Date(trip.end_date)
+    : new Date(trip.start_date);
+  return endDate > today;
+}
+
 function TripsTab({
   selectedYear,
   onYearChange,
@@ -387,11 +397,12 @@ function TripsTab({
             (trip.end_date
               ? new Date(trip.end_date).getFullYear()
               : new Date(trip.start_date).getFullYear());
+          const isFuture = isFutureTrip(trip);
 
           return (
             <div
               key={trip.id}
-              className={`trip-row ${trip.trip_type !== "regular" ? `${trip.trip_type}-trip` : ""} ${isOverlapping ? "overlapping" : ""}`}
+              className={`trip-row ${trip.trip_type !== "regular" ? `${trip.trip_type}-trip` : ""} ${isOverlapping ? "overlapping" : ""} ${isFuture ? "future-trip" : ""}`}
             >
               <div className="trip-row-date">
                 <span className="trip-date-range">
@@ -404,6 +415,14 @@ function TripsTab({
                   >
                     {getDuration(trip.start_date, trip.end_date)}d
                   </span>
+                  {isFuture && (
+                    <span
+                      className="trip-badge future"
+                      title="Future trip (not in stats)"
+                    >
+                      ⏳
+                    </span>
+                  )}
                   {trip.trip_type === "work" && (
                     <span
                       className="trip-badge work"

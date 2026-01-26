@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { BiX, BiSearch } from "react-icons/bi";
@@ -34,6 +34,20 @@ interface CitySearchResult {
   country_code: string | null;
   display_name: string | null;
   source: string;
+}
+
+// Parse date string (YYYY-MM-DD) as local date, not UTC
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+// Format date as YYYY-MM-DD in local timezone
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 // Debounce hook
@@ -113,6 +127,7 @@ export default function TripFormModal({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const destSearchRef = useRef<HTMLInputElement>(null);
 
   // City search state
   const [citySearch, setCitySearch] = useState("");
@@ -260,8 +275,9 @@ export default function TripFormModal({
           ),
         };
       } else {
-        // Add it - clear search field for quick next entry
+        // Add it - clear search field and refocus for quick next entry
         setDestSearch("");
+        setTimeout(() => destSearchRef.current?.focus(), 0);
         return {
           ...prev,
           destinations: [
@@ -351,15 +367,19 @@ export default function TripFormModal({
               <DatePicker
                 selectsRange
                 startDate={
-                  formData.start_date ? new Date(formData.start_date) : null
+                  formData.start_date
+                    ? parseLocalDate(formData.start_date)
+                    : null
                 }
-                endDate={formData.end_date ? new Date(formData.end_date) : null}
+                endDate={
+                  formData.end_date ? parseLocalDate(formData.end_date) : null
+                }
                 onChange={(dates) => {
                   const [start, end] = dates as [Date | null, Date | null];
                   setFormData((prev) => ({
                     ...prev,
-                    start_date: start ? start.toISOString().split("T")[0] : "",
-                    end_date: end ? end.toISOString().split("T")[0] : null,
+                    start_date: start ? formatLocalDate(start) : "",
+                    end_date: end ? formatLocalDate(end) : null,
                   }));
                 }}
                 dateFormat="d MMM yyyy"
@@ -398,6 +418,7 @@ export default function TripFormModal({
             <div className="search-input">
               <BiSearch />
               <input
+                ref={destSearchRef}
                 type="text"
                 placeholder="Search destinations..."
                 value={destSearch}

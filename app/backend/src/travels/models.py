@@ -4,8 +4,10 @@ from pydantic import BaseModel
 class TravelStats(BaseModel):
     un_visited: int
     un_total: int
+    un_planned: int = 0
     tcc_visited: int
     tcc_total: int
+    tcc_planned: int = 0
     nm_visited: int
     nm_total: int
 
@@ -21,14 +23,16 @@ class UNCountryData(BaseModel):
     name: str
     continent: str
     visit_date: str | None  # ISO date (last visit) or null
-    visit_count: int  # number of trips
+    visit_count: int  # number of completed trips
+    planned_count: int = 0  # number of future trips
 
 
 class TCCDestinationData(BaseModel):
     name: str
     region: str
     visit_date: str | None  # ISO date (first visit) or null
-    visit_count: int  # number of trips
+    visit_count: int  # number of completed trips
+    planned_count: int = 0  # number of future trips
 
 
 class NMRegionData(BaseModel):

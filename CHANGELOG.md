@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.12.3 (2026-01-26)
+
+### Future Trips Handling
+- Future trips are now excluded from all travel statistics (map, UN countries, TCC destinations)
+- Stats page shows future trips for logged-in users with purple bar color
+- Mixed months (completed + planned trips) display blue-to-purple gradient bars
+- Admin page marks future trips with purple styling and ⏳ badge
+
+### UI Improvements
+- Added (+N) planned count badges to UN/TCC stat widgets with "In plans" tooltip
+- Added planned trips count badge to Trips stat widget
+- Changed stat format from "/X" to "of X" (e.g., "45 of 193" instead of "45/193")
+- TCC destination input now auto-focuses after selection
+- Fixed date picker selecting wrong day (timezone issue with UTC parsing)
+
 ## 0.12.2 (2026-01-26)
 
 ### Travels Map
