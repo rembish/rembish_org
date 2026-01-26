@@ -34,12 +34,14 @@ interface UNCountryData {
   name: string;
   continent: string;
   visit_date: string | null;
+  visit_count: number;
 }
 
 interface TCCDestinationData {
   name: string;
   region: string;
   visit_date: string | null;
+  visit_count: number;
 }
 
 interface TravelStats {
@@ -55,6 +57,7 @@ interface MapData {
   stats: TravelStats;
   visited_map_regions: Record<string, string>;
   visit_counts: Record<string, number>;
+  region_names: Record<string, string>;
   visited_countries: string[];
   microstates: MicrostateData[];
 }
@@ -111,28 +114,6 @@ function getVisitColor(
   }
 
   return `hsl(${Math.round(hue)}, ${saturation}%, ${Math.round(lightness)}%)`;
-}
-
-// Simple blue gradient for lists (doesn't have visit count context)
-function getListVisitColor(
-  visitDate: string,
-  _oldestDate: Date,
-  newestDate: Date,
-): string {
-  const date = new Date(visitDate);
-  const baselineDate = new Date("2010-01-01");
-
-  if (date < baselineDate) {
-    return "hsl(210, 70%, 35%)";
-  }
-
-  const totalRange = newestDate.getTime() - baselineDate.getTime();
-  if (totalRange === 0) return "hsl(210, 70%, 50%)";
-
-  const ratio = (date.getTime() - baselineDate.getTime()) / totalRange;
-  const lightness = 35 + ratio * 25;
-
-  return `hsl(210, 70%, ${Math.round(lightness)}%)`;
 }
 
 // Format date as "Mon YYYY"
@@ -239,6 +220,15 @@ export default function Travels() {
   const [uploadStatus, setUploadStatus] = useState<"success" | "error" | null>(
     null,
   );
+  const [showOnlyVisited, setShowOnlyVisited] = useState(() => {
+    const stored = localStorage.getItem("travels-show-only-visited");
+    return stored !== null ? stored === "true" : true;
+  });
+
+  const handleShowOnlyVisitedChange = (checked: boolean) => {
+    setShowOnlyVisited(checked);
+    localStorage.setItem("travels-show-only-visited", String(checked));
+  };
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch all data (used for initial load and after upload)
@@ -360,6 +350,33 @@ export default function Travels() {
   const unByContinent = unData ? groupBy(unData, (c) => c.continent) : {};
   const tccByRegion = tccData ? groupBy(tccData, (d) => d.region) : {};
 
+  const renderMapLegend = () => (
+    <div className="map-legend">
+      <div className="map-legend-row">
+        <span className="map-legend-label">Visited once</span>
+        <div
+          className="map-legend-gradient"
+          style={{
+            background:
+              "linear-gradient(to right, hsl(210, 70%, 47%), hsl(172, 70%, 47%), hsl(111, 70%, 47%), hsl(60, 70%, 47%), hsl(15, 70%, 47%))",
+          }}
+        />
+        <span className="map-legend-label">Many visits</span>
+      </div>
+      <div className="map-legend-row">
+        <span className="map-legend-label">Older</span>
+        <div
+          className="map-legend-gradient"
+          style={{
+            background:
+              "linear-gradient(to right, hsl(210, 70%, 35%), hsl(210, 70%, 60%))",
+          }}
+        />
+        <span className="map-legend-label">Recent</span>
+      </div>
+    </div>
+  );
+
   const renderMap = () => (
     <>
       <div
@@ -388,7 +405,8 @@ export default function Travels() {
                         visitCount,
                       )
                     : "#e6e9ec";
-                  const countryName = geo.properties?.name || "";
+                  const countryName =
+                    mapData.region_names[geoId] || geo.properties?.name || "";
                   return (
                     <Geography
                       key={geo.rsmKey}
@@ -506,24 +524,81 @@ export default function Travels() {
             )}
           </div>
         )}
+        {renderMapLegend()}
       </div>
     </>
   );
 
-  const renderUNList = () => (
-    <div className="travel-list">
-      {Object.entries(unByContinent)
+  const renderUNList = () => {
+    const filteredByContinent = Object.entries(unByContinent)
+      .map(([continent, countries]) => [
+        continent,
+        showOnlyVisited
+          ? countries.filter((c) => c.visit_date)
+          : countries,
+      ] as [string, UNCountryData[]])
+      .filter(([, countries]) => countries.length > 0);
+
+    return (
+      <div className="travel-list">
+        <div className="list-header">
+          <label className="list-toggle">
+            <input
+              type="checkbox"
+              checked={showOnlyVisited}
+              onChange={(e) => handleShowOnlyVisitedChange(e.target.checked)}
+            />
+            <span>Visited only</span>
+          </label>
+          <div className="list-legend">
+            <div className="list-legend-row">
+              <span className="list-legend-label">Visited once</span>
+              <div
+                className="list-legend-gradient"
+                style={{
+                  background:
+                    "linear-gradient(to right, hsl(210, 70%, 47%), hsl(172, 70%, 47%), hsl(111, 70%, 47%), hsl(60, 70%, 47%), hsl(15, 70%, 47%))",
+                }}
+              />
+              <span className="list-legend-label">Many visits</span>
+            </div>
+            <div className="list-legend-row">
+              <span className="list-legend-label">Older</span>
+              <div
+                className="list-legend-gradient"
+                style={{
+                  background:
+                    "linear-gradient(to right, hsl(210, 70%, 35%), hsl(210, 70%, 60%))",
+                }}
+              />
+              <span className="list-legend-label">Recent</span>
+            </div>
+            <span className="list-legend-note">Date: last visit</span>
+          </div>
+        </div>
+        {filteredByContinent
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([continent, countries]) => (
+        .map(([continent, countries]) => {
+          const allInContinent = unByContinent[continent] || [];
+          const visitedCount = allInContinent.filter((c) => c.visit_date).length;
+          const totalCount = allInContinent.length;
+          const percentage = Math.round((visitedCount / totalCount) * 100);
+          return (
           <div key={continent} className="travel-list-group">
-            <h3 className="travel-list-group-title">{continent}</h3>
+            <h3 className="travel-list-group-title">
+              {continent}
+              <span className="travel-list-group-stats">
+                {visitedCount}/{totalCount} ({percentage}%)
+              </span>
+            </h3>
             <ul className="travel-list-items">
               {countries.map((country) => {
                 const color = country.visit_date
-                  ? getListVisitColor(
+                  ? getVisitColor(
                       country.visit_date,
                       oldestDate,
                       newestDate,
+                      country.visit_count,
                     )
                   : undefined;
                 return (
@@ -532,7 +607,14 @@ export default function Travels() {
                     className={country.visit_date ? "visited" : ""}
                     style={color ? { backgroundColor: color } : undefined}
                   >
-                    <span className="country-name">{country.name}</span>
+                    <span className="country-name">
+                      {country.name}
+                      {country.visit_count > 0 && (
+                        <span className="visit-count-badge">
+                          {country.visit_count}
+                        </span>
+                      )}
+                    </span>
                     {country.visit_date && (
                       <span className="visit-date">
                         {formatDate(country.visit_date)}
@@ -543,42 +625,113 @@ export default function Travels() {
               })}
             </ul>
           </div>
-        ))}
-    </div>
-  );
+        );
+        })}
+      </div>
+    );
+  };
 
-  const renderTCCList = () => (
-    <div className="travel-list">
-      {Object.entries(tccByRegion)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([region, destinations]) => (
-          <div key={region} className="travel-list-group">
-            <h3 className="travel-list-group-title">{region}</h3>
-            <ul className="travel-list-items">
-              {destinations.map((dest) => {
-                const color = dest.visit_date
-                  ? getListVisitColor(dest.visit_date, oldestDate, newestDate)
-                  : undefined;
-                return (
-                  <li
-                    key={dest.name}
-                    className={dest.visit_date ? "visited" : ""}
-                    style={color ? { backgroundColor: color } : undefined}
-                  >
-                    <span className="country-name">{dest.name}</span>
-                    {dest.visit_date && (
-                      <span className="visit-date">
-                        {formatDate(dest.visit_date)}
-                      </span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+  const renderTCCList = () => {
+    const filteredByRegion = Object.entries(tccByRegion)
+      .map(([region, destinations]) => [
+        region,
+        showOnlyVisited
+          ? destinations.filter((d) => d.visit_date)
+          : destinations,
+      ] as [string, TCCDestinationData[]])
+      .filter(([, destinations]) => destinations.length > 0);
+
+    return (
+      <div className="travel-list">
+        <div className="list-header">
+          <label className="list-toggle">
+            <input
+              type="checkbox"
+              checked={showOnlyVisited}
+              onChange={(e) => handleShowOnlyVisitedChange(e.target.checked)}
+            />
+            <span>Visited only</span>
+          </label>
+          <div className="list-legend">
+            <div className="list-legend-row">
+              <span className="list-legend-label">Visited once</span>
+              <div
+                className="list-legend-gradient"
+                style={{
+                  background:
+                    "linear-gradient(to right, hsl(210, 70%, 47%), hsl(172, 70%, 47%), hsl(111, 70%, 47%), hsl(60, 70%, 47%), hsl(15, 70%, 47%))",
+                }}
+              />
+              <span className="list-legend-label">Many visits</span>
+            </div>
+            <div className="list-legend-row">
+              <span className="list-legend-label">Older</span>
+              <div
+                className="list-legend-gradient"
+                style={{
+                  background:
+                    "linear-gradient(to right, hsl(210, 70%, 35%), hsl(210, 70%, 60%))",
+                }}
+              />
+              <span className="list-legend-label">Recent</span>
+            </div>
+            <span className="list-legend-note">Date: first visit</span>
           </div>
-        ))}
-    </div>
-  );
+        </div>
+        {filteredByRegion
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([region, destinations]) => {
+            const allInRegion = tccByRegion[region] || [];
+            const visitedCount = allInRegion.filter((d) => d.visit_date).length;
+            const totalCount = allInRegion.length;
+            const percentage = Math.round((visitedCount / totalCount) * 100);
+            return (
+            <div key={region} className="travel-list-group">
+              <h3 className="travel-list-group-title">
+                {region}
+                <span className="travel-list-group-stats">
+                  {visitedCount}/{totalCount} ({percentage}%)
+                </span>
+              </h3>
+              <ul className="travel-list-items">
+                {destinations.map((dest) => {
+                  const color = dest.visit_date
+                    ? getVisitColor(
+                        dest.visit_date,
+                        oldestDate,
+                        newestDate,
+                        dest.visit_count,
+                      )
+                    : undefined;
+                  return (
+                    <li
+                      key={dest.name}
+                      className={dest.visit_date ? "visited" : ""}
+                      style={color ? { backgroundColor: color } : undefined}
+                    >
+                      <span className="country-name">
+                        {dest.name}
+                        {dest.visit_count > 0 && (
+                          <span className="visit-count-badge">
+                            {dest.visit_count}
+                          </span>
+                        )}
+                      </span>
+                      {dest.visit_date && (
+                        <span className="visit-date">
+                          {formatDate(dest.visit_date)}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+          })}
+      </div>
+    );
+  };
 
   const monthNames = [
     "Jan",
@@ -672,7 +825,7 @@ export default function Travels() {
                               code={country.iso_code}
                               size={20}
                               title={
-                                country.name + (country.is_new ? " (new)" : "")
+                                country.name + (country.is_new ? " (first visit)" : "")
                               }
                             />
                           </span>

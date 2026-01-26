@@ -20,13 +20,15 @@ class MicrostateData(BaseModel):
 class UNCountryData(BaseModel):
     name: str
     continent: str
-    visit_date: str | None  # ISO date or null
+    visit_date: str | None  # ISO date (last visit) or null
+    visit_count: int  # number of trips
 
 
 class TCCDestinationData(BaseModel):
     name: str
     region: str
-    visit_date: str | None  # ISO date or null
+    visit_date: str | None  # ISO date (first visit) or null
+    visit_count: int  # number of trips
 
 
 class NMRegionData(BaseModel):
@@ -50,6 +52,7 @@ class MapData(BaseModel):
     stats: TravelStats
     visited_map_regions: dict[str, str]  # region_code -> first_visit_date (ISO)
     visit_counts: dict[str, int]  # region_code -> number of trips
+    region_names: dict[str, str]  # region_code -> display name (for territories)
     visited_countries: list[str]
     microstates: list[MicrostateData]
 

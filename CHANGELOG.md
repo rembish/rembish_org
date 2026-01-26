@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.12.2 (2026-01-26)
+
+### Travels Map
+- Added color legend in top-right corner with gradient scales for visit frequency and recency
+- Territory names now show parent country (e.g., Greenland shows "Denmark")
+- Merged map polygons: Western Sahara into Morocco, Somaliland into Somalia, Northern Cyprus into Cyprus
+- Fixed Palestine not coloring on map (missing map_region_code)
+
+### UN Countries & TCC Destinations Pages
+- Applied same gradient color scheme as map (hue by visit count, lightness by recency)
+- Added visit count badges next to country/destination names
+- Added region/continent statistics showing visited/total with percentage
+- Added "Visited only" toggle filter (synced between pages, stored in localStorage)
+- Added color legend with date type note (last visit for UN, first visit for TCC)
+- UN page now shows last visit date instead of first visit
+
+### Stats Page
+- Changed flag tooltip from "(new)" to "(first visit)" for first-time country visits
+
 ## 0.12.0 (2026-01-25)
 
 ### Trip Management (Admin)

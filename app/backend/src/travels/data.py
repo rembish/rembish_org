@@ -168,6 +168,8 @@ def get_travel_data(db: Session = Depends(get_db)) -> TravelData:
     )
 
 
+
+
 @router.get("/map-data", response_model=MapData)
 def get_map_data(db: Session = Depends(get_db)) -> MapData:
     """Get map data: stats, visited regions, and microstates (fast, ~50 items)."""
@@ -276,6 +278,25 @@ def get_map_data(db: Session = Depends(get_db)) -> MapData:
     # Convert dates to ISO strings
     visited_map_regions_iso = {code: d.isoformat() for code, d in visited_map_regions.items()}
 
+    # Build region names - use parent country name for all territories
+    region_names: dict[str, str] = {}
+
+    # Map all region codes to their UN country name
+    all_un_countries = db.query(UNCountry).all()
+    for country in all_un_countries:
+        codes = [c.strip() for c in country.map_region_codes.split(",")]
+        for code in codes:
+            region_names[code] = country.name
+
+    # Add names for non-UN territories with their own polygons
+    tcc_with_polygon = db.query(TCCDestination).filter(
+        TCCDestination.map_region_code.isnot(None),
+        TCCDestination.un_country_id.is_(None),
+    ).all()
+    for dest in tcc_with_polygon:
+        if dest.map_region_code:
+            region_names[dest.map_region_code] = dest.name
+
     return MapData(
         stats=TravelStats(
             un_visited=un_visited,
@@ -287,6 +308,7 @@ def get_map_data(db: Session = Depends(get_db)) -> MapData:
         ),
         visited_map_regions=visited_map_regions_iso,
         visit_counts=visit_counts,
+        region_names=region_names,
         visited_countries=sorted(visited_countries),
         microstates=microstates_data,
     )
@@ -294,11 +316,11 @@ def get_map_data(db: Session = Depends(get_db)) -> MapData:
 
 @router.get("/un-countries", response_model=UNCountriesResponse)
 def get_un_countries(db: Session = Depends(get_db)) -> UNCountriesResponse:
-    """Get all 193 UN countries with visit dates."""
+    """Get all 193 UN countries with visit dates and counts."""
 
-    # Get visited UN countries with earliest visit date
+    # Get visited UN countries with last visit date
     visited_un_data = (
-        db.query(UNCountry, func.min(Visit.first_visit_date).label("first_visit"))
+        db.query(UNCountry, func.max(Visit.first_visit_date).label("last_visit"))
         .join(TCCDestination, TCCDestination.un_country_id == UNCountry.id)
         .join(Visit, Visit.tcc_destination_id == TCCDestination.id)
         .filter(Visit.first_visit_date.isnot(None))
@@ -307,8 +329,18 @@ def get_un_countries(db: Session = Depends(get_db)) -> UNCountriesResponse:
     )
 
     un_visit_dates: dict[int, date] = {}
-    for country, first_visit in visited_un_data:
-        un_visit_dates[country.id] = first_visit
+    for country, last_visit in visited_un_data:
+        un_visit_dates[country.id] = last_visit
+
+    # Get trip counts per UN country
+    un_trip_counts = (
+        db.query(TCCDestination.un_country_id, func.count(func.distinct(TripDestination.trip_id)))
+        .join(TripDestination, TripDestination.tcc_destination_id == TCCDestination.id)
+        .filter(TCCDestination.un_country_id.isnot(None))
+        .group_by(TCCDestination.un_country_id)
+        .all()
+    )
+    un_counts: dict[int, int] = {un_id: count for un_id, count in un_trip_counts}
 
     # Get all UN countries
     all_un_countries = db.query(UNCountry).order_by(UNCountry.continent, UNCountry.name).all()
@@ -318,6 +350,7 @@ def get_un_countries(db: Session = Depends(get_db)) -> UNCountriesResponse:
             name=c.name,
             continent=c.continent,
             visit_date=un_visit_dates[c.id].isoformat() if c.id in un_visit_dates else None,
+            visit_count=un_counts.get(c.id, 0),
         )
         for c in all_un_countries
     ]
@@ -327,7 +360,18 @@ def get_un_countries(db: Session = Depends(get_db)) -> UNCountriesResponse:
 
 @router.get("/tcc-destinations", response_model=TCCDestinationsResponse)
 def get_tcc_destinations(db: Session = Depends(get_db)) -> TCCDestinationsResponse:
-    """Get all 330 TCC destinations with visit dates."""
+    """Get all 330 TCC destinations with visit dates and counts."""
+
+    # Get trip counts per TCC destination
+    tcc_trip_counts = (
+        db.query(
+            TripDestination.tcc_destination_id,
+            func.count(func.distinct(TripDestination.trip_id)),
+        )
+        .group_by(TripDestination.tcc_destination_id)
+        .all()
+    )
+    tcc_counts: dict[int, int] = {tcc_id: count for tcc_id, count in tcc_trip_counts}
 
     all_tcc = (
         db.query(TCCDestination, Visit.first_visit_date)
@@ -341,6 +385,7 @@ def get_tcc_destinations(db: Session = Depends(get_db)) -> TCCDestinationsRespon
             name=dest.name,
             region=dest.tcc_region,
             visit_date=visit_date.isoformat() if visit_date else None,
+            visit_count=tcc_counts.get(dest.id, 0),
         )
         for dest, visit_date in all_tcc
     ]

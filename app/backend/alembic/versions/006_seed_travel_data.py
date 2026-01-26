@@ -616,10 +616,11 @@ TCC_TO_UN = {
     177: "Turkey", 327: "Turkey",
 }
 
-# TCC destinations with their own map polygon (de facto states)
+# TCC destinations with their own map polygon (de facto states, non-UN territories)
 TCC_MAP_CODES = {
     147: "-2",  # Kosovo
     231: "-3",  # Somaliland
+    256: "275",  # Palestine
 }
 
 # Microstates: (name, longitude, latitude, map_region_code)
