@@ -386,11 +386,14 @@ export default function LocationModal({
                     </span>
                   </label>
 
-                  <label className="location-partial-checkbox">
+                  <label
+                    className={`location-partial-checkbox ${!addToTrip ? "disabled" : ""}`}
+                  >
                     <input
                       type="checkbox"
                       checked={isPartial}
                       onChange={(e) => setIsPartial(e.target.checked)}
+                      disabled={!addToTrip}
                     />
                     <span>Mark as partial visit</span>
                   </label>

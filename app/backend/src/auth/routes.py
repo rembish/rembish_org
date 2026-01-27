@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated, cast
 
 from authlib.integrations.starlette_client import OAuth
@@ -42,6 +43,7 @@ class UserResponse(BaseModel):
     name: str | None
     nickname: str | None
     picture: str | None
+    birthday: date | None
     is_admin: bool
 
     class Config:

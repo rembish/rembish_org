@@ -6,6 +6,7 @@ interface User {
   name: string | null;
   nickname: string | null;
   picture: string | null;
+  birthday: string | null;
   is_admin: boolean;
 }
 

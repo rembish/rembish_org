@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..auth.session import get_admin_user, get_current_user
 from ..database import get_db
-from ..models import City, Trip, TripCity, TripParticipant, User, UserLastLocation
+from ..models import City, Trip, TripCity, User, UserLastLocation
 
 router = APIRouter()
 
@@ -277,15 +277,13 @@ def check_in_location(
         )
         db.add(location)
 
-    # If add_to_trip is requested, find active trip where user is participant
+    # If add_to_trip is requested, find active trip
     if request.add_to_trip:
         today = date.today()
 
         active_trip = (
             db.query(Trip)
-            .join(TripParticipant)
             .filter(
-                TripParticipant.user_id == admin.id,
                 # Multi-day trip: start_date <= today <= end_date
                 # Single-day trip (no end_date): start_date == today
                 ((Trip.start_date <= today) & (Trip.end_date >= today))
@@ -362,10 +360,10 @@ def get_current_location(
 
 @router.get("/location/active-trip", response_model=ActiveTripResponse)
 def get_active_trip(
-    user: Annotated[User, Depends(get_current_user)],
+    admin: Annotated[User, Depends(get_admin_user)],
     db: Session = Depends(get_db),
 ) -> ActiveTripResponse:
-    """Get trip that spans today where current user is a participant.
+    """Get trip that spans today. Admin only (used by location check-in modal).
 
     Trips without end_date are single-day trips (only active on start_date).
     """
@@ -373,13 +371,9 @@ def get_active_trip(
 
     trip = (
         db.query(Trip)
-        .join(TripParticipant)
         .filter(
-            TripParticipant.user_id == user.id,
-            # Multi-day trip: start_date <= today <= end_date
-            # Single-day trip (no end_date): start_date == today
             ((Trip.start_date <= today) & (Trip.end_date >= today))
-            | ((Trip.end_date.is_(None)) & (Trip.start_date == today)),
+            | ((Trip.end_date.is_(None)) & (Trip.start_date == today))
         )
         .first()
     )

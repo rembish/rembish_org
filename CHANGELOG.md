@@ -15,6 +15,12 @@
 ### Contact Form
 - Form prefills name and email for logged-in users
 
+### Trip Calendar (Admin)
+- Czech holidays shown as red background on calendar dates
+- Birthday icon (cake) on trip days overlapping someone's birthday
+- Destination holiday icon (party) on future trip days matching destination country holidays
+- Holiday icons also shown in table view for future trips
+
 ## 0.13.0 (2026-01-27)
 
 ### Close Ones (Admin)

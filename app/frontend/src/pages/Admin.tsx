@@ -8,6 +8,7 @@ import {
   BiChevronLeft,
   BiChevronRight,
   BiPaperPlane,
+  BiParty,
   BiPlus,
   BiPencil,
   BiTable,
@@ -400,10 +401,55 @@ function isFutureTrip(trip: Trip): boolean {
   return endDate > today;
 }
 
+// Get all dates in a trip's range
+function getTripDateRange(trip: Trip): string[] {
+  const dates: string[] = [];
+  const start = new Date(trip.start_date + "T00:00:00");
+  const end = trip.end_date
+    ? new Date(trip.end_date + "T00:00:00")
+    : new Date(trip.start_date + "T00:00:00");
+  const current = new Date(start);
+  while (current <= end) {
+    const y = current.getFullYear();
+    const m = String(current.getMonth() + 1).padStart(2, "0");
+    const d = String(current.getDate()).padStart(2, "0");
+    dates.push(`${y}-${m}-${d}`);
+    current.setDate(current.getDate() + 1);
+  }
+  return dates;
+}
+
+// Get holidays that match a trip's destinations and date range
+function getTripHolidays(
+  trip: Trip,
+  holidays: Holiday[],
+  tccOptions: TCCDestinationOption[],
+): Holiday[] {
+  // Get country codes from trip destinations
+  const tripCountryCodes = new Set<string>();
+  for (const dest of trip.destinations) {
+    const tcc = tccOptions.find((o) => o.name === dest.name);
+    if (tcc?.country_code) tripCountryCodes.add(tcc.country_code);
+  }
+  if (tripCountryCodes.size === 0) return [];
+
+  // Get all dates in trip range
+  const tripDates = new Set(getTripDateRange(trip));
+
+  // Find holidays that match both date and country
+  return holidays.filter(
+    (h) =>
+      tripDates.has(h.date) &&
+      h.country_code &&
+      tripCountryCodes.has(h.country_code),
+  );
+}
+
 interface YearCalendarViewProps {
   year: number;
   trips: Trip[];
   holidays: Holiday[];
+  czechHolidays: Holiday[];
   birthdays: UserBirthday[];
   onDateClick: (date: string, trip?: Trip) => void;
   tccOptions: TCCDestinationOption[];
@@ -413,6 +459,7 @@ function YearCalendarView({
   year,
   trips,
   holidays,
+  czechHolidays,
   birthdays,
   onDateClick,
   tccOptions,
@@ -467,6 +514,12 @@ function YearCalendarView({
     const key = `${year}-${b.date}`; // YYYY-MM-DD
     if (!birthdayMap.has(key)) birthdayMap.set(key, []);
     birthdayMap.get(key)!.push(b);
+  }
+
+  // Czech holiday map: date -> holiday name (for background coloring)
+  const czechHolidayMap = new Map<string, string>();
+  for (const h of czechHolidays) {
+    czechHolidayMap.set(h.date, h.local_name || h.name);
   }
 
   // Format date as YYYY-MM-DD in local time (for trip iteration)
@@ -530,7 +583,7 @@ function YearCalendarView({
       days.push(<div key={`empty-${i}`} className="calendar-day empty" />);
     }
 
-    // Today for future date check
+    // Today for future trip check
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -541,17 +594,24 @@ function YearCalendarView({
       const dayTrips = tripDates.get(dateStr) || [];
       const dateHolidays = holidayMap.get(dateStr) || [];
       const dayBirthdays = birthdayMap.get(dateStr);
+      const czechHoliday = czechHolidayMap.get(dateStr);
       const weekend = isWeekend(date);
-      const isFutureDate = date >= today;
 
-      // Check if trip overlaps with destination country holiday
+      // Check if trip overlaps with destination country holiday (only for future trips)
       const trip = dayTrips.length > 0 ? dayTrips[0] : null;
+      const isFuture =
+        trip &&
+        (trip.end_date ? new Date(trip.end_date) : new Date(trip.start_date)) >
+          today;
       const matchingHolidays = trip
         ? getMatchingHolidays(trip, dateHolidays)
         : [];
-      const hasTripOnHoliday = isFutureDate && matchingHolidays.length > 0;
+      const hasTripOnHoliday = isFuture && matchingHolidays.length > 0;
 
-      // Priority: trip > birthday > weekend (no standalone holidays shown)
+      // Check if trip overlaps with a birthday (for all trips, not just future)
+      const hasTripOnBirthday = trip && dayBirthdays && dayBirthdays.length > 0;
+
+      // Priority: trip > birthday > czech-holiday > weekend
       const classes = ["calendar-day"];
       let title = "";
 
@@ -563,17 +623,24 @@ function YearCalendarView({
         if ((trip.end_date || trip.start_date) === dateStr)
           classes.push("trip-end");
 
-        // Build tooltip with destinations and matching holidays
+        // Build tooltip with destinations, holidays, and birthdays
         const destNames = trip.destinations.map((d) => d.name).join(", ");
+        const parts = [destNames || "Trip"];
         if (hasTripOnHoliday) {
-          const holidayNames = matchingHolidays.map((h) => h.name).join(", ");
-          title = `${destNames} - ${holidayNames}`;
-        } else {
-          title = destNames || "Trip";
+          parts.push(matchingHolidays.map((h) => h.name).join(", "));
         }
+        if (hasTripOnBirthday) {
+          parts.push(
+            dayBirthdays!.map((b) => `${b.name}'s birthday`).join(", "),
+          );
+        }
+        title = parts.join(" - ");
       } else if (dayBirthdays && dayBirthdays.length > 0) {
         classes.push("birthday");
         title = dayBirthdays.map((b) => `${b.name}'s birthday`).join(", ");
+      } else if (czechHoliday) {
+        classes.push("czech-holiday");
+        title = czechHoliday;
       } else if (weekend) {
         classes.push("weekend");
       }
@@ -588,7 +655,8 @@ function YearCalendarView({
           }
         >
           {day}
-          {hasTripOnHoliday && <span className="holiday-badge">!</span>}
+          {hasTripOnBirthday && <BiCake className="day-icon day-icon-left" />}
+          {hasTripOnHoliday && <BiParty className="day-icon day-icon-right" />}
         </div>,
       );
     }
@@ -634,8 +702,11 @@ function TripsTab({
     return stored === "calendar" ? "calendar" : "table";
   });
 
-  // Holidays for calendar view
+  // Destination holidays for trip badges (calendar + table)
   const [holidays, setHolidays] = useState<Holiday[]>([]);
+
+  // Czech holidays for calendar background coloring
+  const [czechHolidays, setCzechHolidays] = useState<Holiday[]>([]);
 
   // User birthdays for calendar view
   const [birthdays, setBirthdays] = useState<UserBirthday[]>([]);
@@ -749,6 +820,30 @@ function TripsTab({
       setHolidays(results.flat());
     });
   }, [selectedYear, trips, tccOptions]);
+
+  // Fetch Czech holidays for calendar background (always, regardless of trips)
+  useEffect(() => {
+    if (!selectedYear) {
+      setCzechHolidays([]);
+      return;
+    }
+
+    fetch(`/api/v1/travels/holidays/${selectedYear}/CZ`, {
+      credentials: "include",
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setCzechHolidays(
+          (data.holidays || []).map(
+            (h: { date: string; name: string; local_name: string | null }) => ({
+              ...h,
+              country_code: "CZ",
+            }),
+          ),
+        );
+      })
+      .catch(() => setCzechHolidays([]));
+  }, [selectedYear]);
 
   if (loading) {
     return <p>Loading trips...</p>;
@@ -967,6 +1062,7 @@ function TripsTab({
           year={selectedYear}
           trips={filteredTrips}
           holidays={holidays}
+          czechHolidays={czechHolidays}
           birthdays={birthdays}
           onDateClick={handleCalendarDateClick}
           tccOptions={tccOptions}
@@ -1040,6 +1136,28 @@ function TripsTab({
                         <BiCar />
                       </span>
                     )}
+                    {isFuture &&
+                      (() => {
+                        const tripHolidays = getTripHolidays(
+                          trip,
+                          holidays,
+                          tccOptions,
+                        );
+                        if (tripHolidays.length > 0) {
+                          const holidayNames = tripHolidays
+                            .map((h) => h.name)
+                            .join(", ");
+                          return (
+                            <span
+                              className="trip-badge holiday"
+                              title={holidayNames}
+                            >
+                              <BiParty />
+                            </span>
+                          );
+                        }
+                        return null;
+                      })()}
                   </div>
                 </div>
                 <div className="trip-row-main">

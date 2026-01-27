@@ -1913,6 +1913,16 @@ a {
     background: #f5eef8;
     color: #8e44ad;
   }
+
+  &.birthday {
+    background: #fce4ec;
+    color: #c2185b;
+  }
+
+  &.holiday {
+    background: #fff3e0;
+    color: #e65100;
+  }
 }
 
 .trips-total {
@@ -2926,6 +2936,12 @@ a {
     font-weight: 500;
   }
 
+  &.czech-holiday {
+    background: #ffebee;
+    color: #c62828;
+    font-weight: 500;
+  }
+
   &.trip {
     color: white;
     font-weight: 600;
@@ -2956,21 +2972,20 @@ a {
   }
 }
 
-.holiday-badge {
+.day-icon {
   position: absolute;
+  font-size: 1rem;
+  color: white;
+}
+
+.day-icon-left {
+  top: 1px;
+  left: 1px;
+}
+
+.day-icon-right {
   top: 1px;
   right: 1px;
-  font-size: 0.5rem;
-  font-weight: 700;
-  color: #c62828;
-  background: #ffcdd2;
-  border-radius: 50%;
-  width: 0.75rem;
-  height: 0.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
 }
 
 /* Dates row with holidays warning */
@@ -3271,6 +3286,11 @@ a {
   cursor: pointer;
   font-size: 0.875rem;
   color: var(--color-text-secondary);
+
+  &.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 
   & input[type="checkbox"] {
     width: auto;
