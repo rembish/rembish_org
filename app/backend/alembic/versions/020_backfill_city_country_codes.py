@@ -83,27 +83,6 @@ def upgrade() -> None:
             {"code": code, "country": country},
         )
 
-    # Merge trip 93 into trip 92 (US trip was incorrectly split into two)
-    # Step 1: Update trip 92 end_date to May 16
-    conn.execute(text("UPDATE trips SET end_date = '2019-05-16' WHERE id = 92"))
-
-    # Step 2: Get max order from trip 92 and add cities from trip 93
-    conn.execute(text("""
-        INSERT INTO trip_cities (trip_id, name, city_id, `order`, is_partial)
-        SELECT 92, tc.name, tc.city_id,
-               (SELECT COALESCE(MAX(`order`), 0) FROM trip_cities WHERE trip_id = 92) + tc.id,
-               tc.is_partial
-        FROM trip_cities tc
-        WHERE tc.trip_id = 93
-        AND tc.name NOT IN (SELECT name FROM trip_cities WHERE trip_id = 92)
-    """))
-
-    # Step 3: Delete trip 93 and its related records
-    conn.execute(text("DELETE FROM trip_destinations WHERE trip_id = 93"))
-    conn.execute(text("DELETE FROM trip_cities WHERE trip_id = 93"))
-    conn.execute(text("DELETE FROM trip_participants WHERE trip_id = 93"))
-    conn.execute(text("DELETE FROM trips WHERE id = 93"))
-
     # Fix missing TCC to UN country mappings
     # Cyprus UK bases and Gibraltar -> United Kingdom
     conn.execute(text("""

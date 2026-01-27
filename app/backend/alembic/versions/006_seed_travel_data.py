@@ -662,136 +662,6 @@ MICROSTATES = [
     ("Trinidad and Tobago", -61.25, 10.69, "780"),
 ]
 
-# Visits with dates: tcc_index -> first_visit_date (ISO format)
-VISITS = {
-    42: "2024-05-01",  # Canada
-    46: "2019-05-01",  # United States (Contiguous)
-    54: "2024-11-01",  # Argentina
-    56: "2024-11-01",  # Brazil
-    63: "2024-11-01",  # Paraguay
-    66: "2024-11-01",  # Uruguay
-    102: "2023-09-01",  # Canary Islands
-    103: "2022-05-01",  # Cape Verde Islands
-    107: "2025-09-01",  # Greenland
-    108: "2020-06-01",  # Iceland
-    109: "2023-12-01",  # Madeira
-    113: "2025-07-01",  # Aland Islands
-    114: "2021-05-01",  # Albania
-    115: "2016-09-01",  # Andorra
-    116: "2008-11-01",  # Austria
-    117: "2019-09-01",  # Balearic Islands
-    118: "2018-07-01",  # Belarus
-    119: "2016-11-01",  # Belgium
-    120: "2021-07-01",  # Bosnia & Herzegovina
-    121: "2007-08-01",  # Bulgaria
-    122: "2025-06-01",  # Corsica
-    123: "2025-06-01",  # Crete
-    124: "2015-07-01",  # Croatia
-    125: "2015-12-01",  # Cyprus, British Sovereign Base Areas
-    126: "2015-12-01",  # Cyprus, Republic
-    127: "2020-01-01",  # Cyprus, Turkish Fed. State
-    128: "2008-09-01",  # Czech Republic
-    129: "2008-08-01",  # Denmark
-    130: "2021-10-01",  # England
-    131: "2019-04-01",  # Estonia
-    132: "2008-08-01",  # Finland
-    133: "2015-04-01",  # France
-    134: "2008-11-01",  # Germany
-    135: "2024-01-01",  # Gibraltar
-    136: "2019-02-01",  # Greece
-    137: "2024-06-01",  # Greek Aegean Islands
-    138: "2023-09-01",  # Guernsey & Dependencies
-    139: "2011-11-01",  # Hungary
-    140: "2023-09-01",  # Ionian Islands
-    141: "2021-08-01",  # Ireland (Eire)
-    142: "2024-03-01",  # Ireland, Northern
-    143: "2025-03-01",  # Isle of Man
-    144: "2012-08-01",  # Italy
-    145: "2023-09-01",  # Jersey
-    147: "2022-01-01",  # Kosovo
-    149: "2016-07-01",  # Latvia
-    150: "2018-06-01",  # Liechtenstein
-    151: "2016-07-01",  # Lithuania
-    152: "2016-07-01",  # Luxembourg
-    153: "2018-10-01",  # Malta
-    154: "2019-11-01",  # Moldova
-    155: "2019-05-01",  # Monaco
-    156: "2019-10-01",  # Montenegro
-    157: "2013-04-01",  # Netherlands
-    158: "2017-11-01",  # North Macedonia
-    159: "2008-08-01",  # Norway
-    160: "2010-10-01",  # Poland
-    161: "2014-09-01",  # Portugal
-    162: "2018-09-01",  # Romania
-    163: "1990-01-01",  # Russia
-    164: "2018-10-01",  # San Marino
-    165: "2025-10-01",  # Sardinia
-    166: "2023-11-01",  # Scotland
-    167: "2016-12-01",  # Serbia
-    168: "2021-10-01",  # Sicily
-    169: "2015-09-01",  # Slovakia
-    170: "2015-07-01",  # Slovenia
-    171: "2011-09-01",  # Spain
-    172: "2024-07-01",  # Spitsbergen
-    173: "2021-07-01",  # Srpska
-    174: "2008-08-01",  # Sweden
-    175: "2017-08-01",  # Switzerland
-    176: "2019-11-01",  # Transnistria
-    177: "2015-02-01",  # Turkey in Europe
-    178: "2017-10-01",  # Ukraine
-    179: "2012-08-01",  # Vatican City
-    180: "2023-03-01",  # Wales
-    188: "2024-04-01",  # Algeria
-    201: "2025-11-01",  # Djibouti
-    202: "2023-12-01",  # Egypt in Africa
-    209: "2025-04-01",  # Gambia
-    219: "2025-04-01",  # Mauritania
-    220: "2017-12-01",  # Morocco
-    228: "2025-04-01",  # Senegal
-    231: "2025-11-01",  # Somaliland
-    237: "2021-12-01",  # Tunisia
-    238: "2024-12-01",  # Uganda
-    239: "2025-04-01",  # Western Sahara
-    243: "2018-12-01",  # Abu Dhabi
-    244: "2018-12-01",  # Ajman
-    245: "2023-01-01",  # Bahrain
-    246: "2018-12-01",  # Dubai
-    248: "2018-12-01",  # Fujairah
-    250: "2025-02-01",  # Iraq
-    251: "2022-04-01",  # Israel
-    252: "2020-02-01",  # Jordan
-    253: "2023-06-01",  # Kuwait
-    254: "2019-12-01",  # Lebanon
-    255: "2024-12-01",  # Oman
-    256: "2022-04-01",  # Palestine
-    257: "2018-04-01",  # Qatar
-    258: "2018-12-01",  # Ras Al Khaimah
-    259: "2023-01-01",  # Saudi Arabia
-    260: "2018-12-01",  # Sharjah
-    261: "2025-10-01",  # Syria
-    262: "2018-12-01",  # Umm Al Qaiwain
-    276: "2017-01-01",  # Seychelles
-    277: "2022-12-01",  # Socotra
-    281: "2017-09-01",  # Armenia
-    282: "2019-08-01",  # Azerbaijan
-    287: "2018-04-01",  # China
-    288: "2017-09-01",  # Georgia
-    291: "2017-02-01",  # India
-    294: "2025-05-01",  # Jeju Island
-    297: "2006-07-01",  # Kazakhstan
-    299: "2025-04-01",  # Korea, South
-    300: "2022-10-01",  # Kyrgyzstan
-    304: "2023-05-01",  # Malaysia
-    313: "1985-05-01",  # Russia in Asia
-    317: "2023-04-01",  # Singapore
-    323: "2022-10-01",  # Tajikistan
-    327: "2024-03-01",  # Turkey in Asia
-    328: "2024-10-01",  # Turkmenistan
-    329: "2022-09-01",  # Uzbekistan
-    330: "2025-12-01",  # Vietnam
-}
-
-
 def upgrade():
     conn = op.get_bind()
 
@@ -822,20 +692,7 @@ def upgrade():
                 VALUES ('{name_escaped}', '{region_escaped}', {tcc_idx}, {un_id_sql}, {map_code_sql})"""
         ))
 
-    # 4. Build TCC destination ID lookup
-    result = conn.execute(text("SELECT id, tcc_index FROM tcc_destinations"))
-    tcc_ids = {row[1]: row[0] for row in result}
-
-    # 5. Insert visits
-    for tcc_idx, visit_date in VISITS.items():
-        tcc_id = tcc_ids.get(tcc_idx)
-        if tcc_id:
-            conn.execute(text(
-                f"""INSERT INTO visits (tcc_destination_id, first_visit_date)
-                    VALUES ({tcc_id}, '{visit_date}')"""
-            ))
-
-    # 6. Insert microstates
+    # 4. Insert microstates
     for name, lon, lat, code in MICROSTATES:
         name_escaped = name.replace("'", "''")
         conn.execute(text(
@@ -846,7 +703,6 @@ def upgrade():
 
 def downgrade():
     conn = op.get_bind()
-    conn.execute(text("DELETE FROM visits"))
     conn.execute(text("DELETE FROM microstates"))
     conn.execute(text("DELETE FROM tcc_destinations"))
     conn.execute(text("DELETE FROM un_countries"))
