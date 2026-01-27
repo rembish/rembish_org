@@ -145,16 +145,30 @@ function CloseOnesTab() {
       : "/api/v1/admin/users/";
     const method = editingUser ? "PUT" : "POST";
 
+    // Convert empty strings to null for optional fields
+    const payload = {
+      ...data,
+      birthday: data.birthday || null,
+    };
+
     const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.detail || "Failed to save user");
+      let message = "Failed to save user";
+      if (typeof errorData.detail === "string") {
+        message = errorData.detail;
+      } else if (Array.isArray(errorData.detail)) {
+        message = errorData.detail
+          .map((e: { msg: string }) => e.msg)
+          .join(", ");
+      }
+      throw new Error(message);
     }
 
     fetchUsers();

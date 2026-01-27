@@ -21,10 +21,14 @@ class User(Base):
     trip_participations: Mapped[list["TripParticipant"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    last_location: Mapped["UserLastLocation | None"] = relationship(
+        back_populates="user", cascade="all, delete-orphan", uselist=False
+    )
 
     def __repr__(self) -> str:
         return f"<User #{self.id}: {self.email}>"
 
 
 # Import here to avoid circular imports
+from .location import UserLastLocation  # noqa: E402, F401
 from .travel import TripParticipant  # noqa: E402, F401

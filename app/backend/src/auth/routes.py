@@ -40,6 +40,7 @@ class UserResponse(BaseModel):
     id: int
     email: str
     name: str | None
+    nickname: str | None
     picture: str | None
     is_admin: bool
 

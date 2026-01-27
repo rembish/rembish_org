@@ -4,6 +4,7 @@ interface User {
   id: number;
   email: string;
   name: string | null;
+  nickname: string | null;
   picture: string | null;
   is_admin: boolean;
 }

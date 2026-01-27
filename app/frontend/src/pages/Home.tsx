@@ -6,6 +6,7 @@ import {
   BiLogoFacebookSquare,
 } from "react-icons/bi";
 import { FaXTwitter } from "react-icons/fa6";
+import LocationButton from "../components/LocationButton";
 
 const typedItems = [
   "a Senior Team Leader",
@@ -32,28 +33,36 @@ const socialLinks = [
 
 export default function Home() {
   return (
-    <section id="hero">
-      <div className="container">
-        <h1>Alex Rembish</h1>
-        <p>
-          I'm{" "}
-          <TypeAnimation
-            sequence={typedItems}
-            wrapper="span"
-            className="typed"
-            repeat={Infinity}
-            speed={50}
-            deletionSpeed={80}
-          />
-        </p>
-        <div className="social-links">
-          {socialLinks.map(({ href, icon: Icon }) => (
-            <a key={href} href={href} target="_blank" rel="noopener noreferrer">
-              <Icon />
-            </a>
-          ))}
+    <>
+      <section id="hero">
+        <div className="container">
+          <h1>Alex Rembish</h1>
+          <p>
+            I'm{" "}
+            <TypeAnimation
+              sequence={typedItems}
+              wrapper="span"
+              className="typed"
+              repeat={Infinity}
+              speed={50}
+              deletionSpeed={80}
+            />
+          </p>
+          <div className="social-links">
+            {socialLinks.map(({ href, icon: Icon }) => (
+              <a
+                key={href}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Icon />
+              </a>
+            ))}
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+      <LocationButton />
+    </>
   );
 }

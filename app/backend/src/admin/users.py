@@ -1,8 +1,9 @@
 from datetime import date
 from typing import Annotated
 
+from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from ..auth.session import get_admin_user
@@ -33,19 +34,50 @@ class UserListResponse(BaseModel):
     users: list[UserResponse]
 
 
+PLACEHOLDER_DOMAIN = "@placeholder.local"
+
+
+def validate_email_or_placeholder(email: str) -> str:
+    """Allow @placeholder.local or validate as proper email."""
+    email = email.strip().lower()
+    if email.endswith(PLACEHOLDER_DOMAIN):
+        # Basic check: something before @
+        if len(email) > len(PLACEHOLDER_DOMAIN):
+            return email
+        raise ValueError("Invalid placeholder email")
+    # Validate as proper email
+    try:
+        result = validate_email(email, check_deliverability=False)
+        return result.normalized
+    except EmailNotValidError:
+        raise ValueError("Invalid email address")
+
+
 class UserCreateRequest(BaseModel):
-    email: EmailStr
+    email: str
     name: str | None = None
     nickname: str | None = None
     birthday: date | None = None
 
+    @field_validator("email")
+    @classmethod
+    def check_email(cls, v: str) -> str:
+        return validate_email_or_placeholder(v)
+
 
 class UserUpdateRequest(BaseModel):
-    email: EmailStr | None = None
+    email: str | None = None
     name: str | None = None
     nickname: str | None = None
     birthday: date | None = None
     is_admin: bool | None = None
+
+    @field_validator("email")
+    @classmethod
+    def check_email(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        return validate_email_or_placeholder(v)
 
 
 @router.get("/", response_model=UserListResponse)

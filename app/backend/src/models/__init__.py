@@ -1,3 +1,4 @@
+from .location import UserLastLocation
 from .travel import (
     City,
     Microstate,
@@ -14,6 +15,7 @@ from .user import User
 
 __all__ = [
     "User",
+    "UserLastLocation",
     "UNCountry",
     "TCCDestination",
     "Visit",

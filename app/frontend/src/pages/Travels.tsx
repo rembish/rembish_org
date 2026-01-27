@@ -66,6 +66,13 @@ interface MapData {
   microstates: MicrostateData[];
 }
 
+interface CurrentLocation {
+  city_name: string;
+  lat: number;
+  lng: number;
+  admin_picture: string | null;
+}
+
 // Calculate color based on visit count (hue) and visit date (lightness)
 // Hue: 1 visit = blue, many visits = warm colors (green -> yellow -> orange)
 // Lightness: older visits = lighter, recent = darker
@@ -231,6 +238,8 @@ export default function Travels() {
     const stored = localStorage.getItem("travels-show-only-visited");
     return stored !== null ? stored === "true" : true;
   });
+  const [currentLocation, setCurrentLocation] =
+    useState<CurrentLocation | null>(null);
 
   const handleShowOnlyVisitedChange = (checked: boolean) => {
     setShowOnlyVisited(checked);
@@ -325,6 +334,28 @@ export default function Travels() {
   useEffect(() => {
     fetchAllData();
   }, []);
+
+  // Fetch current location for logged-in users
+  useEffect(() => {
+    if (!user) {
+      setCurrentLocation(null);
+      return;
+    }
+
+    fetch("/api/v1/travels/location/current", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) {
+          setCurrentLocation({
+            city_name: data.city_name,
+            lat: data.lat,
+            lng: data.lng,
+            admin_picture: data.admin_picture,
+          });
+        }
+      })
+      .catch(() => setCurrentLocation(null));
+  }, [user]);
 
   if (mapLoading) {
     return (
@@ -511,6 +542,49 @@ export default function Travels() {
                 onMouseLeave={() => setTooltip(null)}
               />
             </Marker>
+            {/* Current location marker - only for logged-in users */}
+            {user && currentLocation && (
+              <Marker coordinates={[currentLocation.lng, currentLocation.lat]}>
+                <g
+                  style={{ cursor: "pointer" }}
+                  onMouseEnter={(e) => {
+                    setTooltip({
+                      name: `Now: ${currentLocation.city_name}`,
+                      x: e.clientX,
+                      y: e.clientY,
+                    });
+                  }}
+                  onMouseLeave={() => setTooltip(null)}
+                >
+                  <defs>
+                    <clipPath id="avatar-clip">
+                      <circle cx={0} cy={0} r={5} />
+                    </clipPath>
+                  </defs>
+                  <circle
+                    cx={0}
+                    cy={0}
+                    r={5.5}
+                    fill="#ffffff"
+                    stroke="#ffffff"
+                    strokeWidth={1}
+                  />
+                  {currentLocation.admin_picture ? (
+                    <image
+                      href={currentLocation.admin_picture}
+                      x={-5}
+                      y={-5}
+                      width={10}
+                      height={10}
+                      clipPath="url(#avatar-clip)"
+                      preserveAspectRatio="xMidYMid slice"
+                    />
+                  ) : (
+                    <circle cx={0} cy={0} r={5} fill="#0563bb" />
+                  )}
+                </g>
+              </Marker>
+            )}
           </ZoomableGroup>
         </ComposableMap>
         {tooltip && (

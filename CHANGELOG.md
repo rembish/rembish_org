@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.13.1 (2026-01-27)
+
+### Location Widget
+- Location button now shows city name with country flag
+- Logged-in users see admin's avatar with "in [city] [flag]" and hover tooltip
+- Anonymous visitors don't see the location widget
+
+### Travels Map
+- Added current location marker showing admin's avatar
+- Marker only visible to logged-in users
+- Shows "Now: [city]" on hover
+
 ## 0.13.0 (2026-01-27)
 
 ### Close Ones (Admin)
