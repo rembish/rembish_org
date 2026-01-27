@@ -25,6 +25,8 @@ class UNCountryData(BaseModel):
     visit_date: str | None  # ISO date (last visit) or null
     visit_count: int  # number of completed trips
     planned_count: int = 0  # number of future trips
+    driving_type: str | None = None  # 'rental', 'own', or null
+    drone_flown: bool | None = None
 
 
 class TCCDestinationData(BaseModel):
@@ -196,3 +198,8 @@ class PublicHoliday(BaseModel):
 
 class HolidaysResponse(BaseModel):
     holidays: list[PublicHoliday]
+
+
+class UNCountryActivityUpdate(BaseModel):
+    driving_type: str | None = None
+    drone_flown: bool | None = None

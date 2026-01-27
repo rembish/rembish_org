@@ -15,8 +15,9 @@ import {
   BiCheck,
   BiX,
   BiTrip,
-  BiCalendar,
 } from "react-icons/bi";
+import { FaCar } from "react-icons/fa";
+import { TbDrone } from "react-icons/tb";
 import { useAuth } from "../hooks/useAuth";
 import Flag from "../components/Flag";
 
@@ -36,6 +37,8 @@ interface UNCountryData {
   visit_date: string | null;
   visit_count: number;
   planned_count: number;
+  driving_type: string | null;
+  drone_flown: boolean | null;
 }
 
 interface TCCDestinationData {
@@ -240,6 +243,13 @@ export default function Travels() {
   });
   const [currentLocation, setCurrentLocation] =
     useState<CurrentLocation | null>(null);
+  const [activityModal, setActivityModal] = useState<UNCountryData | null>(
+    null,
+  );
+  const [activitySaving, setActivitySaving] = useState(false);
+  const [mapViewMode, setMapViewMode] = useState<
+    "visits" | "driving" | "drone"
+  >("visits");
 
   const handleShowOnlyVisitedChange = (checked: boolean) => {
     setShowOnlyVisited(checked);
@@ -388,32 +398,95 @@ export default function Travels() {
   const unByContinent = unData ? groupBy(unData, (c) => c.continent) : {};
   const tccByRegion = tccData ? groupBy(tccData, (d) => d.region) : {};
 
-  const renderMapLegend = () => (
-    <div className="map-legend">
-      <div className="map-legend-row">
-        <span className="map-legend-label">Visited once</span>
-        <div
-          className="map-legend-gradient"
-          style={{
-            background:
-              "linear-gradient(to right, hsl(210, 70%, 47%), hsl(172, 70%, 47%), hsl(111, 70%, 47%), hsl(60, 70%, 47%), hsl(15, 70%, 47%))",
-          }}
-        />
-        <span className="map-legend-label">Many visits</span>
+  // Lookup UN country by name for map coloring
+  const unByName: Record<string, UNCountryData> = {};
+  if (unData) {
+    for (const c of unData) {
+      unByName[c.name] = c;
+    }
+  }
+
+  const getMapFillColor = (geoId: string, countryName: string): string => {
+    const visitDate = mapData.visited_map_regions[geoId];
+    const visitCount = mapData.visit_counts[geoId] || 0;
+    const unCountry = unByName[countryName];
+
+    if (mapViewMode === "visits") {
+      return visitDate
+        ? getVisitColor(visitDate, oldestDate, newestDate, visitCount)
+        : "#e6e9ec";
+    } else if (mapViewMode === "driving") {
+      if (!unCountry?.driving_type) return "#e6e9ec";
+      return unCountry.driving_type === "own" ? "#e74c3c" : "#3498db";
+    } else {
+      // drone
+      return unCountry?.drone_flown ? "#9b59b6" : "#e6e9ec";
+    }
+  };
+
+  const renderMapLegend = () => {
+    if (mapViewMode === "driving") {
+      return (
+        <div className="map-legend">
+          <div className="map-legend-item">
+            <span
+              className="map-legend-swatch"
+              style={{ background: "#3498db" }}
+            />
+            <span className="map-legend-label">Rental car</span>
+          </div>
+          <div className="map-legend-item">
+            <span
+              className="map-legend-swatch"
+              style={{ background: "#e74c3c" }}
+            />
+            <span className="map-legend-label">Own car</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (mapViewMode === "drone") {
+      return (
+        <div className="map-legend">
+          <div className="map-legend-item">
+            <span
+              className="map-legend-swatch"
+              style={{ background: "#9b59b6" }}
+            />
+            <span className="map-legend-label">Flew drone</span>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="map-legend">
+        <div className="map-legend-row">
+          <span className="map-legend-label">Visited once</span>
+          <div
+            className="map-legend-gradient"
+            style={{
+              background:
+                "linear-gradient(to right, hsl(210, 70%, 47%), hsl(172, 70%, 47%), hsl(111, 70%, 47%), hsl(60, 70%, 47%), hsl(15, 70%, 47%))",
+            }}
+          />
+          <span className="map-legend-label">Many visits</span>
+        </div>
+        <div className="map-legend-row">
+          <span className="map-legend-label">Older</span>
+          <div
+            className="map-legend-gradient"
+            style={{
+              background:
+                "linear-gradient(to right, hsl(210, 70%, 35%), hsl(210, 70%, 60%))",
+            }}
+          />
+          <span className="map-legend-label">Recent</span>
+        </div>
       </div>
-      <div className="map-legend-row">
-        <span className="map-legend-label">Older</span>
-        <div
-          className="map-legend-gradient"
-          style={{
-            background:
-              "linear-gradient(to right, hsl(210, 70%, 35%), hsl(210, 70%, 60%))",
-          }}
-        />
-        <span className="map-legend-label">Recent</span>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const renderMap = () => (
     <>
@@ -421,6 +494,26 @@ export default function Travels() {
         className="travel-map-container travel-map-tall"
         onMouseLeave={() => setTooltip(null)}
       >
+        <div className="map-view-toggle">
+          <button
+            className={`map-view-btn ${mapViewMode === "visits" ? "active" : ""}`}
+            onClick={() => setMapViewMode("visits")}
+          >
+            Visits
+          </button>
+          <button
+            className={`map-view-btn ${mapViewMode === "driving" ? "active" : ""}`}
+            onClick={() => setMapViewMode("driving")}
+          >
+            Driving
+          </button>
+          <button
+            className={`map-view-btn ${mapViewMode === "drone" ? "active" : ""}`}
+            onClick={() => setMapViewMode("drone")}
+          >
+            Drone
+          </button>
+        </div>
         <ComposableMap
           projection="geoMercator"
           projectionConfig={{
@@ -432,19 +525,11 @@ export default function Travels() {
               {({ geographies }) =>
                 geographies.map((geo) => {
                   const geoId = String(geo.id);
-                  const visitDate = mapData.visited_map_regions[geoId];
                   const visitCount = mapData.visit_counts[geoId] || 0;
-                  const isVisited = !!visitDate;
-                  const fillColor = isVisited
-                    ? getVisitColor(
-                        visitDate,
-                        oldestDate,
-                        newestDate,
-                        visitCount,
-                      )
-                    : "#e6e9ec";
                   const countryName =
                     mapData.region_names[geoId] || geo.properties?.name || "";
+                  const fillColor = getMapFillColor(geoId, countryName);
+                  const isHighlighted = fillColor !== "#e6e9ec";
                   return (
                     <Geography
                       key={geo.rsmKey}
@@ -456,14 +541,14 @@ export default function Travels() {
                         default: { outline: "none", cursor: "pointer" },
                         hover: {
                           outline: "none",
-                          fill: isVisited ? "#e0c080" : "#d0d4d9",
+                          fill: isHighlighted ? "#e0c080" : "#d0d4d9",
                         },
                         pressed: { outline: "none" },
                       }}
                       onMouseEnter={(e) => {
                         setTooltip({
                           name: countryName,
-                          visitCount: isVisited ? visitCount : undefined,
+                          visitCount: isHighlighted ? visitCount : undefined,
                           x: e.clientX,
                           y: e.clientY,
                         });
@@ -473,7 +558,7 @@ export default function Travels() {
                         if (tooltip)
                           setTooltip({
                             name: countryName,
-                            visitCount: isVisited ? visitCount : undefined,
+                            visitCount: isHighlighted ? visitCount : undefined,
                             x: e.clientX,
                             y: e.clientY,
                           });
@@ -484,24 +569,24 @@ export default function Travels() {
               }
             </Geographies>
             {mapData.microstates.map((m) => {
-              const visitDate = mapData.visited_map_regions[m.map_region_code];
               const visitCount = mapData.visit_counts[m.map_region_code] || 0;
-              const isVisited = !!visitDate;
-              const fillColor = isVisited
-                ? getVisitColor(visitDate, oldestDate, newestDate, visitCount)
-                : "#c0c4c8";
+              const fillColor = getMapFillColor(m.map_region_code, m.name);
+              const isHighlighted =
+                fillColor !== "#e6e9ec" && fillColor !== "#c0c4c8";
+              const actualFill =
+                fillColor === "#e6e9ec" ? "#c0c4c8" : fillColor;
               return (
                 <Marker key={m.name} coordinates={[m.longitude, m.latitude]}>
                   <circle
                     r={1.5}
-                    fill={fillColor}
+                    fill={actualFill}
                     stroke="#ffffff"
                     strokeWidth={0.3}
-                    style={{ cursor: "pointer" }}
+                    className={`microstate-marker ${isHighlighted ? "highlighted" : ""}`}
                     onMouseEnter={(e) => {
                       setTooltip({
                         name: m.name,
-                        visitCount: isVisited ? visitCount : undefined,
+                        visitCount: isHighlighted ? visitCount : undefined,
                         x: e.clientX,
                         y: e.clientY,
                       });
@@ -610,6 +695,152 @@ export default function Travels() {
     </>
   );
 
+  const updateCountryActivity = async (
+    countryName: string,
+    drivingType: string | null,
+    droneFlown: boolean | null,
+  ) => {
+    setActivitySaving(true);
+    try {
+      const res = await fetch(
+        `/api/v1/travels/un-countries/${encodeURIComponent(countryName)}/activities`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            driving_type: drivingType,
+            drone_flown: droneFlown,
+          }),
+        },
+      );
+      if (!res.ok) throw new Error("Failed to update");
+
+      // Update local state
+      if (unData) {
+        setUnData(
+          unData.map((c) =>
+            c.name === countryName
+              ? { ...c, driving_type: drivingType, drone_flown: droneFlown }
+              : c,
+          ),
+        );
+      }
+      // Update modal state too
+      if (activityModal?.name === countryName) {
+        setActivityModal({
+          ...activityModal,
+          driving_type: drivingType,
+          drone_flown: droneFlown,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to update country activity:", err);
+    } finally {
+      setActivitySaving(false);
+    }
+  };
+
+  const renderActivityModal = () => {
+    if (!activityModal) return null;
+
+    return (
+      <div className="modal-overlay" onClick={() => setActivityModal(null)}>
+        <div
+          className="modal-content modal-small"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="modal-header">
+            <h2>{activityModal.name}</h2>
+            <button
+              className="modal-close"
+              onClick={() => setActivityModal(null)}
+            >
+              <BiX />
+            </button>
+          </div>
+          <div className="activity-modal-body">
+            <div className="activity-option">
+              <label>Driving</label>
+              <div className="activity-buttons">
+                <button
+                  className={`activity-btn ${activityModal.driving_type === null ? "active" : ""}`}
+                  disabled={activitySaving}
+                  onClick={() =>
+                    updateCountryActivity(
+                      activityModal.name,
+                      null,
+                      activityModal.drone_flown,
+                    )
+                  }
+                >
+                  None
+                </button>
+                <button
+                  className={`activity-btn rental ${activityModal.driving_type === "rental" ? "active" : ""}`}
+                  disabled={activitySaving}
+                  onClick={() =>
+                    updateCountryActivity(
+                      activityModal.name,
+                      "rental",
+                      activityModal.drone_flown,
+                    )
+                  }
+                >
+                  <FaCar /> Rental
+                </button>
+                <button
+                  className={`activity-btn own ${activityModal.driving_type === "own" ? "active" : ""}`}
+                  disabled={activitySaving}
+                  onClick={() =>
+                    updateCountryActivity(
+                      activityModal.name,
+                      "own",
+                      activityModal.drone_flown,
+                    )
+                  }
+                >
+                  <FaCar /> Own
+                </button>
+              </div>
+            </div>
+            <div className="activity-option">
+              <label>Drone</label>
+              <div className="activity-buttons">
+                <button
+                  className={`activity-btn ${!activityModal.drone_flown ? "active" : ""}`}
+                  disabled={activitySaving}
+                  onClick={() =>
+                    updateCountryActivity(
+                      activityModal.name,
+                      activityModal.driving_type,
+                      null,
+                    )
+                  }
+                >
+                  No
+                </button>
+                <button
+                  className={`activity-btn drone ${activityModal.drone_flown ? "active" : ""}`}
+                  disabled={activitySaving}
+                  onClick={() =>
+                    updateCountryActivity(
+                      activityModal.name,
+                      activityModal.driving_type,
+                      true,
+                    )
+                  }
+                >
+                  <TbDrone /> Yes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderUNList = () => {
     const filteredByContinent = Object.entries(unByContinent)
       .map(
@@ -685,11 +916,18 @@ export default function Travels() {
                           country.visit_count,
                         )
                       : undefined;
+                    const isVisited = !!country.visit_date;
+                    const isClickable = user?.is_admin && isVisited;
                     return (
                       <li
                         key={country.name}
-                        className={country.visit_date ? "visited" : ""}
+                        className={`${isVisited ? "visited" : ""} ${isClickable ? "clickable" : ""}`}
                         style={color ? { backgroundColor: color } : undefined}
+                        onClick={
+                          isClickable
+                            ? () => setActivityModal(country)
+                            : undefined
+                        }
                       >
                         <span className="country-name">
                           {country.name}
@@ -707,11 +945,39 @@ export default function Travels() {
                             </span>
                           )}
                         </span>
-                        {country.visit_date && (
-                          <span className="visit-date">
-                            {formatDate(country.visit_date)}
-                          </span>
-                        )}
+                        <span className="country-right">
+                          {/* Activity badges for visited countries */}
+                          {isVisited &&
+                            (country.driving_type || country.drone_flown) && (
+                              <span className="activity-badges">
+                                {country.driving_type && (
+                                  <span
+                                    className={`activity-badge driving-${country.driving_type}`}
+                                    title={
+                                      country.driving_type === "rental"
+                                        ? "Rental car"
+                                        : "Own car"
+                                    }
+                                  >
+                                    <FaCar />
+                                  </span>
+                                )}
+                                {country.drone_flown && (
+                                  <span
+                                    className="activity-badge drone"
+                                    title="Flew drone"
+                                  >
+                                    <TbDrone />
+                                  </span>
+                                )}
+                              </span>
+                            )}
+                          {country.visit_date && (
+                            <span className="visit-date">
+                              {formatDate(country.visit_date)}
+                            </span>
+                          )}
+                        </span>
                       </li>
                     );
                   })}
@@ -969,19 +1235,23 @@ export default function Travels() {
                     +{statsData?.totals.planned_trips}
                   </span>
                 )}
-              </span>
-              <span className="stat-label">Total Trips</span>
-            </div>
-          </div>
-          <div className="stat-card">
-            <BiCalendar className="stat-icon" />
-            <div className="stat-content">
-              <span className="stat-number">
-                {statsData?.totals.days ?? "..."}
-                <span className="stat-total"> days</span>
+                <span className="stat-total"> trips</span>
               </span>
               <span className="stat-label">
                 {statsData?.totals.years ?? "..."} years traveling
+              </span>
+            </div>
+          </div>
+          <div className="stat-card">
+            <FaCar className="stat-icon" />
+            <div className="stat-content">
+              <span className="stat-number">
+                {unData?.filter((c) => c.driving_type).length ?? "..."}
+                <span className="stat-total"> countries driven</span>
+              </span>
+              <span className="stat-label">
+                {unData?.filter((c) => c.drone_flown).length ?? "..."} countries
+                droned
               </span>
             </div>
           </div>
@@ -1128,6 +1398,7 @@ export default function Travels() {
             (tccLoading ? <p>Loading TCC destinations...</p> : renderTCCList())}
         </div>
       </div>
+      {renderActivityModal()}
     </section>
   );
 }

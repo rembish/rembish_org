@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.14.0 (2026-01-27)
+
+### Driving & Drone Tracking
+- Track driving (rental or own car) and drone flights per UN country
+- New stat card showing countries driven and droned
+- Activity badges (car/drone icons) displayed on UN country list
+- Admin modal to edit driving/drone status by clicking on visited countries
+
+### Interactive Map Views
+- New map view toggle: Visits / Driving / Drone
+- Driving view: blue = rental car, red = own car
+- Drone view: purple = flew drone
+- Dynamic legend updates based on selected view
+
+### UI Improvements
+- Wider country list columns (3 columns instead of 4)
+- Aligned activity badges and dates on country rows
+- Microstate markers now have hover highlighting
+
 ## 0.13.1 (2026-01-27)
 
 ### Location Widget

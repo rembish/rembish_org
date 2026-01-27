@@ -1,11 +1,21 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from ..auth.session import get_admin_user
 from ..database import get_db
-from ..models import Microstate, NMRegion, TCCDestination, Trip, TripDestination, UNCountry, Visit
+from ..models import (
+    Microstate,
+    NMRegion,
+    TCCDestination,
+    Trip,
+    TripDestination,
+    UNCountry,
+    User,
+    Visit,
+)
 from .models import (
     MapData,
     MicrostateData,
@@ -15,6 +25,7 @@ from .models import (
     TravelData,
     TravelStats,
     UNCountriesResponse,
+    UNCountryActivityUpdate,
     UNCountryData,
 )
 
@@ -425,11 +436,68 @@ def get_un_countries(db: Session = Depends(get_db)) -> UNCountriesResponse:
             visit_date=un_visit_dates[c.id].isoformat() if c.id in un_visit_dates else None,
             visit_count=un_counts.get(c.id, 0),
             planned_count=un_planned.get(c.id, 0),
+            driving_type=c.driving_type,
+            drone_flown=c.drone_flown,
         )
         for c in all_un_countries
     ]
 
     return UNCountriesResponse(countries=countries_data)
+
+
+@router.patch("/un-countries/{country_name}/activities")
+def update_un_country_activities(
+    country_name: str,
+    update: UNCountryActivityUpdate,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+) -> UNCountryData:
+    """Update driving and drone activities for a UN country (admin only)."""
+    country = db.query(UNCountry).filter(UNCountry.name == country_name).first()
+    if not country:
+        raise HTTPException(status_code=404, detail="Country not found")
+
+    # Update the fields
+    country.driving_type = update.driving_type
+    country.drone_flown = update.drone_flown
+    db.commit()
+    db.refresh(country)
+
+    # Get visit info for response
+    today = date.today()
+    completed_trip_filter = or_(
+        Trip.end_date <= today,
+        (Trip.end_date.is_(None)) & (Trip.start_date <= today),
+    )
+
+    last_visit = (
+        db.query(func.max(Trip.start_date))
+        .join(TripDestination, Trip.id == TripDestination.trip_id)
+        .join(TCCDestination, TripDestination.tcc_destination_id == TCCDestination.id)
+        .filter(TCCDestination.un_country_id == country.id)
+        .filter(completed_trip_filter)
+        .scalar()
+    )
+
+    visit_count = (
+        db.query(func.count(func.distinct(TripDestination.trip_id)))
+        .join(TCCDestination, TripDestination.tcc_destination_id == TCCDestination.id)
+        .join(Trip, Trip.id == TripDestination.trip_id)
+        .filter(TCCDestination.un_country_id == country.id)
+        .filter(completed_trip_filter)
+        .scalar()
+        or 0
+    )
+
+    return UNCountryData(
+        name=country.name,
+        continent=country.continent,
+        visit_date=last_visit.isoformat() if last_visit else None,
+        visit_count=visit_count,
+        planned_count=0,
+        driving_type=country.driving_type,
+        drone_flown=country.drone_flown,
+    )
 
 
 @router.get("/tcc-destinations", response_model=TCCDestinationsResponse)

@@ -31,6 +31,10 @@ class UNCountry(Base):
         Text, nullable=False
     )  # Comma-separated codes for territories
 
+    # Activity tracking: driving_type = 'rental', 'own', or NULL
+    driving_type: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    drone_flown: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+
     tcc_destinations: Mapped[list["TCCDestination"]] = relationship(back_populates="un_country")
 
     def __repr__(self) -> str:

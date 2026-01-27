@@ -3,7 +3,7 @@
         frontend-dev frontend-build frontend-lint frontend-format frontend-typecheck \
         db-migrate db-revision db-shell \
         lint format typecheck test \
-        version version-check version-sync \
+        version version-check version-sync tag \
         build-prod build-backend-prod build-frontend-prod
 
 .DEFAULT_GOAL := help
@@ -206,3 +206,13 @@ version-sync: ## Update all version files from VERSION (run after editing VERSIO
 	sed -i 's/"version": "[^"]*"/"version": "'$$VERSION'"/' $(BACKEND_DIR)/src/main.py; \
 	cp CHANGELOG.md $(FRONTEND_DIR)/public/; \
 	echo "Done. Run 'make version' to verify."
+
+tag: ## Create git tag with current version (v0.X.Y)
+	@VERSION=$$(cat $(VERSION_FILE) 2>/dev/null); \
+	if [ -z "$$VERSION" ]; then \
+		echo "ERROR: VERSION file not found at $(VERSION_FILE)"; \
+		exit 1; \
+	fi; \
+	git tag -a "v$$VERSION" -m "Release v$$VERSION"; \
+	echo "Created tag v$$VERSION"; \
+	echo "Run 'git push --tags' to push to remote."
