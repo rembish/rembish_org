@@ -11,6 +11,7 @@ import {
   BiKey,
 } from "react-icons/bi";
 import "leaflet/dist/leaflet.css";
+import { useAuth } from "../hooks/useAuth";
 
 // Fix for default marker icon in Leaflet + Vite
 const markerIcon = new L.Icon({
@@ -51,11 +52,22 @@ interface FormState {
 }
 
 export default function Contact() {
+  const { user } = useAuth();
   const [formState, setFormState] = useState<FormState>({ status: "idle" });
   const [turnstileToken, setTurnstileToken] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const loadedAt = useRef(Date.now());
   const turnstileRef = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string>("");
+
+  // Prefill form with user data when logged in
+  useEffect(() => {
+    if (user) {
+      setName(user.name || "");
+      setEmail(user.email || "");
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!TURNSTILE_SITE_KEY || !turnstileRef.current) return;
@@ -112,6 +124,8 @@ export default function Contact() {
           message: "Your message has been sent. Thank you!",
         });
         form.reset();
+        setName(user?.name || "");
+        setEmail(user?.email || "");
         loadedAt.current = Date.now(); // Reset timer for next submission
         // Reset Turnstile widget
         if (window.turnstile && widgetId.current) {
@@ -229,6 +243,8 @@ export default function Contact() {
                   required
                   minLength={2}
                   autoComplete="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                 />
               </div>
               <div className="form-group">
@@ -238,6 +254,8 @@ export default function Contact() {
                   placeholder="Your Email"
                   required
                   autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
             </div>

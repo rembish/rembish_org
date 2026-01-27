@@ -12,6 +12,9 @@
 - Marker only visible to logged-in users
 - Shows "Now: [city]" on hover
 
+### Contact Form
+- Form prefills name and email for logged-in users
+
 ## 0.13.0 (2026-01-27)
 
 ### Close Ones (Admin)
