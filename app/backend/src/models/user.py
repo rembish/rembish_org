@@ -1,4 +1,6 @@
-from sqlalchemy import Boolean, Integer, String
+from datetime import date
+
+from sqlalchemy import Boolean, Date, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
@@ -12,6 +14,7 @@ class User(Base):
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     nickname: Mapped[str | None] = mapped_column(String(50), nullable=True)
     picture: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    birthday: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 

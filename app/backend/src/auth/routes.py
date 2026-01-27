@@ -35,9 +35,6 @@ oauth.register(
     client_kwargs={"scope": "openid email profile"},
 )
 
-# Allowed email for login
-ALLOWED_EMAIL = "alex@rembish.org"
-
 
 class UserResponse(BaseModel):
     id: int
@@ -129,32 +126,25 @@ async def callback(request: Request, db: Session = Depends(get_db)) -> RedirectR
             detail="Email not provided",
         )
 
-    # Only allow specific email
-    if email.lower() != ALLOWED_EMAIL.lower():
-        log.warning(f"Login rejected for unauthorized email: {email}")
+    # Check if user exists in database (case-insensitive)
+    user = db.query(User).filter(User.email.ilike(email)).first()
+    if not user:
+        log.warning(f"Login rejected - email not in users table: {email}")
         response = RedirectResponse(url=settings.frontend_url, status_code=302)
         response.delete_cookie(REDIRECT_COOKIE_NAME, path="/")
         return response
 
-    # Find or create user
-    user = db.query(User).filter(User.email == email).first()
-    if not user:
-        user = User(
-            email=email,
-            name=userinfo.get("name"),
-            picture=userinfo.get("picture"),
-            is_admin=True,  # First user (you) is admin
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        log.info(f"Created new user: {email}")
-    else:
-        # Update name/picture if changed
-        user.name = userinfo.get("name")
-        user.picture = userinfo.get("picture")
-        db.commit()
-        log.info(f"User logged in: {email}")
+    # Update name/picture from Google profile
+    user.name = userinfo.get("name")
+    user.picture = userinfo.get("picture")
+
+    # Activate user on first login
+    if not user.is_active:
+        user.is_active = True
+        log.info(f"User activated on first login: {email}")
+
+    db.commit()
+    log.info(f"User logged in: {email}")
 
     # Create session and redirect
     session_token = create_session_token(user.id)

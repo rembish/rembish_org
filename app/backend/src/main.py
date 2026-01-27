@@ -9,6 +9,7 @@ from pydantic import EmailStr
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
+from .admin import router as admin_router
 from .auth import router as auth_router
 from .config import settings
 from .log_config import get_logger, setup_logging
@@ -20,7 +21,7 @@ log = get_logger(__name__)
 
 app = FastAPI(
     title="rembish.org API",
-    version="0.12.3",
+    version="0.13.0",
     docs_url="/docs" if settings.debug else None,
     redoc_url="/redoc" if settings.debug else None,
     openapi_url="/openapi.json" if settings.debug else None,
@@ -54,6 +55,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 # Include routers
 app.include_router(auth_router, prefix="/api")
+app.include_router(admin_router, prefix="/api")
 app.include_router(travels_router, prefix="/api")
 
 # Spam protection settings
@@ -99,7 +101,7 @@ def health() -> dict[str, str]:
 def info() -> dict[str, str]:
     return {
         "name": "rembish.org",
-        "version": "0.12.3",
+        "version": "0.13.0",
     }
 
 

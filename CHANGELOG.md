@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.13.0 (2026-01-27)
+
+### Close Ones (Admin)
+- New "Close Ones" tab in admin panel to manage family/friends
+- Add users by email - they remain "Pending" until first Google login
+- User cards show avatar, name, email, birthday, status, and trip count
+- Edit user details including birthday (date picker with dd.mm.yyyy format)
+- Remove users with confirmation dialog
+- Login now requires email to be pre-registered in the system
+
+### User Activation Flow
+- New users are created as "Pending" (inactive)
+- First Google login activates the account and syncs profile picture
+- Unregistered emails are denied login access
+
 ## 0.12.3 (2026-01-26)
 
 ### Future Trips Handling

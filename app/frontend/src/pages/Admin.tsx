@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import {
   BiBriefcase,
+  BiCake,
   BiCar,
   BiChevronLeft,
   BiChevronRight,
@@ -12,6 +13,7 @@ import {
 } from "react-icons/bi";
 import { useAuth } from "../hooks/useAuth";
 import TripFormModal, { TripFormData } from "../components/TripFormModal";
+import UserFormModal, { UserFormData } from "../components/UserFormModal";
 
 interface TripDestination {
   name: string;
@@ -56,7 +58,198 @@ interface TCCDestinationOption {
   region: string;
 }
 
-type AdminTab = "trips";
+type AdminTab = "trips" | "close-ones";
+
+interface CloseOneUser {
+  id: number;
+  email: string;
+  name: string | null;
+  nickname: string | null;
+  picture: string | null;
+  birthday: string | null;
+  is_admin: boolean;
+  is_active: boolean;
+  trips_count: number;
+}
+
+function CloseOnesTab() {
+  const [users, setUsers] = useState<CloseOneUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<CloseOneUser | null>(null);
+
+  const fetchUsers = useCallback(() => {
+    fetch("/api/v1/admin/users/", { credentials: "include" })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch users");
+        return res.json();
+      })
+      .then((data) => {
+        setUsers(data.users || []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const handleAddUser = () => {
+    setEditingUser(null);
+    setModalOpen(true);
+  };
+
+  const handleEditUser = (user: CloseOneUser) => {
+    setEditingUser(user);
+    setModalOpen(true);
+  };
+
+  const handleDeleteUser = async (userId: number) => {
+    if (!confirm("Are you sure you want to remove this user?")) return;
+
+    try {
+      const res = await fetch(`/api/v1/admin/users/${userId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to delete user");
+      fetchUsers();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete user");
+    }
+  };
+
+  const handleSaveUser = async (data: UserFormData) => {
+    const url = editingUser
+      ? `/api/v1/admin/users/${editingUser.id}`
+      : "/api/v1/admin/users/";
+    const method = editingUser ? "PUT" : "POST";
+
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.detail || "Failed to save user");
+    }
+
+    fetchUsers();
+  };
+
+  const getInitialFormData = (): UserFormData | null => {
+    if (!editingUser) return null;
+    return {
+      email: editingUser.email,
+      name: editingUser.name || "",
+      nickname: editingUser.nickname || "",
+      birthday: editingUser.birthday || "",
+    };
+  };
+
+  if (loading) {
+    return <p>Loading users...</p>;
+  }
+
+  if (error) {
+    return <p>Error: {error}</p>;
+  }
+
+  return (
+    <div className="close-ones-tab">
+      <div className="close-ones-header">
+        <button className="btn-add-user" onClick={handleAddUser}>
+          <BiPlus /> Add User
+        </button>
+      </div>
+
+      <div className="users-grid">
+        {users.length === 0 ? (
+          <p className="no-users">No close ones added yet.</p>
+        ) : (
+          users.map((user) => (
+            <div key={user.id} className="user-card">
+              <div className="user-card-avatar">
+                {user.picture ? (
+                  <img
+                    src={user.picture}
+                    alt={user.nickname || user.name || ""}
+                  />
+                ) : (
+                  <span className="avatar-initial">
+                    {(user.nickname ||
+                      user.name ||
+                      user.email)[0].toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div className="user-card-info">
+                <div className="user-card-name">
+                  {user.nickname || user.name || "—"}
+                  {user.is_admin && <span className="admin-badge">Admin</span>}
+                  <span
+                    className={`status-badge ${user.is_active ? "active" : "pending"}`}
+                  >
+                    {user.is_active ? "Active" : "Pending"}
+                  </span>
+                </div>
+                <div className="user-card-email">{user.email}</div>
+                <div className="user-card-meta">
+                  {user.birthday && (
+                    <span className="birthday-badge">
+                      <BiCake />{" "}
+                      {new Date(user.birthday + "T00:00:00").toLocaleDateString(
+                        "en-GB",
+                        { day: "numeric", month: "short" },
+                      )}
+                    </span>
+                  )}
+                  {user.trips_count > 0 && (
+                    <span className="trips-badge">
+                      {user.trips_count} trip{user.trips_count !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="user-card-actions">
+                <button
+                  className="user-action-btn"
+                  onClick={() => handleEditUser(user)}
+                  title="Edit"
+                >
+                  <BiPencil />
+                </button>
+                <button
+                  className="user-action-btn delete"
+                  onClick={() => handleDeleteUser(user.id)}
+                  title="Remove"
+                >
+                  <BiTrash />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <UserFormModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={handleSaveUser}
+        initialData={getInitialFormData()}
+        title={editingUser ? "Edit User" : "Add User"}
+      />
+    </div>
+  );
+}
 
 // Check if trip overlaps with a given year (for NY trips spanning Dec-Jan)
 function tripOverlapsYear(trip: Trip, year: number): boolean {
@@ -574,7 +767,7 @@ export default function Admin() {
   const selectedYear = year ? Number(year) : null;
 
   const setActiveTab = (newTab: AdminTab) => {
-    if (selectedYear) {
+    if (newTab === "trips" && selectedYear) {
       navigate(`/admin/${newTab}/${selectedYear}`);
     } else {
       navigate(`/admin/${newTab}`);
@@ -588,6 +781,11 @@ export default function Admin() {
   // Redirect non-admin users
   if (!authLoading && !user?.is_admin) {
     return <Navigate to="/" replace />;
+  }
+
+  // Remove year from URL for close-ones tab
+  if (activeTab === "close-ones" && year) {
+    return <Navigate to="/admin/close-ones" replace />;
   }
 
   if (authLoading) {
@@ -614,7 +812,12 @@ export default function Admin() {
           >
             Trips
           </button>
-          {/* Future tabs can be added here */}
+          <button
+            className={`admin-tab ${activeTab === "close-ones" ? "active" : ""}`}
+            onClick={() => setActiveTab("close-ones")}
+          >
+            Close Ones
+          </button>
         </div>
 
         <div className="admin-content">
@@ -624,6 +827,7 @@ export default function Admin() {
               onYearChange={setSelectedYear}
             />
           )}
+          {activeTab === "close-ones" && <CloseOnesTab />}
         </div>
       </div>
     </section>
