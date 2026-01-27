@@ -22,6 +22,8 @@ from ..models import (
 from .models import (
     CitySearchResponse,
     CitySearchResult,
+    HolidaysResponse,
+    PublicHoliday,
     TCCDestinationOption,
     TCCDestinationOptionsResponse,
     TripCityData,
@@ -40,6 +42,10 @@ from .models import (
 # Nominatim rate limiting - track last request time
 _nominatim_last_request: float = 0.0
 _NOMINATIM_COOLDOWN = 1.0  # seconds between requests
+
+# Holidays cache: {(year, country_code): (holidays_list, timestamp)}
+_holidays_cache: dict[tuple[int, str], tuple[list[dict], float]] = {}
+_HOLIDAYS_CACHE_TTL = 86400  # 24 hours
 
 router = APIRouter()
 
@@ -185,7 +191,7 @@ def _search_nominatim(
         query_lower = query.lower()
 
         for item in data:
-            address = item.get("addressdetails", {})
+            address = item.get("address", {})
             item_name = item.get("name", "")
 
             # Get country info - use fallback if not in address
@@ -646,3 +652,63 @@ def delete_trip(
     db.commit()
 
     return {"message": "Trip deleted"}
+
+
+@router.get("/holidays/{year}/{country_code}", response_model=HolidaysResponse)
+def get_holidays(
+    year: int,
+    country_code: str,
+    admin: Annotated[User, Depends(get_admin_user)],
+) -> HolidaysResponse:
+    """Get public holidays for a year/country from Nager.Date API (admin only).
+
+    Uses in-memory cache with 24h TTL.
+    """
+    country_code = country_code.upper()
+    cache_key = (year, country_code)
+
+    # Check cache
+    if cache_key in _holidays_cache:
+        cached_holidays, cached_time = _holidays_cache[cache_key]
+        if time.time() - cached_time < _HOLIDAYS_CACHE_TTL:
+            return HolidaysResponse(
+                holidays=[
+                    PublicHoliday(
+                        date=h["date"],
+                        name=h["name"],
+                        local_name=h.get("localName"),
+                    )
+                    for h in cached_holidays
+                ]
+            )
+
+    # Fetch from Nager.Date API
+    try:
+        response = httpx.get(
+            f"https://date.nager.at/api/v3/PublicHolidays/{year}/{country_code}",
+            timeout=10.0,
+        )
+        if response.status_code in (204, 404):
+            # Country not supported or not found - cache empty result
+            _holidays_cache[cache_key] = ([], time.time())
+            return HolidaysResponse(holidays=[])
+
+        response.raise_for_status()
+        data = response.json()
+
+        # Cache the raw data
+        _holidays_cache[cache_key] = (data, time.time())
+
+        return HolidaysResponse(
+            holidays=[
+                PublicHoliday(
+                    date=h["date"],
+                    name=h["name"],
+                    local_name=h.get("localName"),
+                )
+                for h in data
+            ]
+        )
+    except Exception:
+        # Return empty on any error (network, timeout, rate limit, etc.)
+        return HolidaysResponse(holidays=[])

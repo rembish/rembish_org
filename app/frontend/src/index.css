@@ -1588,7 +1588,7 @@ a {
 
 /* Admin Area */
 .admin {
-  padding: 2rem 0;
+  padding: 2rem 1rem 2rem 0;
 }
 
 .admin-header {
@@ -2408,11 +2408,36 @@ a {
 /* Modal Actions */
 .modal-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   gap: 0.75rem;
   padding-top: 1rem;
   border-top: 1px solid var(--color-border);
   margin-top: 1rem;
+}
+
+.modal-actions-right {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn-delete {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #ef5350;
+  border-radius: 6px;
+  background: transparent;
+  color: #ef5350;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+
+  &:hover {
+    background: #ef5350;
+    color: white;
+  }
 }
 
 .btn-cancel {
@@ -2453,6 +2478,7 @@ a {
 /* Date Range Picker */
 .date-range-input {
   width: 100%;
+  min-width: 220px;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--color-border);
   border-radius: 6px;
@@ -2468,7 +2494,8 @@ a {
 }
 
 .react-datepicker-wrapper {
-  width: 100%;
+  width: auto;
+  min-width: 220px;
 }
 
 .react-datepicker {
@@ -2779,5 +2806,257 @@ a {
       outline: none;
       border-color: var(--color-primary);
     }
+  }
+}
+
+/* View Toggle Button */
+.view-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: 1.25rem;
+  color: var(--color-text-secondary);
+
+  &:hover {
+    background: var(--color-bg-secondary);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+}
+
+/* Year Calendar Grid */
+.year-calendar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .year-calendar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .year-calendar {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Calendar Month */
+.calendar-month {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.calendar-month-header {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  text-align: center;
+  margin-bottom: 0.5rem;
+  color: var(--color-text);
+}
+
+.calendar-days-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 4px;
+
+  & > div {
+    text-align: center;
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+  }
+}
+
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+/* Calendar Day Cell */
+.calendar-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+
+  &:hover:not(.empty) {
+    transform: scale(1.1);
+    z-index: 1;
+  }
+
+  &.empty {
+    cursor: default;
+  }
+
+  &.weekend {
+    background: #f0f0f0;
+    color: var(--color-text-secondary);
+  }
+
+  &.holiday {
+    background: #ffebee;
+    color: #c62828;
+    font-weight: 500;
+  }
+
+  &.birthday {
+    background: #fff8e1;
+    color: #f57c00;
+    font-weight: 500;
+  }
+
+  &.trip {
+    color: white;
+    font-weight: 600;
+  }
+
+  &.trip.regular {
+    background: var(--color-primary);
+  }
+
+  &.trip.work {
+    background: #e67e22;
+  }
+
+  &.trip.future {
+    background: #9b59b6;
+  }
+
+  &.trip-start {
+    border-radius: 4px 0 0 4px;
+  }
+
+  &.trip-end {
+    border-radius: 0 4px 4px 0;
+  }
+
+  &.trip-start.trip-end {
+    border-radius: 4px;
+  }
+}
+
+.holiday-badge {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  font-size: 0.5rem;
+  font-weight: 700;
+  color: #c62828;
+  background: #ffcdd2;
+  border-radius: 50%;
+  width: 0.75rem;
+  height: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* Dates row with holidays warning */
+.dates-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.holidays-warning-container {
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 1.5rem;
+}
+
+.holidays-warning-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  color: #856404;
+  font-size: 1.125rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+
+  &:hover {
+    background: #ffe69c;
+    border-color: #e0a800;
+  }
+
+  & .holidays-count {
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+}
+
+.holidays-dropdown {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  margin-left: 0.5rem;
+  min-width: 280px;
+  max-width: 320px;
+  padding: 0.75rem;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  font-size: 0.8125rem;
+
+  & h4 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #f57c00;
+    margin-bottom: 0.5rem;
+  }
+
+  & .holiday-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--color-text-secondary);
+    padding: 0.375rem 0;
+    border-bottom: 1px solid #fff0c0;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  & .holiday-date {
+    font-weight: 500;
+    color: var(--color-text);
+    min-width: 3.5rem;
+    flex-shrink: 0;
+  }
+
+  & .holiday-name {
+    flex: 1;
+  }
+
+  & .holiday-country {
+    flex-shrink: 0;
   }
 }

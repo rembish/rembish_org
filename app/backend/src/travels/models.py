@@ -186,3 +186,13 @@ class UserOption(BaseModel):
 
 class UserOptionsResponse(BaseModel):
     users: list[UserOption]
+
+
+class PublicHoliday(BaseModel):
+    date: str  # ISO date YYYY-MM-DD
+    name: str
+    local_name: str | None
+
+
+class HolidaysResponse(BaseModel):
+    holidays: list[PublicHoliday]

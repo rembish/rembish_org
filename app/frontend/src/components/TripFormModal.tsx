@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { BiX, BiSearch } from "react-icons/bi";
+import { BiX, BiSearch, BiError, BiTrash } from "react-icons/bi";
 import Flag from "./Flag";
 
 interface TCCDestinationOption {
@@ -34,6 +34,14 @@ interface CitySearchResult {
   country_code: string | null;
   display_name: string | null;
   source: string;
+}
+
+interface TripHoliday {
+  date: string;
+  name: string;
+  local_name: string | null;
+  country_code: string;
+  country_name: string;
 }
 
 // Parse date string (YYYY-MM-DD) as local date, not UTC
@@ -78,6 +86,7 @@ interface TripFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: TripFormData) => Promise<void>;
+  onDelete?: () => Promise<void>;
   initialData?: TripFormData | null;
   title: string;
 }
@@ -115,6 +124,7 @@ export default function TripFormModal({
   isOpen,
   onClose,
   onSave,
+  onDelete,
   initialData,
   title,
 }: TripFormModalProps) {
@@ -134,6 +144,10 @@ export default function TripFormModal({
   const [cityResults, setCityResults] = useState<CitySearchResult[]>([]);
   const [citySearching, setCitySearching] = useState(false);
   const debouncedCitySearch = useDebounce(citySearch, 400);
+
+  // Holidays during trip state
+  const [tripHolidays, setTripHolidays] = useState<TripHoliday[]>([]);
+  const [holidaysVisible, setHolidaysVisible] = useState(true);
 
   // Load options on mount
   useEffect(() => {
@@ -187,6 +201,93 @@ export default function TripFormModal({
       .finally(() => setCitySearching(false));
   }, [debouncedCitySearch, formData.destinations, tccOptions]);
 
+  // Fetch holidays for trip dates and destinations
+  useEffect(() => {
+    if (!formData.start_date || formData.destinations.length === 0) {
+      setTripHolidays([]);
+      return;
+    }
+
+    // Get unique country codes from selected destinations
+    const countryMap = new Map<string, string>(); // code -> name
+    for (const dest of formData.destinations) {
+      const tcc = tccOptions.find((t) => t.id === dest.tcc_destination_id);
+      if (tcc?.country_code) {
+        // Get UN country name from the TCC option region or use code
+        countryMap.set(
+          tcc.country_code,
+          tcc.name.split(",")[0] || tcc.country_code,
+        );
+      }
+    }
+
+    if (countryMap.size === 0) {
+      setTripHolidays([]);
+      return;
+    }
+
+    const startDate = new Date(formData.start_date);
+    const endDate = formData.end_date ? new Date(formData.end_date) : startDate;
+
+    // Get years to fetch (handle multi-year trips)
+    const years = new Set<number>();
+    const current = new Date(startDate);
+    while (current <= endDate) {
+      years.add(current.getFullYear());
+      current.setMonth(current.getMonth() + 1);
+    }
+
+    // Fetch holidays for each country/year combo
+    const fetchPromises: Promise<TripHoliday[]>[] = [];
+    for (const [countryCode, countryName] of countryMap) {
+      for (const year of years) {
+        fetchPromises.push(
+          fetch(`/api/v1/travels/holidays/${year}/${countryCode}`, {
+            credentials: "include",
+          })
+            .then((r) => r.json())
+            .then((data) => {
+              const holidays = data.holidays || [];
+              return holidays
+                .filter((h: { date: string }) => {
+                  const d = new Date(h.date);
+                  return d >= startDate && d <= endDate;
+                })
+                .map(
+                  (h: {
+                    date: string;
+                    name: string;
+                    local_name: string | null;
+                  }) => ({
+                    date: h.date,
+                    name: h.name,
+                    local_name: h.local_name,
+                    country_code: countryCode,
+                    country_name: countryName,
+                  }),
+                );
+            })
+            .catch(() => [] as TripHoliday[]),
+        );
+      }
+    }
+
+    Promise.all(fetchPromises).then((results) => {
+      const allHolidays = results
+        .flat()
+        .sort((a, b) => a.date.localeCompare(b.date));
+      setTripHolidays(allHolidays);
+      if (allHolidays.length > 0) {
+        setHolidaysVisible(true);
+      }
+    });
+  }, [
+    formData.start_date,
+    formData.end_date,
+    formData.destinations,
+    tccOptions,
+  ]);
+
   // Reset form when modal opens/closes or initialData changes
   useEffect(() => {
     if (isOpen) {
@@ -200,6 +301,8 @@ export default function TripFormModal({
       setCitySearch("");
       setCityResults([]);
       setExpandedRegions(new Set());
+      setTripHolidays([]);
+      setHolidaysVisible(false);
     }
   }, [isOpen, initialData]);
 
@@ -362,33 +465,80 @@ export default function TripFormModal({
           {/* Dates Section */}
           <div className="form-section">
             <h3>Dates</h3>
-            <div className="form-group">
-              <label>Date Range *</label>
-              <DatePicker
-                selectsRange
-                startDate={
-                  formData.start_date
-                    ? parseLocalDate(formData.start_date)
-                    : null
-                }
-                endDate={
-                  formData.end_date ? parseLocalDate(formData.end_date) : null
-                }
-                onChange={(dates) => {
-                  const [start, end] = dates as [Date | null, Date | null];
-                  setFormData((prev) => ({
-                    ...prev,
-                    start_date: start ? formatLocalDate(start) : "",
-                    end_date: end ? formatLocalDate(end) : null,
-                  }));
-                }}
-                dateFormat="d MMM yyyy"
-                placeholderText="Select date range"
-                className="date-range-input"
-                isClearable
-                monthsShown={2}
-                calendarStartDay={1}
-              />
+            <div className="dates-row">
+              {/* Date picker - left side */}
+              <div className="form-group">
+                <label>Date Range *</label>
+                <DatePicker
+                  selectsRange
+                  startDate={
+                    formData.start_date
+                      ? parseLocalDate(formData.start_date)
+                      : null
+                  }
+                  endDate={
+                    formData.end_date ? parseLocalDate(formData.end_date) : null
+                  }
+                  onChange={(dates) => {
+                    const [start, end] = dates as [Date | null, Date | null];
+                    setFormData((prev) => ({
+                      ...prev,
+                      start_date: start ? formatLocalDate(start) : "",
+                      end_date: end ? formatLocalDate(end) : null,
+                    }));
+                  }}
+                  dateFormat="d MMM yyyy"
+                  placeholderText="Select date range"
+                  className="date-range-input"
+                  isClearable
+                  monthsShown={2}
+                  calendarStartDay={1}
+                />
+              </div>
+
+              {/* Holidays Warning Icon */}
+              {tripHolidays.length > 0 && (
+                <div className="holidays-warning-container">
+                  <button
+                    type="button"
+                    className="holidays-warning-btn"
+                    onClick={() => setHolidaysVisible(!holidaysVisible)}
+                    title={`${tripHolidays.length} public holiday(s) during trip`}
+                  >
+                    <BiError />
+                    <span className="holidays-count">
+                      {tripHolidays.length}
+                    </span>
+                  </button>
+                  {holidaysVisible && (
+                    <div className="holidays-dropdown">
+                      <h4>Public Holidays During Trip</h4>
+                      {tripHolidays.map((h, i) => (
+                        <div
+                          key={`${h.date}-${h.country_code}-${i}`}
+                          className="holiday-item"
+                        >
+                          <span className="holiday-date">
+                            {new Date(h.date + "T00:00:00").toLocaleDateString(
+                              "en-GB",
+                              { day: "numeric", month: "short" },
+                            )}
+                          </span>
+                          <span
+                            className="holiday-name"
+                            title={h.local_name || ""}
+                          >
+                            {h.name}
+                          </span>
+                          <span className="holiday-country">
+                            <Flag code={h.country_code} size={14} />
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -675,12 +825,28 @@ export default function TripFormModal({
 
           {/* Actions */}
           <div className="modal-actions">
-            <button type="button" className="btn-cancel" onClick={onClose}>
-              Cancel
-            </button>
-            <button type="submit" className="btn-save" disabled={saving}>
-              {saving ? "Saving..." : "Save"}
-            </button>
+            {onDelete && (
+              <button
+                type="button"
+                className="btn-delete"
+                onClick={async () => {
+                  if (confirm("Are you sure you want to delete this trip?")) {
+                    await onDelete();
+                    onClose();
+                  }
+                }}
+              >
+                <BiTrash /> Delete
+              </button>
+            )}
+            <div className="modal-actions-right">
+              <button type="button" className="btn-cancel" onClick={onClose}>
+                Cancel
+              </button>
+              <button type="submit" className="btn-save" disabled={saving}>
+                {saving ? "Saving..." : "Save"}
+              </button>
+            </div>
           </div>
         </form>
       </div>
