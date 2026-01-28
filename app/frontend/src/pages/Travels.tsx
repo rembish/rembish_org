@@ -7,15 +7,7 @@ import {
   ZoomableGroup,
   Marker,
 } from "react-simple-maps";
-import {
-  BiWorld,
-  BiMapAlt,
-  BiGlobe,
-  BiUpload,
-  BiCheck,
-  BiX,
-  BiTrip,
-} from "react-icons/bi";
+import { BiWorld, BiMapAlt, BiGlobe, BiX, BiTrip } from "react-icons/bi";
 import { FaCar } from "react-icons/fa";
 import { TbDrone } from "react-icons/tb";
 import { useAuth } from "../hooks/useAuth";
@@ -234,9 +226,6 @@ export default function Travels() {
     y: number;
   } | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<"success" | "error" | null>(
-    null,
-  );
   const [showOnlyVisited, setShowOnlyVisited] = useState(() => {
     const stored = localStorage.getItem("travels-show-only-visited");
     return stored !== null ? stored === "true" : true;
@@ -250,6 +239,43 @@ export default function Travels() {
   const [mapViewMode, setMapViewMode] = useState<
     "visits" | "driving" | "drone"
   >("visits");
+  const [statCarouselIndex, setStatCarouselIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+
+  const handleCarouselSwipe = (direction: "left" | "right") => {
+    const totalItems = 5;
+    if (direction === "left") {
+      setStatCarouselIndex((prev) => (prev + 1) % totalItems);
+    } else {
+      setStatCarouselIndex((prev) => (prev - 1 + totalItems) % totalItems);
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStart === null) return;
+    const touchEnd = e.changedTouches[0].clientX;
+    const diff = touchStart - touchEnd;
+    if (Math.abs(diff) > 50) {
+      handleCarouselSwipe(diff > 0 ? "left" : "right");
+    }
+    setTouchStart(null);
+  };
+
+  // Auto-advance carousel every 5 seconds on mobile
+  useEffect(() => {
+    const isMobile = window.innerWidth <= 600;
+    if (!isMobile) return;
+
+    const interval = setInterval(() => {
+      setStatCarouselIndex((prev) => (prev + 1) % 5);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleShowOnlyVisitedChange = (checked: boolean) => {
     setShowOnlyVisited(checked);
@@ -310,7 +336,6 @@ export default function Travels() {
     if (!file) return;
 
     setUploading(true);
-    setUploadStatus(null);
     const formData = new FormData();
     formData.append("file", file);
 
@@ -326,11 +351,7 @@ export default function Travels() {
       }
       // Refresh all data
       await fetchAllData();
-      setUploadStatus("success");
-      setTimeout(() => setUploadStatus(null), 3000);
     } catch (err) {
-      setUploadStatus("error");
-      setTimeout(() => setUploadStatus(null), 3000);
       console.error(
         "Upload failed:",
         err instanceof Error ? err.message : "Unknown error",
@@ -1224,38 +1245,16 @@ export default function Travels() {
   return (
     <section id="travels" className="travels">
       <div className="container">
-        <div className="travel-stats">
-          <div className="stat-card">
-            <BiTrip className="stat-icon" />
-            <div className="stat-content">
-              <span className="stat-number">
-                {statsData?.totals.trips ?? "..."}
-                {(statsData?.totals.planned_trips ?? 0) > 0 && (
-                  <span className="stat-planned" title="In plans">
-                    +{statsData?.totals.planned_trips}
-                  </span>
-                )}
-                <span className="stat-total"> trips</span>
-              </span>
-              <span className="stat-label">
-                {statsData?.totals.years ?? "..."} years traveling
-              </span>
-            </div>
-          </div>
-          <div className="stat-card">
-            <FaCar className="stat-icon" />
-            <div className="stat-content">
-              <span className="stat-number">
-                {unData?.filter((c) => c.driving_type).length ?? "..."}
-                <span className="stat-total"> countries driven</span>
-              </span>
-              <span className="stat-label">
-                {unData?.filter((c) => c.drone_flown).length ?? "..."} countries
-                droned
-              </span>
-            </div>
-          </div>
-          <div className="stat-card">
+        <div
+          className="travel-stats"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* UN Countries - first in carousel */}
+          <div
+            className={`stat-card stat-carousel-item ${statCarouselIndex === 0 ? "active" : ""}`}
+            data-index={0}
+          >
             <BiWorld className="stat-icon" />
             <div className="stat-content">
               <span className="stat-number">
@@ -1276,11 +1275,13 @@ export default function Travels() {
               %
             </div>
           </div>
+          {/* TCC Destinations */}
           <a
             href="https://travelerscenturyclub.org/"
             target="_blank"
             rel="noopener noreferrer"
-            className="stat-card stat-card-link"
+            className={`stat-card stat-card-link stat-carousel-item ${statCarouselIndex === 1 ? "active" : ""}`}
+            data-index={1}
           >
             <BiMapAlt className="stat-icon" />
             <div className="stat-content">
@@ -1305,59 +1306,99 @@ export default function Travels() {
               %
             </div>
           </a>
-          <div className="stat-card-wrapper">
-            <a
-              href="https://nomadmania.com/profile/11183/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="stat-card stat-card-link"
-            >
-              <BiGlobe className="stat-icon" />
-              <div className="stat-content">
-                <span className="stat-number">
-                  {uploading ? "???" : mapData.stats.nm_visited}
-                  <span className="stat-total">
-                    {" "}
-                    of {uploading ? "???" : mapData.stats.nm_total}
-                  </span>
+          {/* NM Regions */}
+          {user?.is_admin && (
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx"
+              onChange={handleUpload}
+              className="nm-upload-input"
+            />
+          )}
+          <div
+            className={`stat-card stat-card-link stat-carousel-item ${statCarouselIndex === 2 ? "active" : ""} ${user?.is_admin ? "stat-card-admin" : ""}`}
+            data-index={2}
+            onClick={() => {
+              if (user?.is_admin && window.innerWidth > 600) {
+                fileInputRef.current?.click();
+              } else {
+                window.open("https://nomadmania.com/profile/11183/", "_blank");
+              }
+            }}
+            title={
+              user?.is_admin
+                ? "Click to upload NM regions XLSX"
+                : "View NomadMania profile"
+            }
+          >
+            <BiGlobe className="stat-icon" />
+            <div className="stat-content">
+              <span className="stat-number">
+                {uploading ? "???" : mapData.stats.nm_visited}
+                <span className="stat-total">
+                  {" "}
+                  of {uploading ? "???" : mapData.stats.nm_total}
                 </span>
-                <span className="stat-label">NM Regions</span>
-              </div>
-              <div className="stat-percent">
-                {uploading ? (
-                  <span className="upload-spinner" />
-                ) : (
-                  `${Math.round((mapData.stats.nm_visited / mapData.stats.nm_total) * 100)}%`
+              </span>
+              <span className="stat-label">NM Regions</span>
+            </div>
+            <div className="stat-percent">
+              {uploading ? (
+                <span className="upload-spinner" />
+              ) : (
+                `${Math.round((mapData.stats.nm_visited / mapData.stats.nm_total) * 100)}%`
+              )}
+            </div>
+          </div>
+          {/* Trips */}
+          <div
+            className={`stat-card stat-carousel-item ${statCarouselIndex === 3 ? "active" : ""}`}
+            data-index={3}
+          >
+            <BiTrip className="stat-icon" />
+            <div className="stat-content">
+              <span className="stat-number">
+                {statsData?.totals.trips ?? "..."}
+                {(statsData?.totals.planned_trips ?? 0) > 0 && (
+                  <span className="stat-planned" title="In plans">
+                    +{statsData?.totals.planned_trips}
+                  </span>
                 )}
-              </div>
-            </a>
-            {user?.is_admin && (
-              <>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".xlsx"
-                  onChange={handleUpload}
-                  style={{ display: "none" }}
-                />
-                <button
-                  className={`stat-upload-btn ${uploadStatus === "success" ? "success" : ""} ${uploadStatus === "error" ? "error" : ""}`}
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  title="Upload NM regions XLSX"
-                >
-                  {uploading ? (
-                    <span className="upload-spinner" />
-                  ) : uploadStatus === "success" ? (
-                    <BiCheck />
-                  ) : uploadStatus === "error" ? (
-                    <BiX />
-                  ) : (
-                    <BiUpload />
-                  )}
-                </button>
-              </>
-            )}
+                <span className="stat-total"> trips</span>
+              </span>
+              <span className="stat-label">
+                {statsData?.totals.years ?? "..."} years traveling
+              </span>
+            </div>
+          </div>
+          {/* Driving/Drone */}
+          <div
+            className={`stat-card stat-carousel-item ${statCarouselIndex === 4 ? "active" : ""}`}
+            data-index={4}
+          >
+            <FaCar className="stat-icon" />
+            <div className="stat-content">
+              <span className="stat-number">
+                {unData?.filter((c) => c.driving_type).length ?? "..."}
+                <span className="stat-total"> countries driven</span>
+              </span>
+              <span className="stat-label">
+                {unData?.filter((c) => c.drone_flown).length ?? "..."} countries
+                droned
+              </span>
+            </div>
+          </div>
+          {/* Carousel dots for mobile */}
+          <div className="stat-carousel-dots">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <button
+                key={i}
+                className={`stat-carousel-dot ${statCarouselIndex === i ? "active" : ""}`}
+                onClick={() => setStatCarouselIndex(i)}
+                aria-label={`Show stat ${i + 1}`}
+              />
+            ))}
           </div>
         </div>
 

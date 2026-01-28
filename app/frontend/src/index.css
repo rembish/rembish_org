@@ -41,6 +41,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
 a {
   color: var(--color-primary);
   text-decoration: none;
@@ -63,6 +69,7 @@ a {
   inset-inline-start: 0;
   z-index: 100;
   padding: 15px;
+  padding-inline-start: 22px;
   display: flex;
   flex-direction: column;
   transition: inset-inline-start var(--transition-normal);
@@ -80,6 +87,8 @@ a {
 }
 
 #main {
+  flex: 1;
+
   @media (width >= 992px) {
     margin-inline-start: var(--header-width);
   }
@@ -552,6 +561,8 @@ a {
 }
 
 .contact-map {
+  position: relative;
+  z-index: 0;
   block-size: 300px;
   margin-block-end: 2rem;
   border-radius: 12px;
@@ -954,7 +965,7 @@ a {
 
 .travel-stats {
   display: grid;
-  grid-template-columns: 0.8fr 1fr 1fr 1fr 1.2fr;
+  grid-template-columns: repeat(5, 1fr);
   gap: 0.75rem;
   margin-block-end: 1.5rem;
 
@@ -963,7 +974,50 @@ a {
   }
 
   @media (width <= 600px) {
-    grid-template-columns: repeat(2, 1fr);
+    display: block;
+    position: relative;
+  }
+}
+
+/* Carousel dots - hidden on desktop */
+.stat-carousel-dots {
+  display: none;
+
+  @media (width <= 600px) {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+}
+
+.stat-carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-border);
+  cursor: pointer;
+  padding: 0;
+  transition: background var(--transition-fast);
+
+  &.active {
+    background: var(--color-primary);
+  }
+
+  &:hover {
+    background: var(--color-text-secondary);
+  }
+}
+
+/* Carousel items - show/hide on mobile */
+@media (width <= 600px) {
+  .travel-stats .stat-carousel-item {
+    display: none !important;
+  }
+
+  .travel-stats .stat-carousel-item.active {
+    display: flex !important;
   }
 }
 
@@ -988,50 +1042,14 @@ a {
   }
 }
 
-.stat-card-wrapper {
-  position: relative;
-  display: flex;
-  gap: 0.5rem;
+/* Hidden file input for NM upload */
+.nm-upload-input {
+  display: none;
 }
 
-.stat-card-wrapper .stat-card {
-  flex: 1;
-}
-
-.stat-upload-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 0.75rem;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  color: var(--color-text-secondary);
+/* Admin stat card clickable for upload */
+.stat-card-admin {
   cursor: pointer;
-  font-size: 1.25rem;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: var(--color-bg-secondary);
-    color: var(--color-primary);
-  }
-
-  &:disabled {
-    opacity: 0.7;
-    cursor: wait;
-  }
-
-  &.success {
-    background: #d4edda;
-    border-color: #28a745;
-    color: #28a745;
-  }
-
-  &.error {
-    background: #f8d7da;
-    border-color: #dc3545;
-    color: #dc3545;
-  }
 }
 
 .upload-spinner {
@@ -1109,6 +1127,18 @@ a {
     inline-size: 100%;
     block-size: auto;
     max-block-size: 500px;
+  }
+
+  @media (width <= 600px) {
+    height: calc(100dvh - 355px);
+    min-height: 200px;
+    margin-block-end: 0;
+
+    & svg {
+      max-block-size: none;
+      block-size: 100%;
+      width: 100%;
+    }
   }
 }
 
@@ -1245,6 +1275,17 @@ a {
   margin-block-end: 1.5rem;
   border-block-end: 1px solid var(--color-border);
   padding-block-end: 0.5rem;
+
+  @media (width <= 600px) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin-block-end: 0.75rem;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
 }
 
 .travel-tab {
@@ -1271,6 +1312,10 @@ a {
 
 .travel-tab-content {
   min-block-size: 400px;
+
+  @media (width <= 600px) {
+    min-block-size: 0;
+  }
 }
 
 .travel-list {
@@ -1779,6 +1824,10 @@ a {
 /* Admin Area */
 .admin {
   padding: 2rem 1rem 2rem 0;
+
+  @media (width <= 991px) {
+    padding: 2rem 1rem;
+  }
 }
 
 .admin-header {
@@ -1796,6 +1845,16 @@ a {
   margin-block-end: 1.5rem;
   border-block-end: 2px solid var(--color-border);
   padding-block-end: 0;
+
+  @media (width <= 600px) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
 }
 
 .admin-tab {
@@ -1809,6 +1868,7 @@ a {
   border-block-end: 2px solid transparent;
   margin-block-end: -2px;
   transition: all var(--transition-fast);
+  white-space: nowrap;
 
   &:hover {
     color: var(--color-primary);
@@ -1817,6 +1877,12 @@ a {
   &.active {
     color: var(--color-primary);
     border-block-end-color: var(--color-primary);
+  }
+
+  @media (width <= 600px) {
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    flex-shrink: 0;
   }
 }
 
@@ -2203,6 +2269,7 @@ a {
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
+  overflow-x: hidden;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
@@ -2698,11 +2765,16 @@ a {
   min-width: 220px;
 }
 
+.react-datepicker-popper {
+  z-index: 1001;
+}
+
 .react-datepicker {
   font-family: var(--font-body);
   border: 1px solid var(--color-border);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  background: var(--color-bg);
 }
 
 .react-datepicker__header {
@@ -3536,5 +3608,220 @@ a {
   .location-widget {
     bottom: 1rem;
     right: 1rem;
+  }
+}
+
+/* Mobile styles for Trip Form Modal */
+@media (max-width: 768px) {
+  .modal-overlay {
+    padding: 0.5rem;
+  }
+
+  .modal-content {
+    max-height: 95vh;
+    border-radius: 8px;
+  }
+
+  .modal-header {
+    padding: 0.75rem 1rem;
+
+    & h2 {
+      font-size: 1.125rem;
+    }
+  }
+
+  .trip-form {
+    padding: 1rem;
+  }
+
+  .form-section {
+    margin-bottom: 1.25rem;
+  }
+
+  /* Stack form row items vertically on mobile */
+  .form-row {
+    flex-direction: column;
+    gap: 0.75rem;
+
+    & .form-group {
+      min-width: 100%;
+    }
+  }
+
+  /* Date picker: show single month on mobile */
+  .react-datepicker {
+    display: block !important;
+  }
+
+  .react-datepicker__month-container:nth-child(2) {
+    display: none;
+  }
+
+  .date-range-input {
+    min-width: 100%;
+  }
+
+  .react-datepicker-wrapper {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .react-datepicker-popper {
+    position: fixed !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    z-index: 1001;
+  }
+
+  /* Backdrop overlay for date picker on mobile */
+  .react-datepicker-popper::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: -1;
+  }
+
+  /* Ensure solid backgrounds and borders on all datepicker elements */
+  .react-datepicker-popper .react-datepicker {
+    background-color: #ffffff !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid #e6e9ec !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+  }
+
+  /* Hide the arrow/triangle on mobile */
+  .react-datepicker-popper .react-datepicker__triangle {
+    display: none !important;
+  }
+
+  .react-datepicker-popper .react-datepicker__month-container {
+    background-color: #ffffff !important;
+    border: none !important;
+  }
+
+  .react-datepicker-popper .react-datepicker__header {
+    background-color: #f7f8f9 !important;
+    border-bottom: 1px solid #e6e9ec !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+  }
+
+  .react-datepicker-popper .react-datepicker__month {
+    background-color: #ffffff !important;
+    border: none !important;
+  }
+
+  /* Dates row: stack vertically on mobile */
+  .dates-row {
+    flex-direction: column;
+    gap: 0.5rem;
+
+    & .form-group {
+      width: 100%;
+    }
+  }
+
+  /* Holidays dropdown: position below button on mobile */
+  .holidays-warning-container {
+    margin-top: 0;
+  }
+
+  .holidays-dropdown {
+    position: fixed;
+    top: auto;
+    bottom: 1rem;
+    left: 1rem;
+    right: 1rem;
+    margin-left: 0;
+    max-width: none;
+    min-width: auto;
+  }
+
+  /* Participants grid: 2 columns on mobile */
+  .participants-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .participant-item {
+    padding: 0.5rem;
+    font-size: 0.8125rem;
+  }
+
+  /* Modal actions: stack on small screens */
+  .modal-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .modal-actions-right {
+    width: 100%;
+    justify-content: stretch;
+
+    & button {
+      flex: 1;
+    }
+  }
+
+  .btn-delete {
+    width: 100%;
+  }
+
+  /* Search inputs full width */
+  .search-input {
+    padding: 0.625rem 0.75rem;
+  }
+
+  /* City results dropdown */
+  .city-results {
+    max-height: 200px;
+  }
+
+  /* Destination list */
+  .destination-list {
+    max-height: 200px;
+  }
+
+  /* Selected chips wrap better */
+  .selected-chip {
+    max-width: 100%;
+    overflow: hidden;
+
+    & span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 400px) {
+  .modal-overlay {
+    padding: 0;
+  }
+
+  .modal-content {
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .trip-form {
+    padding: 0.75rem;
+  }
+
+  .participants-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .react-datepicker__day-name,
+  .react-datepicker__day {
+    width: 2rem;
+    line-height: 2rem;
+    margin: 0.1rem;
   }
 }

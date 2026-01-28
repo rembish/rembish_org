@@ -493,6 +493,7 @@ export default function TripFormModal({
                   isClearable
                   monthsShown={2}
                   calendarStartDay={1}
+                  popperPlacement="bottom-start"
                 />
               </div>
 

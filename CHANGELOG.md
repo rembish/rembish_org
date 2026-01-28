@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.14.1 (2026-01-28)
+
+### Mobile Responsive Improvements
+- Trip form modal now fits mobile screens without horizontal scrollbar
+- Date picker shows single month on mobile with centered backdrop overlay
+- Date picker left-aligned on desktop (no more clipping on narrower screens)
+- Admin page content properly padded on mobile when sidebar hidden
+- Contact page map no longer overlaps mobile menu
+
+### Stats Carousel (Mobile)
+- Stats widgets display as carousel on mobile (one at a time)
+- Swipe left/right to navigate between widgets
+- Auto-advances every 5 seconds
+- Navigation dots show current position
+- UN Countries widget shown first
+
+### Map & Layout
+- Map fills remaining screen space on mobile
+- Sticky footer stays at bottom of viewport
+- Stats widgets equal width on desktop
+- Fixed menu left padding asymmetry
+
+### Home Page
+- Added "an amateur Cosplayer" to rotating intro text
+- Fixed "Traveller" → "Traveler" (US English spelling)
+- Changed "Python professional" → "Python Developer"
+
+### Admin UI
+- NM Regions upload: click card instead of separate button (desktop only)
+
 ## 0.14.0 (2026-01-27)
 
 ### Driving & Drone Tracking

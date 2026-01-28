@@ -11,15 +11,17 @@ import LocationButton from "../components/LocationButton";
 const typedItems = [
   "a Senior Team Leader",
   2000,
-  "a Python professional",
+  "a Python Developer",
   2000,
   "an IT Manager",
   2000,
-  "a Traveller",
+  "a Traveler",
   2000,
   "an Aerial Photographer",
   2000,
   "a Drone Pilot",
+  2000,
+  "an amateur Cosplayer",
   2000,
 ];
 
