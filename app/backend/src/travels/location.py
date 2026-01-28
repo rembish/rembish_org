@@ -6,11 +6,22 @@ from typing import Annotated
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from ..auth.session import get_admin_user, get_current_user
 from ..database import get_db
-from ..models import City, Trip, TripCity, User, UserLastLocation
+from ..models import (
+    City,
+    TCCDestination,
+    Trip,
+    TripCity,
+    TripDestination,
+    UNCountry,
+    User,
+    UserLastLocation,
+    Visit,
+)
 
 router = APIRouter()
 
@@ -316,6 +327,45 @@ def check_in_location(
                         city_id=city.id,
                     )
                 )
+
+            # Update first_visit_date for destinations matching city's country
+            # Use today's date - the actual check-in date is most precise
+            if city.country_code:
+                city_code = city.country_code.lower()
+                visit_date = date.today()
+                # Find matching destinations (check TCC iso_alpha2 first, then UN country)
+                matching_destinations = (
+                    db.query(TripDestination)
+                    .join(TCCDestination)
+                    .outerjoin(UNCountry, UNCountry.id == TCCDestination.un_country_id)
+                    .filter(TripDestination.trip_id == active_trip.id)
+                    .filter(
+                        (func.lower(TCCDestination.iso_alpha2) == city_code)
+                        | (
+                            TCCDestination.iso_alpha2.is_(None)
+                            & (func.lower(UNCountry.iso_alpha2) == city_code)
+                        )
+                    )
+                    .all()
+                )
+                for td in matching_destinations:
+                    visit = (
+                        db.query(Visit)
+                        .filter(Visit.tcc_destination_id == td.tcc_destination_id)
+                        .first()
+                    )
+                    if visit:
+                        # Update if no date set or if trip start is earlier
+                        if visit.first_visit_date is None or visit.first_visit_date > visit_date:
+                            visit.first_visit_date = visit_date
+                    else:
+                        # Create new visit record with trip's start date
+                        db.add(
+                            Visit(
+                                tcc_destination_id=td.tcc_destination_id,
+                                first_visit_date=visit_date,
+                            )
+                        )
 
     db.commit()
 

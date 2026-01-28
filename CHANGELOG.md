@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.5 (2026-01-28)
+
+### Travel Statistics
+- Visit dates now use trip end date instead of first day of month (more accurate)
+- Location check-in records actual check-in date (most precise)
+- Destinations only count as visited after trip ends (not when it starts)
+
 ## 0.14.4 (2026-01-28)
 
 ### Travel Map

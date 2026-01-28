@@ -333,7 +333,8 @@ def search_cities(
 
 def _update_visits_for_trip(db: Session, trip: Trip) -> None:
     """Create/update Visit records when trip adds new destinations."""
-    first_of_month = trip.start_date.replace(day=1)
+    # Use end_date (trip completion) or start_date for single-day trips
+    visit_date = trip.end_date or trip.start_date
 
     for trip_dest in trip.destinations:
         visit = (
@@ -345,12 +346,12 @@ def _update_visits_for_trip(db: Session, trip: Trip) -> None:
             db.add(
                 Visit(
                     tcc_destination_id=trip_dest.tcc_destination_id,
-                    first_visit_date=first_of_month,
+                    first_visit_date=visit_date,
                 )
             )
-        elif visit.first_visit_date is None or first_of_month < visit.first_visit_date:
+        elif visit.first_visit_date is None or visit_date < visit.first_visit_date:
             # Earlier visit found - update
-            visit.first_visit_date = first_of_month
+            visit.first_visit_date = visit_date
 
 
 def _recalculate_visit(db: Session, tcc_destination_id: int) -> None:
@@ -366,11 +367,13 @@ def _recalculate_visit(db: Session, tcc_destination_id: int) -> None:
     visit = db.query(Visit).filter(Visit.tcc_destination_id == tcc_destination_id).first()
 
     if earliest_trip:
-        first_of_month = earliest_trip.start_date.replace(day=1)
+        # Use end_date (trip completion) or start_date for single-day trips
+        # Can be refined via location check-in for more precision
+        visit_date = earliest_trip.end_date or earliest_trip.start_date
         if visit:
-            visit.first_visit_date = first_of_month
+            visit.first_visit_date = visit_date
         else:
-            db.add(Visit(tcc_destination_id=tcc_destination_id, first_visit_date=first_of_month))
+            db.add(Visit(tcc_destination_id=tcc_destination_id, first_visit_date=visit_date))
     elif visit:
         # No trips visit this destination anymore - clear the visit date
         visit.first_visit_date = None
