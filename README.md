@@ -6,7 +6,7 @@ Personal website / portfolio.
 
 - **Frontend:** React 18 + TypeScript + Vite
 - **Backend:** FastAPI + SQLAlchemy
-- **Database:** SQLite (dev), PostgreSQL (prod planned)
+- **Database:** MySQL 8 (dev), Cloud SQL MySQL (prod)
 - **Auth:** Google OAuth (single admin user)
 
 ## Development

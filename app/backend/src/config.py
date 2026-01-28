@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
 
     # Database
-    database_url: str = "sqlite:///./dev.db"
+    database_url: str = "mysql+pymysql://app:devpassword@localhost:3306/rembish_org"
 
     # Session
     secret_key: str = "dev-secret-change-in-production"

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.14.3 (2026-01-28)
+
+### Performance
+- Added database indexes for faster travel page queries
+- Improved database connection pool settings for Cloud SQL
+
+### Development
+- Removed SQLite from dev defaults (MySQL only)
+
 ## 0.14.2 (2026-01-28)
 
 ### Home Page
