@@ -23,6 +23,13 @@ interface MicrostateData {
   map_region_code: string;
 }
 
+interface CityMarkerData {
+  name: string;
+  lat: number;
+  lng: number;
+  is_partial: boolean;
+}
+
 interface UNCountryData {
   name: string;
   continent: string;
@@ -211,6 +218,7 @@ export default function Travels() {
 
   // Split state for progressive loading
   const [mapData, setMapData] = useState<MapData | null>(null);
+  const [cityMarkers, setCityMarkers] = useState<CityMarkerData[]>([]);
   const [unData, setUnData] = useState<UNCountryData[] | null>(null);
   const [tccData, setTccData] = useState<TCCDestinationData[] | null>(null);
   const [statsData, setStatsData] = useState<TravelStatsData | null>(null);
@@ -228,6 +236,10 @@ export default function Travels() {
   const [uploading, setUploading] = useState(false);
   const [showOnlyVisited, setShowOnlyVisited] = useState(() => {
     const stored = localStorage.getItem("travels-show-only-visited");
+    return stored !== null ? stored === "true" : true;
+  });
+  const [showCities, setShowCities] = useState(() => {
+    const stored = localStorage.getItem("travels-show-cities");
     return stored !== null ? stored === "true" : true;
   });
   const [currentLocation, setCurrentLocation] =
@@ -298,11 +310,12 @@ export default function Travels() {
       setMapData(mapDataResult);
       setMapLoading(false);
 
-      // Fetch UN, TCC, and stats data in parallel
-      const [unRes, tccRes, statsRes] = await Promise.all([
+      // Fetch UN, TCC, stats, and city data in parallel
+      const [unRes, tccRes, statsRes, citiesRes] = await Promise.all([
         fetch("/api/v1/travels/un-countries"),
         fetch("/api/v1/travels/tcc-destinations"),
         fetch("/api/v1/travels/stats"),
+        fetch("/api/v1/travels/map-cities"),
       ]);
 
       if (unRes.ok) {
@@ -322,6 +335,11 @@ export default function Travels() {
         setStatsData(statsResult);
       }
       setStatsLoading(false);
+
+      if (citiesRes.ok) {
+        const citiesResult = await citiesRes.json();
+        setCityMarkers(citiesResult.cities || []);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
       setMapLoading(false);
@@ -505,6 +523,20 @@ export default function Travels() {
           />
           <span className="map-legend-label">Recent</span>
         </div>
+        <label className="map-legend-toggle">
+          <input
+            type="checkbox"
+            checked={showCities}
+            onChange={(e) => {
+              setShowCities(e.target.checked);
+              localStorage.setItem(
+                "travels-show-cities",
+                String(e.target.checked),
+              );
+            }}
+          />
+          <span>Show cities</span>
+        </label>
       </div>
     );
   };
@@ -617,11 +649,35 @@ export default function Travels() {
                 </Marker>
               );
             })}
-            {/* Special location markers */}
+            {/* City markers - small dots for visited cities */}
+            {mapViewMode === "visits" &&
+              showCities &&
+              cityMarkers.map((city, idx) => (
+                <Marker key={`city-${idx}`} coordinates={[city.lng, city.lat]}>
+                  <circle
+                    r={0.5}
+                    fill={city.is_partial ? "#999999" : "#ffffff"}
+                    stroke="#333333"
+                    strokeWidth={0.15}
+                    style={{ cursor: "pointer" }}
+                    onMouseEnter={(e) => {
+                      setTooltip({
+                        name: city.is_partial
+                          ? `${city.name} (partial)`
+                          : city.name,
+                        x: e.clientX,
+                        y: e.clientY,
+                      });
+                    }}
+                    onMouseLeave={() => setTooltip(null)}
+                  />
+                </Marker>
+              ))}
+            {/* Special location markers - stars for birthplace and home */}
             <Marker coordinates={[82.9357, 55.0084]}>
-              <circle
-                r={1.5}
-                fill="#ffffff"
+              <polygon
+                points="0,-2 0.59,-0.81 1.9,-0.62 0.95,0.31 1.18,1.62 0,1.05 -1.18,1.62 -0.95,0.31 -1.9,-0.62 -0.59,-0.81"
+                fill="#ffd700"
                 stroke="#333333"
                 strokeWidth={0.3}
                 style={{ cursor: "pointer" }}
@@ -636,9 +692,9 @@ export default function Travels() {
               />
             </Marker>
             <Marker coordinates={[14.4378, 50.0755]}>
-              <circle
-                r={1.5}
-                fill="#ffffff"
+              <polygon
+                points="0,-2 0.59,-0.81 1.9,-0.62 0.95,0.31 1.18,1.62 0,1.05 -1.18,1.62 -0.95,0.31 -1.9,-0.62 -0.59,-0.81"
+                fill="#ffd700"
                 stroke="#333333"
                 strokeWidth={0.3}
                 style={{ cursor: "pointer" }}

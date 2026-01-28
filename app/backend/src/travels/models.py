@@ -203,3 +203,14 @@ class HolidaysResponse(BaseModel):
 class UNCountryActivityUpdate(BaseModel):
     driving_type: str | None = None
     drone_flown: bool | None = None
+
+
+class CityMarkerData(BaseModel):
+    name: str
+    lat: float
+    lng: float
+    is_partial: bool = False
+
+
+class MapCitiesResponse(BaseModel):
+    cities: list[CityMarkerData]

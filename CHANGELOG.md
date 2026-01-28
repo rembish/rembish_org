@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.14.4 (2026-01-28)
+
+### Travel Map
+- City markers showing visited cities as small dots on the map
+- White dots for full visits, grey dots for partial visits
+- Hover tooltip shows city name
+- "Show cities" toggle in map legend (saved to browser)
+- Birthplace and home locations shown as gold stars
+- Fixed 88 cities with wrong coordinates or country codes
+- Removed Luxembourg and Brunei from microstate markers (now visible on map)
+
 ## 0.14.3 (2026-01-28)
 
 ### Performance

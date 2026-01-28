@@ -3,20 +3,25 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.functions import coalesce
 
 from ..auth.session import get_admin_user
 from ..database import get_db
 from ..models import (
+    City,
     Microstate,
     NMRegion,
     TCCDestination,
     Trip,
+    TripCity,
     TripDestination,
     UNCountry,
     User,
     Visit,
 )
 from .models import (
+    CityMarkerData,
+    MapCitiesResponse,
     MapData,
     MicrostateData,
     NMRegionData,
@@ -559,3 +564,51 @@ def get_tcc_destinations(db: Session = Depends(get_db)) -> TCCDestinationsRespon
     ]
 
     return TCCDestinationsResponse(destinations=destinations_data)
+
+
+@router.get("/map-cities", response_model=MapCitiesResponse)
+def get_map_cities(db: Session = Depends(get_db)) -> MapCitiesResponse:
+    """Get all properly visited cities with coordinates for map markers."""
+
+    # Filter for completed trips only
+    today = date.today()
+    completed_trip_filter = or_(
+        Trip.end_date <= today,
+        (Trip.end_date.is_(None)) & (Trip.start_date <= today),
+    )
+
+    # Get distinct cities from completed trips
+    # Only include cities where their country_code matches a TCC destination
+    # on the SAME trip (filters out cities with wrong country codes)
+    # For territories (Jersey, Guernsey, etc.) use TCCDestination.iso_alpha2
+    # which has the correct territory code; fall back to UNCountry.iso_alpha2
+    # Use MIN(is_partial) so if a city has both partial and full visits, show as full
+    cities = (
+        db.query(
+            City.name,
+            City.lat,
+            City.lng,
+            func.min(TripCity.is_partial).label("is_partial"),
+        )
+        .join(TripCity, TripCity.city_id == City.id)
+        .join(Trip, Trip.id == TripCity.trip_id)
+        .join(TripDestination, TripDestination.trip_id == Trip.id)
+        .join(TCCDestination, TCCDestination.id == TripDestination.tcc_destination_id)
+        .outerjoin(UNCountry, UNCountry.id == TCCDestination.un_country_id)
+        .filter(City.lat.isnot(None))
+        .filter(City.lng.isnot(None))
+        .filter(
+            func.lower(City.country_code)
+            == func.lower(coalesce(TCCDestination.iso_alpha2, UNCountry.iso_alpha2))
+        )
+        .filter(completed_trip_filter)
+        .group_by(City.name, City.lat, City.lng)
+        .all()
+    )
+
+    return MapCitiesResponse(
+        cities=[
+            CityMarkerData(name=name, lat=lat, lng=lng, is_partial=bool(is_partial))
+            for name, lat, lng, is_partial in cities
+        ]
+    )
