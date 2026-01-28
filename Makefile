@@ -4,7 +4,8 @@
         db-migrate db-revision db-shell \
         lint format typecheck test \
         version version-check version-sync tag \
-        build-prod build-backend-prod build-frontend-prod
+        build-prod build-backend-prod build-frontend-prod \
+        cv-pdf
 
 .DEFAULT_GOAL := help
 
@@ -216,3 +217,12 @@ tag: ## Create git tag with current version (v0.X.Y)
 	git tag -a "v$$VERSION" -m "Release v$$VERSION"; \
 	echo "Created tag v$$VERSION"; \
 	echo "Run 'git push --tags' to push to remote."
+
+##@ CV Management
+
+cv-pdf: ## Export CV page to PDF (requires dev server running)
+	@if ! curl -s http://localhost:5173 > /dev/null 2>&1; then \
+		echo "Error: Dev server not running. Start with 'make up' or 'npm run dev'"; \
+		exit 1; \
+	fi
+	cd $(FRONTEND_DIR) && node scripts/export_cv_pdf.mjs

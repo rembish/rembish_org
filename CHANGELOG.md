@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.14.2 (2026-01-28)
+
+### Home Page
+- Added "an amateur Cosplayer" to rotating intro text
+- Fixed "Traveller" → "Traveler" (US English spelling)
+- Changed "Python professional" → "Python Developer"
+
+### CV Page
+- Added Cosplay to interests
+- Added AI tools (Claude, Augment, ChatGPT) to hard skills
+- Changed English proficiency to "Fluent"
+- Fixed capitalization (JavaScript, uWSGI, job titles)
+- Improved grammar and phrasing throughout
+- Modernized Hard Skills (removed dated items, added GitHub Actions/GitLab CI)
+- Changed "Over 18 years" to "since 2005" (evergreen)
+- Added PDF export via Puppeteer (`make cv-pdf`) with custom fonts and styling
+
 ## 0.14.1 (2026-01-28)
 
 ### Mobile Responsive Improvements
@@ -21,11 +38,6 @@
 - Sticky footer stays at bottom of viewport
 - Stats widgets equal width on desktop
 - Fixed menu left padding asymmetry
-
-### Home Page
-- Added "an amateur Cosplayer" to rotating intro text
-- Fixed "Traveller" → "Traveler" (US English spelling)
-- Changed "Python professional" → "Python Developer"
 
 ### Admin UI
 - NM Regions upload: click card instead of separate button (desktop only)

@@ -61,7 +61,7 @@ export default function CV() {
               <ul>
                 <li>Python expert</li>
                 <li>Containerization</li>
-                <li>Decreasing legacy code</li>
+                <li>Reducing legacy code</li>
                 <li>Code standardization</li>
                 <li>Step-by-step refactoring</li>
                 <li>Agile development</li>
@@ -72,38 +72,28 @@ export default function CV() {
               </ul>
             </div>
 
-            <h3 className="resume-title">Hard skills</h3>
+            <h3 className="resume-title">Hard Skills</h3>
             <div className="resume-item">
               <p>
-                Python, PHP, C++, Javascript, Bash
+                Python, JavaScript, Bash
                 <br />
-                Nginx, uwsgi, async frameworks
-                <br />
-                MySQL family databases
-                <br />
-                Linux (Debian, Ubuntu, Mint)
-                <br />
-                Cassandra, MongoDB and other NoSQL dbs
+                MySQL, Cassandra, MongoDB
                 <br />
                 Docker, Kubernetes, Helm
                 <br />
+                GitHub Actions, GitLab CI
+                <br />
                 Prometheus, Grafana, Kibana
                 <br />
-                Azkaban, Sentry, Jaeger
+                Sentry, Jaeger
                 <br />
-                Virtualization (kvm, lxc, openvz)
+                Nginx, async frameworks
                 <br />
-                CI/CD, bootstrapping and automation
+                AI tools (Claude, Augment, ChatGPT)
                 <br />
-                Debian packaging
+                Test automation
                 <br />
                 Python packaging
-                <br />
-                Coding standards
-                <br />
-                Complex automated testing
-                <br />
-                Code reviewing
               </p>
             </div>
 
@@ -114,7 +104,7 @@ export default function CV() {
                 <br />
                 Czech | Fluent
                 <br />
-                English | Professional working proficiency
+                English | Fluent
               </p>
             </div>
 
@@ -128,10 +118,12 @@ export default function CV() {
                 Aerial photography
                 <br />
                 Indoor climbing
+                <br />
+                Cosplay
               </p>
             </div>
 
-            <h3 className="resume-title">Public speaking</h3>
+            <h3 className="resume-title print-break-before">Public Speaking</h3>
             <div className="resume-item">
               <h4>The way of a backend programmer</h4>
               <p>
@@ -188,10 +180,10 @@ export default function CV() {
             <div className="resume-item">
               <h4>Alex Rembish</h4>
               <p>
-                Over 18 years of programming experience with deep expertise in
-                Python, including leadership roles spanning team lead to head of
-                development. Currently focused on test infrastructure, Python
-                modernization, and performance testing at enterprise scale.
+                Programming since 2005 with deep expertise in Python, including
+                leadership roles spanning team lead to head of development.
+                Currently focused on test infrastructure, Python modernization,
+                and performance testing at enterprise scale.
               </p>
               <p>
                 Passionate about code quality, automation, and solving complex
@@ -242,15 +234,14 @@ export default function CV() {
                 </em>
               </p>
               <p>
-                Managing 4 teams (20 programmers and tech leaders). Setting up
-                better agile processes, improving relations with the Operations
-                and QA departments, coordinating better product roadmap's
-                planning.
+                Managed 4 teams (20 programmers and tech leaders). Improved
+                agile processes, strengthened relations with Operations and QA
+                departments, and coordinated product roadmap planning.
               </p>
               <ul>
-                <li>Changes to be explained</li>
-                <li>Problems are to be solved, not to be hidden</li>
-                <li>Simpler hiring process</li>
+                <li>Promoted transparency in technical decisions</li>
+                <li>Fostered problem-solving culture over blame avoidance</li>
+                <li>Streamlined the hiring process</li>
               </ul>
             </div>
 
@@ -261,9 +252,9 @@ export default function CV() {
                 <em>Shoptet, a.s. | Prague</em>
               </p>
               <p>
-                Starting a new project with the external team of programmers.
-                Setting up a complete project environment including automation,
-                basic cloud infrastructure (dev side), and general support.
+                Started a new project with an external development team. Set up
+                a complete project environment including automation, basic cloud
+                infrastructure (dev side), and ongoing support.
               </p>
               <ul>
                 <li>Continuous Integration and delivery</li>
@@ -273,7 +264,7 @@ export default function CV() {
             </div>
 
             <div className="resume-item">
-              <h4>Head of development</h4>
+              <h4>Head of Development</h4>
               <h5>Feb 2019 - Dec 2020</h5>
               <p>
                 <em>
@@ -282,37 +273,36 @@ export default function CV() {
                 </em>
               </p>
               <p>
-                Managing up to 18 teams (75 programmers and tech leaders) in 5
-                different locations in the Czech Republic. Coordinating
-                technological roadmap and consulting product development
-                estimates. Decreasing technical debt.
+                Managed up to 18 teams (75 programmers and tech leaders) in 5
+                locations across the Czech Republic. Coordinated technological
+                roadmap and consulted on product development estimates. Reduced
+                technical debt.
               </p>
               <ul>
+                <li>Built transparent product-development relationships</li>
                 <li>
-                  Transparent development, building product vs dev relations
+                  Integrated technical initiatives into department roadmap
                 </li>
-                <li>Technological tasks are part of the department roadmap</li>
-                <li>Problems are to be solved, not to be hidden</li>
-                <li>Lead technical meetups</li>
-                <li>Metrics, SLA/SLO</li>
-                <li>Business logs to be streamed</li>
+                <li>Cultivated a culture of open problem-solving</li>
+                <li>Led technical meetups</li>
+                <li>Established metrics and SLA/SLO standards</li>
+                <li>Implemented business log streaming</li>
               </ul>
             </div>
 
-            <div className="resume-item">
-              <h4>Team leader</h4>
+            <div className="resume-item print-break-before">
+              <h4>Team Leader</h4>
               <h5>May 2017 - Jan 2019</h5>
               <p>
                 <em>Seznam.cz a.s. @ Sklik.cz | Prague</em>
               </p>
               <p>
-                Leading two teams (10 programmers) in 2 different locations in
-                the Czech Republic. Primarily responsible for developing and
-                maintaining{" "}
+                Led two teams (10 programmers) in 2 locations across the Czech
+                Republic. Primarily responsible for developing and maintaining{" "}
                 <a href="https://partner.seznam.cz">the partners' portal</a> at
-                Sklik.cz. Mentoring less experienced colleagues (up to Senior).
-                Public speaking about Python. Containerization of frontend
-                components and other Python-based services.
+                Sklik.cz. Mentored junior colleagues up to Senior level. Gave
+                public talks about Python. Containerized frontend components and
+                other Python-based services.
               </p>
               <ul>
                 <li>Team grew from 2 to 10 members</li>
@@ -320,7 +310,7 @@ export default function CV() {
                   Lead developer on two "first line" web applications at
                   Sklik.cz
                 </li>
-                <li>Reduced on-boarding time from 2 days to 15 minutes</li>
+                <li>Reduced onboarding time from 2 days to 15 minutes</li>
                 <li>
                   Several core components were switched from a legacy to
                   open-source codebase
@@ -340,8 +330,8 @@ export default function CV() {
                 <em>Seznam.cz a.s. @ Sklik.cz | Prague</em>
               </p>
               <p>
-                As a separated programmer, I worked almost on all Sklik.cz
-                components written in Python: libraries, websites, RPC servers
+                As an individual contributor, I worked on almost all Sklik.cz
+                components written in Python: libraries, websites, RPC servers,
                 and maintenance scripts.
               </p>
               <ul>
@@ -351,7 +341,7 @@ export default function CV() {
                 </li>
                 <li>
                   Split a monolithic repository for core Sklik.cz websites into
-                  three separated websites for partners, advertisers and
+                  three separate websites for partners, advertisers, and
                   administrators
                 </li>
                 <li>
@@ -360,8 +350,8 @@ export default function CV() {
                   <code>apache</code> + <code>mod_python</code>)
                 </li>
                 <li>
-                  Standardized a bunch of core modules written in Python (not
-                  only at Sklik.cz, but for whole Seznam infrastructure
+                  Standardized core Python modules across Sklik.cz and the
+                  broader Seznam infrastructure
                 </li>
               </ul>
             </div>
@@ -373,11 +363,10 @@ export default function CV() {
                 <em>Seznam.cz a.s. @ Sklik.cz | Prague</em>
               </p>
               <p>
-                Working in a smaller team developing servers for context
-                advertisements'. Learned how to deal with large repositories and
-                how to work on the same codebase with other programmers: coding
-                standards, reviews, advanced versioning, packaging, project
-                structure.
+                Worked in a small team developing servers for contextual
+                advertising. Learned how to deal with large repositories and
+                collaborate on shared codebases: coding standards, reviews,
+                advanced versioning, packaging, and project structure.
               </p>
               <ul>
                 <li>
@@ -403,9 +392,9 @@ export default function CV() {
               <p>
                 Built{" "}
                 <a href="https://edu.glogster.com">an education platform</a>{" "}
-                based on Python and Cassandra (old codebase was completely
-                rewritten). Completed OOP solution based on data models. Project
-                cold-start. New features analysis and further implementation.
+                from scratch using Python and Cassandra, completely rewriting
+                the old codebase. Designed an OOP architecture based on data
+                models. Analyzed and implemented new features.
               </p>
             </div>
 
@@ -419,10 +408,10 @@ export default function CV() {
                 </em>
               </p>
               <p>
-                High-load MySQL optimization, bottle-neck searching. Old PHP
-                code improvement, implementation of new features. After half a
-                year, new Glogster application architecture and code
-                development. Switched from PHP to Python language.
+                Optimized high-load MySQL databases and identified performance
+                bottlenecks. Improved legacy PHP code and implemented new
+                features. After six months, led the architecture and development
+                of a new Glogster application. Transitioned from PHP to Python.
               </p>
             </div>
 
@@ -435,9 +424,9 @@ export default function CV() {
                 </em>
               </p>
               <p>
-                Developing software for keeping customers' stock baskets and
-                accounts. Supporting a previous version of an application.
-                Intranet system administration and solving users' problems.
+                Developed software for managing customers' stock portfolios and
+                accounts. Maintained legacy applications. Administered intranet
+                systems and provided user support.
               </p>
             </div>
           </div>
