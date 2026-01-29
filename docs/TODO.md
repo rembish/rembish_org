@@ -14,7 +14,7 @@
 
 ## Bugs / Polish
 
-- [ ] Nav icons not vertically centered (icons appear aligned to top)
+- [x] Nav icons not vertically centered (icons appear aligned to top)
 
 ## Content
 
@@ -22,10 +22,10 @@
 
 ## Features
 
-- [ ] Generate PDF from CV data (single source of truth, build-time generation)
-- [ ] Update CV PDF to match web version
+- [x] Generate PDF from CV data (single source of truth, build-time generation)
+- [x] Update CV PDF to match web version
 
 ## Phase 2: Production
 
-- [ ] Deploy to shared GCP project (documented in private OPS repo)
-- [ ] Configure DB, secrets, CI deploy, domain/LB
+- [x] Deploy to shared GCP project (documented in private OPS repo)
+- [x] Configure DB, secrets, CI deploy, domain/LB

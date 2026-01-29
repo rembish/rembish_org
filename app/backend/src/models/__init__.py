@@ -1,3 +1,4 @@
+from .instagram import InstagramMedia, InstagramPost
 from .location import UserLastLocation
 from .travel import (
     City,
@@ -26,4 +27,6 @@ __all__ = [
     "TripCity",
     "TripDestination",
     "TripParticipant",
+    "InstagramPost",
+    "InstagramMedia",
 ]

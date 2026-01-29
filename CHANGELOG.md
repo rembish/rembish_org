@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.16.0 (2026-01-29)
+
+### Instagram Post Labeler (Admin)
+- New admin tool to categorize ~5k Instagram posts with travel metadata
+- Keyboard-driven workflow: number keys (1-9) for trip selection, QWERTY row (q,w,e,r,t,y,u,i,o,p) for TCC destination, D for drone toggle, Enter to save, S to skip
+- Arrow keys for navigation: ↑/↓ between posts, ←/→ for carousel images
+- F to jump to next unprocessed post, K to jump to first skipped post
+- Trip auto-suggestion based on post date (within trip or up to 2 months after)
+- Auto-select TCC when trip has only one destination
+- TCC search with autocomplete when no trip selected (press 0 for manual TCC entry)
+- On-demand Instagram API fetching: "Fetch older" continues from last position, "Sync new" catches up with recent posts
+- Pagination cursor management for efficient API usage
+- Auto-fetch more posts when queue runs low (< 5 remaining)
+- Post preloading: next 4 posts preloaded with images for instant navigation
+- Rate limit detection with friendly "Take a break" screen
+- Skeleton loading state with spinner (page structure stays visible)
+- Stats bar showing labeled/skipped/remaining counts with fetching indicator
+- Scrollable caption area for long post descriptions
+- Edit previously labeled posts via URL navigation
+
+### Backend
+- Instagram Graph API integration with retry logic and exponential backoff
+- Endpoints for post navigation, labeling, stats, and on-demand fetching
+- Smart trip filtering: shows trips active during post date or ended within 2 months
+- Cursor-based pagination with calibration for initial sync
+- Fixed database session error when fetching duplicate posts (proper rollback on IntegrityError)
+- Trip selector shows all destinations for multi-region trips (was limited to 3)
+
 ## 0.15.0 (2026-01-29)
 
 ### Real-Time Travel Updates ("Bragging" Feature)
