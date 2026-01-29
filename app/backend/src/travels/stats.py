@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user_optional
 from ..database import get_db
-from ..models import TCCDestination, Trip, TripDestination, User, Visit
+from ..models import TCCDestination, Trip, TripDestination, User
 
 router = APIRouter()
 
@@ -107,10 +107,6 @@ def get_travel_stats(
     else:
         trips = completed_trips
 
-    # Get all first visits (from visits table)
-    first_visits = db.query(Visit).filter(Visit.first_visit_date.isnot(None)).all()
-    first_visit_dates = {v.tcc_destination_id: v.first_visit_date for v in first_visits}
-
     # Get TCC destinations with their UN country info
     tcc_destinations = db.query(TCCDestination).all()
     tcc_info: dict[int, tuple[str, str | None]] = {}  # tcc_id -> (name, iso_code)
@@ -133,14 +129,19 @@ def get_travel_stats(
         }
     )
 
-    # Track first visits by year/month
-    tcc_first_visit_year: dict[int, int] = {}  # tcc_id -> year of first visit
-    tcc_first_visit_month: dict[int, tuple[int, int]] = {}  # tcc_id -> (year, month)
+    # Track first trip to each destination (for "is_new" marking)
+    # Since first_visit_date now uses trip end_date, we can't rely on month matching.
+    # Instead, find the earliest trip to each destination.
+    tcc_first_trip: dict[int, int] = {}  # tcc_id -> trip_id of first visit
+    tcc_first_visit_year: dict[int, int] = {}  # tcc_id -> year of first visit (for yearly stats)
 
-    for tcc_id, visit_date in first_visit_dates.items():
-        if visit_date:
-            tcc_first_visit_year[tcc_id] = visit_date.year
-            tcc_first_visit_month[tcc_id] = (visit_date.year, visit_date.month)
+    # Sort trips by start_date to find first trip per destination
+    sorted_trips = sorted(trips, key=lambda t: t.start_date)
+    for trip in sorted_trips:
+        for tcc_id in trip_to_tccs[trip.id]:
+            if tcc_id not in tcc_first_trip:
+                tcc_first_trip[tcc_id] = trip.id
+                tcc_first_visit_year[tcc_id] = trip.start_date.year
 
     # Process trips
     for trip in trips:
@@ -185,11 +186,15 @@ def get_travel_stats(
             month_days = sum(get_trip_days(t) for t in month_trips)
 
             # Countries visited this month
+            # Get trip IDs in this month to check for first visits
+            month_trip_ids = {t.id for t in month_trips}
+
             month_countries = []
             for tcc_id in month_tccs:
                 if tcc_id in tcc_info:
                     name, iso_code = tcc_info[tcc_id]
-                    is_new = tcc_first_visit_month.get(tcc_id) == (year, month)
+                    # Mark as "new" if the first trip to this destination is in this month
+                    is_new = tcc_first_trip.get(tcc_id) in month_trip_ids
                     month_countries.append(
                         MonthCountry(
                             name=name,
