@@ -6,12 +6,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user_optional
 from ..database import get_db
-from ..models import TCCDestination, Trip, TripDestination, User
+from ..models import TCCDestination, Trip, TripDestination, User, Visit
 
 router = APIRouter()
 
@@ -49,10 +48,13 @@ class TravelStatsResponse(BaseModel):
     totals: dict  # Overall totals
 
 
-def get_trip_days(trip: Trip) -> int:
-    """Calculate trip duration in days."""
+def get_trip_days(trip: Trip, today: date | None = None) -> int:
+    """Calculate trip duration in days. For ongoing trips, cap at today."""
     start = trip.start_date
     end = trip.end_date or start
+    # For ongoing trips (started but not ended), only count days up to today
+    if today and start <= today < end:
+        end = today
     return (end - start).days + 1
 
 
@@ -75,37 +77,22 @@ def get_travel_stats(
 
     today = date.today()
 
-    # Get completed trips
-    completed_trips = (
-        db.query(Trip)
-        .filter(
-            or_(
-                Trip.end_date <= today,
-                (Trip.end_date.is_(None)) & (Trip.start_date <= today),
-            )
-        )
-        .order_by(Trip.start_date)
-        .all()
-    )
+    # Get started trips (start_date <= today) - includes ongoing trips
+    started_trips = db.query(Trip).filter(Trip.start_date <= today).order_by(Trip.start_date).all()
 
-    # Get future/planned trips
-    future_trips = (
-        db.query(Trip)
-        .filter((Trip.end_date > today) | ((Trip.end_date.is_(None)) & (Trip.start_date > today)))
-        .order_by(Trip.start_date)
-        .all()
-    )
+    # Get future/planned trips (start_date > today)
+    future_trips = db.query(Trip).filter(Trip.start_date > today).order_by(Trip.start_date).all()
 
     planned_trips_count = len(future_trips)
 
     # Include future trips if user is logged in
     planned_trip_ids: set[int] = set()
     if user:
-        trips = completed_trips + future_trips
+        trips = started_trips + future_trips
         # Track which trip IDs are planned
         planned_trip_ids = {t.id for t in future_trips}
     else:
-        trips = completed_trips
+        trips = started_trips
 
     # Get TCC destinations with their UN country info
     tcc_destinations = db.query(TCCDestination).all()
@@ -116,10 +103,24 @@ def get_travel_stats(
         tcc_info[tcc.id] = (tcc.name, iso_code)
 
     # Get TCC destination IDs for each trip
+    # For anonymous users: only show checked-in destinations (first_visit_date <= today)
+    # For logged-in users: show all destinations
     trip_destinations = db.query(TripDestination).all()
     trip_to_tccs = defaultdict(set)
-    for td in trip_destinations:
-        trip_to_tccs[td.trip_id].add(td.tcc_destination_id)
+
+    if user:
+        # Logged-in: show all destinations
+        for td in trip_destinations:
+            trip_to_tccs[td.trip_id].add(td.tcc_destination_id)
+    else:
+        # Anonymous: only show visited destinations
+        visited_tcc_ids = {
+            v.tcc_destination_id
+            for v in db.query(Visit).filter(Visit.first_visit_date <= today).all()
+        }
+        for td in trip_destinations:
+            if td.tcc_destination_id in visited_tcc_ids:
+                trip_to_tccs[td.trip_id].add(td.tcc_destination_id)
 
     # Build year -> month -> stats
     year_data: dict[int, dict] = defaultdict(
@@ -156,12 +157,16 @@ def get_travel_stats(
     years_stats = []
     all_visited_ever: set[int] = set()
 
+    # For anonymous users, cap ongoing trip days at today
+    # For logged-in users, show full trip duration
+    cap_date = None if user else today
+
     for year in sorted(year_data.keys()):
         data = year_data[year]
         year_trips = data["trips"]
 
         # Calculate year stats
-        year_days = sum(get_trip_days(t) for t in year_trips)
+        year_days = sum(get_trip_days(t, cap_date) for t in year_trips)
         year_work_trips = sum(1 for t in year_trips if t.trip_type == "work")
         year_flights = sum(t.flights_count or 0 for t in year_trips)
 
@@ -183,7 +188,7 @@ def get_travel_stats(
             if not month_trips:
                 continue
 
-            month_days = sum(get_trip_days(t) for t in month_trips)
+            month_days = sum(get_trip_days(t, cap_date) for t in month_trips)
 
             # Countries visited this month
             # Get trip IDs in this month to check for first visits
@@ -272,7 +277,7 @@ def get_travel_stats(
     totals = {
         "trips": len(trips),
         "planned_trips": planned_trips_count,
-        "days": sum(get_trip_days(t) for t in trips),
+        "days": sum(get_trip_days(t, cap_date) for t in trips),
         "countries": len(all_visited_ever),
         "years": len(year_data),
     }

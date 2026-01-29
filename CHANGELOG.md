@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.15.0 (2026-01-29)
+
+### Real-Time Travel Updates ("Bragging" Feature)
+- New countries appear immediately on check-in during trips (no need to wait for trip end)
+- Counters (UN/TCC visited) update instantly when checking into a new country
+- Map colors update in real-time as you check in to new destinations
+- Stats page shows checked-in countries for anonymous users, all planned destinations for logged-in users
+- Ongoing trip days show actual days traveled (not full planned duration) for anonymous users
+
+### Stats Page Fixes
+- Fixed "first visit" flag for trips spanning multiple months (now tracks by trip, not month)
+- Trip counts use trip start date (counted once trip begins)
+
 ## 0.14.5 (2026-01-28)
 
 ### Travel Statistics

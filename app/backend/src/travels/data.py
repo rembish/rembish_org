@@ -1,7 +1,7 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, or_
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.functions import coalesce
 
@@ -190,58 +190,44 @@ def get_travel_data(db: Session = Depends(get_db)) -> TravelData:
 def get_map_data(db: Session = Depends(get_db)) -> MapData:
     """Get map data: stats, visited regions, and microstates (fast, ~50 items)."""
 
-    # Filter conditions for completed vs future trips
     today = date.today()
-    completed_trip_filter = or_(
-        Trip.end_date <= today,
-        (Trip.end_date.is_(None)) & (Trip.start_date <= today),
-    )
-    future_trip_filter = (Trip.end_date > today) | (
-        (Trip.end_date.is_(None)) & (Trip.start_date > today)
-    )
+
+    # Visited filter: destination has first_visit_date <= today
+    # This allows location check-in to immediately update counters
+    # (check-in sets first_visit_date to today for matching destinations)
 
     # Count UN countries
     un_total = db.query(func.count(UNCountry.id)).scalar() or 0
 
-    # Count visited UN countries (those with at least one completed trip)
+    # Count visited UN countries (those with first_visit_date <= today)
     un_visited = (
         db.query(func.count(func.distinct(TCCDestination.un_country_id)))
-        .join(TripDestination, TripDestination.tcc_destination_id == TCCDestination.id)
-        .join(Trip, Trip.id == TripDestination.trip_id)
+        .join(Visit, Visit.tcc_destination_id == TCCDestination.id)
         .filter(TCCDestination.un_country_id.isnot(None))
-        .filter(completed_trip_filter)
+        .filter(Visit.first_visit_date <= today)
         .scalar()
         or 0
     )
 
-    # Count planned UN countries (future trips to not-yet-visited countries)
+    # Count planned UN countries (first_visit_date > today, i.e., future trips)
     un_planned = (
         db.query(func.count(func.distinct(TCCDestination.un_country_id)))
-        .join(TripDestination, TripDestination.tcc_destination_id == TCCDestination.id)
-        .join(Trip, Trip.id == TripDestination.trip_id)
+        .join(Visit, Visit.tcc_destination_id == TCCDestination.id)
         .filter(TCCDestination.un_country_id.isnot(None))
-        .filter(future_trip_filter)
+        .filter(Visit.first_visit_date > today)
         .scalar()
         or 0
     )
 
-    # Count TCC destinations with completed trips
+    # Count TCC destinations
     tcc_total = db.query(func.count(TCCDestination.id)).scalar() or 0
     tcc_visited = (
-        db.query(func.count(func.distinct(TripDestination.tcc_destination_id)))
-        .join(Trip, Trip.id == TripDestination.trip_id)
-        .filter(completed_trip_filter)
-        .scalar()
-        or 0
+        db.query(func.count(Visit.id)).filter(Visit.first_visit_date <= today).scalar() or 0
     )
 
-    # Count planned TCC destinations (future trips)
+    # Count planned TCC destinations (first_visit_date > today)
     tcc_planned = (
-        db.query(func.count(func.distinct(TripDestination.tcc_destination_id)))
-        .join(Trip, Trip.id == TripDestination.trip_id)
-        .filter(future_trip_filter)
-        .scalar()
-        or 0
+        db.query(func.count(Visit.id)).filter(Visit.first_visit_date > today).scalar() or 0
     )
 
     # Get NM stats
@@ -253,37 +239,37 @@ def get_map_data(db: Session = Depends(get_db)) -> MapData:
     visit_counts: dict[str, int] = {}
     visited_countries: list[str] = []
 
-    # Count trips per TCC destination (distinct trips in case of duplicates)
-    trip_counts_query = (
+    # Count trips per TCC destination (for visit_counts display)
+    # Trip counts use start_date - once trip starts, it counts
+    tcc_trip_counts_query = (
         db.query(
             TripDestination.tcc_destination_id, func.count(func.distinct(TripDestination.trip_id))
         )
         .join(Trip, Trip.id == TripDestination.trip_id)
-        .filter(completed_trip_filter)
+        .filter(Trip.start_date <= today)
         .group_by(TripDestination.tcc_destination_id)
         .all()
     )
-    tcc_trip_counts = {tcc_id: count for tcc_id, count in trip_counts_query}
+    tcc_trip_counts = {tcc_id: count for tcc_id, count in tcc_trip_counts_query}
 
-    # Get trip counts per UN country (count distinct trips, not trip_destinations)
+    # Get trip counts per UN country
     un_trip_counts_query = (
         db.query(TCCDestination.un_country_id, func.count(func.distinct(TripDestination.trip_id)))
         .join(TripDestination, TripDestination.tcc_destination_id == TCCDestination.id)
         .join(Trip, Trip.id == TripDestination.trip_id)
         .filter(TCCDestination.un_country_id.isnot(None))
-        .filter(completed_trip_filter)
+        .filter(Trip.start_date <= today)
         .group_by(TCCDestination.un_country_id)
         .all()
     )
     un_trip_counts = {un_id: count for un_id, count in un_trip_counts_query}
 
-    # Get visited UN countries with earliest trip date (from completed trips only)
+    # Get visited UN countries with first_visit_date (for map coloring)
     visited_un_data = (
-        db.query(UNCountry, func.min(Trip.start_date).label("first_visit"))
+        db.query(UNCountry, func.min(Visit.first_visit_date).label("first_visit"))
         .join(TCCDestination, TCCDestination.un_country_id == UNCountry.id)
-        .join(TripDestination, TripDestination.tcc_destination_id == TCCDestination.id)
-        .join(Trip, Trip.id == TripDestination.trip_id)
-        .filter(completed_trip_filter)
+        .join(Visit, Visit.tcc_destination_id == TCCDestination.id)
+        .filter(Visit.first_visit_date <= today)
         .group_by(UNCountry.id)
         .all()
     )
@@ -299,17 +285,15 @@ def get_map_data(db: Session = Depends(get_db)) -> MapData:
                 # Accumulate trip counts for regions with multiple polygons
                 visit_counts[code] = visit_counts.get(code, 0) + trip_count
 
-    # Get map regions from TCC destinations with their own polygon (completed trips only)
+    # Get map regions from TCC destinations with their own polygon (Kosovo, Somaliland, etc.)
     visited_tcc_with_polygon = (
-        db.query(TCCDestination, func.min(Trip.start_date).label("first_visit"))
-        .join(TripDestination, TripDestination.tcc_destination_id == TCCDestination.id)
-        .join(Trip, Trip.id == TripDestination.trip_id)
+        db.query(TCCDestination, Visit.first_visit_date)
+        .join(Visit, Visit.tcc_destination_id == TCCDestination.id)
         .filter(
             TCCDestination.map_region_code.isnot(None),
             TCCDestination.un_country_id.is_(None),
-            completed_trip_filter,
+            Visit.first_visit_date <= today,
         )
-        .group_by(TCCDestination.id)
         .all()
     )
 
@@ -382,23 +366,14 @@ def get_map_data(db: Session = Depends(get_db)) -> MapData:
 def get_un_countries(db: Session = Depends(get_db)) -> UNCountriesResponse:
     """Get all 193 UN countries with visit dates and counts."""
 
-    # Filter conditions for completed vs future trips
     today = date.today()
-    completed_trip_filter = or_(
-        Trip.end_date <= today,
-        (Trip.end_date.is_(None)) & (Trip.start_date <= today),
-    )
-    future_trip_filter = (Trip.end_date > today) | (
-        (Trip.end_date.is_(None)) & (Trip.start_date > today)
-    )
 
-    # Get visited UN countries with last visit date (from completed trips)
+    # Get visited UN countries with last visit date (from visits table)
     visited_un_data = (
-        db.query(UNCountry, func.max(Trip.start_date).label("last_visit"))
+        db.query(UNCountry, func.max(Visit.first_visit_date).label("last_visit"))
         .join(TCCDestination, TCCDestination.un_country_id == UNCountry.id)
-        .join(TripDestination, TripDestination.tcc_destination_id == TCCDestination.id)
-        .join(Trip, Trip.id == TripDestination.trip_id)
-        .filter(completed_trip_filter)
+        .join(Visit, Visit.tcc_destination_id == TCCDestination.id)
+        .filter(Visit.first_visit_date <= today)
         .group_by(UNCountry.id)
         .all()
     )
@@ -407,25 +382,24 @@ def get_un_countries(db: Session = Depends(get_db)) -> UNCountriesResponse:
     for country, last_visit in visited_un_data:
         un_visit_dates[country.id] = last_visit
 
-    # Get trip counts per UN country (only completed trips)
+    # Get trip counts per UN country (trips that have started)
     un_trip_counts = (
         db.query(TCCDestination.un_country_id, func.count(func.distinct(TripDestination.trip_id)))
         .join(TripDestination, TripDestination.tcc_destination_id == TCCDestination.id)
         .join(Trip, Trip.id == TripDestination.trip_id)
         .filter(TCCDestination.un_country_id.isnot(None))
-        .filter(completed_trip_filter)
+        .filter(Trip.start_date <= today)
         .group_by(TCCDestination.un_country_id)
         .all()
     )
     un_counts: dict[int, int] = {un_id: count for un_id, count in un_trip_counts}
 
-    # Get planned trip counts per UN country (future trips only)
+    # Get planned counts per UN country (first_visit_date > today)
     un_planned_counts = (
-        db.query(TCCDestination.un_country_id, func.count(func.distinct(TripDestination.trip_id)))
-        .join(TripDestination, TripDestination.tcc_destination_id == TCCDestination.id)
-        .join(Trip, Trip.id == TripDestination.trip_id)
+        db.query(TCCDestination.un_country_id, func.count(func.distinct(Visit.id)))
+        .join(Visit, Visit.tcc_destination_id == TCCDestination.id)
         .filter(TCCDestination.un_country_id.isnot(None))
-        .filter(future_trip_filter)
+        .filter(Visit.first_visit_date > today)
         .group_by(TCCDestination.un_country_id)
         .all()
     )
@@ -470,17 +444,12 @@ def update_un_country_activities(
 
     # Get visit info for response
     today = date.today()
-    completed_trip_filter = or_(
-        Trip.end_date <= today,
-        (Trip.end_date.is_(None)) & (Trip.start_date <= today),
-    )
 
     last_visit = (
-        db.query(func.max(Trip.start_date))
-        .join(TripDestination, Trip.id == TripDestination.trip_id)
-        .join(TCCDestination, TripDestination.tcc_destination_id == TCCDestination.id)
+        db.query(func.max(Visit.first_visit_date))
+        .join(TCCDestination, TCCDestination.id == Visit.tcc_destination_id)
         .filter(TCCDestination.un_country_id == country.id)
-        .filter(completed_trip_filter)
+        .filter(Visit.first_visit_date <= today)
         .scalar()
     )
 
@@ -489,7 +458,7 @@ def update_un_country_activities(
         .join(TCCDestination, TripDestination.tcc_destination_id == TCCDestination.id)
         .join(Trip, Trip.id == TripDestination.trip_id)
         .filter(TCCDestination.un_country_id == country.id)
-        .filter(completed_trip_filter)
+        .filter(Trip.start_date <= today)
         .scalar()
         or 0
     )
@@ -509,44 +478,37 @@ def update_un_country_activities(
 def get_tcc_destinations(db: Session = Depends(get_db)) -> TCCDestinationsResponse:
     """Get all 330 TCC destinations with visit dates and counts."""
 
-    # Filter conditions for completed vs future trips
     today = date.today()
-    completed_trip_filter = or_(
-        Trip.end_date <= today,
-        (Trip.end_date.is_(None)) & (Trip.start_date <= today),
-    )
-    future_trip_filter = (Trip.end_date > today) | (
-        (Trip.end_date.is_(None)) & (Trip.start_date > today)
-    )
 
-    # Get first visit dates per TCC destination (from completed trips)
+    # Get visit dates per TCC destination (from visits table, where visited)
     tcc_visit_data = (
         db.query(
-            TripDestination.tcc_destination_id,
-            func.min(Trip.start_date).label("first_visit"),
-            func.count(func.distinct(TripDestination.trip_id)).label("trip_count"),
+            Visit.tcc_destination_id,
+            Visit.first_visit_date,
         )
-        .join(Trip, Trip.id == TripDestination.trip_id)
-        .filter(completed_trip_filter)
-        .group_by(TripDestination.tcc_destination_id)
+        .filter(Visit.first_visit_date <= today)
         .all()
     )
-    tcc_visits: dict[int, tuple[date, int]] = {
-        tcc_id: (first_visit, trip_count) for tcc_id, first_visit, trip_count in tcc_visit_data
-    }
+    tcc_visit_dates: dict[int, date] = {tcc_id: visit_date for tcc_id, visit_date in tcc_visit_data}
 
-    # Get planned trip counts per TCC destination (future trips only)
-    tcc_planned_data = (
+    # Get trip counts per TCC destination (trips that have started)
+    tcc_trip_counts = (
         db.query(
             TripDestination.tcc_destination_id,
             func.count(func.distinct(TripDestination.trip_id)).label("trip_count"),
         )
         .join(Trip, Trip.id == TripDestination.trip_id)
-        .filter(future_trip_filter)
+        .filter(Trip.start_date <= today)
         .group_by(TripDestination.tcc_destination_id)
         .all()
     )
-    tcc_planned: dict[int, int] = {tcc_id: count for tcc_id, count in tcc_planned_data}
+    tcc_counts: dict[int, int] = {tcc_id: count for tcc_id, count in tcc_trip_counts}
+
+    # Get planned counts per TCC destination (first_visit_date > today)
+    tcc_planned_data = (
+        db.query(Visit.tcc_destination_id).filter(Visit.first_visit_date > today).all()
+    )
+    tcc_planned: dict[int, int] = {tcc_id: 1 for (tcc_id,) in tcc_planned_data}
 
     all_tcc = (
         db.query(TCCDestination).order_by(TCCDestination.tcc_region, TCCDestination.name).all()
@@ -556,8 +518,8 @@ def get_tcc_destinations(db: Session = Depends(get_db)) -> TCCDestinationsRespon
         TCCDestinationData(
             name=dest.name,
             region=dest.tcc_region,
-            visit_date=tcc_visits[dest.id][0].isoformat() if dest.id in tcc_visits else None,
-            visit_count=tcc_visits[dest.id][1] if dest.id in tcc_visits else 0,
+            visit_date=tcc_visit_dates[dest.id].isoformat() if dest.id in tcc_visit_dates else None,
+            visit_count=tcc_counts.get(dest.id, 0),
             planned_count=tcc_planned.get(dest.id, 0),
         )
         for dest in all_tcc
@@ -570,14 +532,9 @@ def get_tcc_destinations(db: Session = Depends(get_db)) -> TCCDestinationsRespon
 def get_map_cities(db: Session = Depends(get_db)) -> MapCitiesResponse:
     """Get all properly visited cities with coordinates for map markers."""
 
-    # Filter for completed trips only
     today = date.today()
-    completed_trip_filter = or_(
-        Trip.end_date <= today,
-        (Trip.end_date.is_(None)) & (Trip.start_date <= today),
-    )
 
-    # Get distinct cities from completed trips
+    # Get distinct cities from visited destinations (first_visit_date <= today)
     # Only include cities where their country_code matches a TCC destination
     # on the SAME trip (filters out cities with wrong country codes)
     # For territories (Jersey, Guernsey, etc.) use TCCDestination.iso_alpha2
@@ -594,6 +551,7 @@ def get_map_cities(db: Session = Depends(get_db)) -> MapCitiesResponse:
         .join(Trip, Trip.id == TripCity.trip_id)
         .join(TripDestination, TripDestination.trip_id == Trip.id)
         .join(TCCDestination, TCCDestination.id == TripDestination.tcc_destination_id)
+        .join(Visit, Visit.tcc_destination_id == TCCDestination.id)
         .outerjoin(UNCountry, UNCountry.id == TCCDestination.un_country_id)
         .filter(City.lat.isnot(None))
         .filter(City.lng.isnot(None))
@@ -601,7 +559,7 @@ def get_map_cities(db: Session = Depends(get_db)) -> MapCitiesResponse:
             func.lower(City.country_code)
             == func.lower(coalesce(TCCDestination.iso_alpha2, UNCountry.iso_alpha2))
         )
-        .filter(completed_trip_filter)
+        .filter(Visit.first_visit_date <= today)
         .group_by(City.name, City.lat, City.lng)
         .all()
     )
