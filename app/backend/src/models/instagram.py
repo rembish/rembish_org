@@ -38,6 +38,7 @@ class InstagramPost(Base):
         Integer, ForeignKey("cities.id", ondelete="SET NULL"), nullable=True
     )
     is_aerial: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    is_cover: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Workflow
     labeled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

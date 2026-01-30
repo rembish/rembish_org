@@ -4,6 +4,7 @@ import {
   BiHome,
   BiFileBlank,
   BiLayer,
+  BiImage,
   BiGlobe,
   BiEnvelope,
   BiMenu,
@@ -24,6 +25,7 @@ const navItems = [
   { to: "/", icon: BiHome, label: "Home" },
   { to: "/cv", icon: BiFileBlank, label: "Curriculum Vitae" },
   { to: "/projects", icon: BiLayer, label: "Projects" },
+  { to: "/photos", icon: BiImage, label: "Photos" },
   { to: "/travels", icon: BiGlobe, label: "Travels" },
   { to: "/contact", icon: BiEnvelope, label: "Contact" },
 ];

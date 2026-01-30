@@ -152,6 +152,9 @@ class Trip(Base):
     raw_countries: Mapped[str | None] = mapped_column(Text, nullable=True)
     raw_cities: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Hide from photos page (for trips with few/unimportant photos)
+    hidden_from_photos: Mapped[bool] = mapped_column(Boolean, default=False)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
     # Relationships

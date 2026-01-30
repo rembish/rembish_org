@@ -26,5 +26,12 @@ class Settings(BaseSettings):
     # Cloudflare Turnstile (CAPTCHA)
     turnstile_secret: str = ""  # Empty in dev = disabled
 
+    # Instagram API
+    instagram_account_id: str = ""
+    instagram_page_token: str = ""
+
+    # GCS Storage (empty = use local storage for dev)
+    gcs_bucket: str = ""
+
 
 settings = Settings()

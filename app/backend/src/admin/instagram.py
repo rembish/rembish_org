@@ -1,19 +1,20 @@
 """Instagram post labeling endpoints."""
 
 import json
-import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any, cast
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..auth.session import get_admin_user
+from ..config import settings
 from ..database import get_db
 from ..models import (
     City,
@@ -24,15 +25,14 @@ from ..models import (
     UNCountry,
     User,
 )
+from ..storage import StorageBackend, get_storage
 
 router = APIRouter(prefix="/instagram", tags=["instagram"])
 
 # Instagram API config
 GRAPH_API_URL = "https://graph.facebook.com/v24.0"
-INSTAGRAM_ACCOUNT_ID = os.getenv("INSTAGRAM_ACCOUNT_ID")
-INSTAGRAM_PAGE_TOKEN = os.getenv("INSTAGRAM_PAGE_TOKEN")
 
-# Storage paths
+# Storage paths (for cursor file - always local)
 DATA_DIR = Path("/app/data/instagram")
 CURSOR_FILE = DATA_DIR / ".pagination_cursor"
 
@@ -59,12 +59,16 @@ class InstagramPostData(BaseModel):
     ig_location_lat: float | None
     ig_location_lng: float | None
     media: list[InstagramMediaData]
+    # Position in timeline (1 = newest)
+    position: int
+    total: int
     # Current labels (if any)
     un_country_id: int | None
     tcc_destination_id: int | None
     trip_id: int | None
     city_id: int | None
     is_aerial: bool | None
+    is_cover: bool
     # Suggestions
     suggested_trip: dict | None
     previous_labels: dict | None
@@ -87,6 +91,7 @@ class LabelRequest(BaseModel):
     trip_id: int | None = None
     city_id: int | None = None
     is_aerial: bool | None = None
+    is_cover: bool = False
     skip: bool = False
 
 
@@ -94,14 +99,14 @@ class LabelResponse(BaseModel):
     """Response after labeling."""
 
     success: bool
-    post_id: int
+    ig_id: str
 
 
 class PostNavigation(BaseModel):
     """Navigation info for a post."""
 
-    prev_id: int | None
-    next_id: int | None
+    prev_ig_id: str | None
+    next_ig_id: str | None
 
 
 class TripOption(BaseModel):
@@ -111,6 +116,20 @@ class TripOption(BaseModel):
     start_date: str
     end_date: str | None
     destinations: list[str]
+
+
+def _get_post_position(db: Session, posted_at: datetime) -> tuple[int, int]:
+    """Get position (1=newest) and total count for a post by its posted_at timestamp."""
+    base_filter = InstagramPost.media_type != "VIDEO"
+    total = db.query(func.count(InstagramPost.id)).filter(base_filter).scalar() or 0
+    # Position = count of posts with posted_at >= this post's posted_at (including itself)
+    position = (
+        db.query(func.count(InstagramPost.id))
+        .filter(base_filter, InstagramPost.posted_at >= posted_at)
+        .scalar()
+        or 1
+    )
+    return position, total
 
 
 @router.get("/stats")
@@ -169,8 +188,8 @@ def get_trips_for_labeling(
                 # AND either:
                 # 1. Trip is ongoing (end_date >= post_date or end_date is NULL for single-day)
                 # 2. Trip ended recently (within 2 months before post)
-                ((Trip.end_date.isnot(None)) & (Trip.end_date >= cutoff_date)) |
-                ((Trip.end_date.is_(None)) & (Trip.start_date >= cutoff_date))
+                ((Trip.end_date.isnot(None)) & (Trip.end_date >= cutoff_date))
+                | ((Trip.end_date.is_(None)) & (Trip.start_date >= cutoff_date))
             )
         except ValueError:
             pass
@@ -192,23 +211,23 @@ def get_trips_for_labeling(
 def get_latest_post(
     _user: Annotated[User, Depends(get_admin_user)],
     db: Session = Depends(get_db),
-) -> int | None:
-    """Get the ID of the most recent post (by posted_at)."""
+) -> str | None:
+    """Get the ig_id of the most recent post (by posted_at)."""
     post = (
         db.query(InstagramPost)
         .filter(InstagramPost.media_type != "VIDEO")
         .order_by(InstagramPost.posted_at.desc())
         .first()
     )
-    return post.id if post else None
+    return post.ig_id if post else None
 
 
 @router.get("/posts/first-unprocessed")
 def get_first_unprocessed_post(
     _user: Annotated[User, Depends(get_admin_user)],
     db: Session = Depends(get_db),
-) -> int | None:
-    """Get the ID of the next unprocessed post (newest unlabeled by posted_at)."""
+) -> str | None:
+    """Get the ig_id of the next unprocessed post (newest unlabeled by posted_at)."""
     post = (
         db.query(InstagramPost)
         .filter(
@@ -219,15 +238,15 @@ def get_first_unprocessed_post(
         .order_by(InstagramPost.posted_at.desc())
         .first()
     )
-    return post.id if post else None
+    return post.ig_id if post else None
 
 
 @router.get("/posts/first-skipped")
 def get_first_skipped_post(
     _user: Annotated[User, Depends(get_admin_user)],
     db: Session = Depends(get_db),
-) -> int | None:
-    """Get the ID of the first skipped post (oldest skipped)."""
+) -> str | None:
+    """Get the ig_id of the first skipped post (oldest skipped)."""
     post = (
         db.query(InstagramPost)
         .filter(
@@ -237,17 +256,17 @@ def get_first_skipped_post(
         .order_by(InstagramPost.posted_at.asc())
         .first()
     )
-    return post.id if post else None
+    return post.ig_id if post else None
 
 
-@router.get("/posts/{post_id}/nav")
+@router.get("/posts/{ig_id}/nav")
 def get_post_navigation(
-    post_id: int,
+    ig_id: str,
     _user: Annotated[User, Depends(get_admin_user)],
     db: Session = Depends(get_db),
 ) -> PostNavigation:
-    """Get prev/next post IDs for navigation."""
-    current = db.query(InstagramPost).filter(InstagramPost.id == post_id).first()
+    """Get prev/next post ig_ids for navigation."""
+    current = db.query(InstagramPost).filter(InstagramPost.ig_id == ig_id).first()
     if not current:
         raise HTTPException(status_code=404, detail="Post not found")
 
@@ -274,8 +293,8 @@ def get_post_navigation(
     )
 
     return PostNavigation(
-        prev_id=prev_post.id if prev_post else None,
-        next_id=next_post.id if next_post else None,
+        prev_ig_id=prev_post.ig_id if prev_post else None,
+        next_ig_id=next_post.ig_id if next_post else None,
     )
 
 
@@ -322,8 +341,8 @@ def get_next_unlabeled_post(
         db.query(Trip)
         .filter(Trip.start_date <= post_date)
         .filter(
-            (Trip.end_date >= post_date) |
-            ((Trip.end_date.is_(None)) & (Trip.start_date == post_date))
+            (Trip.end_date >= post_date)
+            | ((Trip.end_date.is_(None)) & (Trip.start_date == post_date))
         )
         .order_by(Trip.start_date.desc())
         .first()
@@ -360,8 +379,18 @@ def get_next_unlabeled_post(
     )
     if prev_post and prev_post.un_country_id:
         un_country = db.query(UNCountry).filter(UNCountry.id == prev_post.un_country_id).first()
-        tcc = db.query(TCCDestination).filter(TCCDestination.id == prev_post.tcc_destination_id).first() if prev_post.tcc_destination_id else None
-        city = db.query(City).filter(City.id == prev_post.city_id).first() if prev_post.city_id else None
+        tcc = (
+            db.query(TCCDestination)
+            .filter(TCCDestination.id == prev_post.tcc_destination_id)
+            .first()
+            if prev_post.tcc_destination_id
+            else None
+        )
+        city = (
+            db.query(City).filter(City.id == prev_post.city_id).first()
+            if prev_post.city_id
+            else None
+        )
 
         previous_labels = {
             "un_country_id": prev_post.un_country_id,
@@ -373,6 +402,8 @@ def get_next_unlabeled_post(
             "city_name": city.name if city else None,
             "is_aerial": prev_post.is_aerial,
         }
+
+    position, total = _get_post_position(db, post.posted_at)
 
     return InstagramPostData(
         id=post.id,
@@ -393,24 +424,27 @@ def get_next_unlabeled_post(
             )
             for m in media_items
         ],
+        position=position,
+        total=total,
         un_country_id=post.un_country_id,
         tcc_destination_id=post.tcc_destination_id,
         trip_id=post.trip_id,
         city_id=post.city_id,
         is_aerial=post.is_aerial,
+        is_cover=post.is_cover,
         suggested_trip=suggested_trip,
         previous_labels=previous_labels,
     )
 
 
-@router.get("/posts/{post_id}")
-def get_post_by_id(
-    post_id: int,
+@router.get("/posts/{ig_id}")
+def get_post_by_ig_id(
+    ig_id: str,
     _user: Annotated[User, Depends(get_admin_user)],
     db: Session = Depends(get_db),
 ) -> InstagramPostData:
-    """Get a specific post by ID for editing."""
-    post = db.query(InstagramPost).filter(InstagramPost.id == post_id).first()
+    """Get a specific post by Instagram ID for editing."""
+    post = db.query(InstagramPost).filter(InstagramPost.ig_id == ig_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
@@ -436,6 +470,8 @@ def get_post_by_id(
                 "destinations": dest_names,
             }
 
+    position, total = _get_post_position(db, post.posted_at)
+
     return InstagramPostData(
         id=post.id,
         ig_id=post.ig_id,
@@ -455,25 +491,28 @@ def get_post_by_id(
             )
             for m in media_items
         ],
+        position=position,
+        total=total,
         un_country_id=post.un_country_id,
         tcc_destination_id=post.tcc_destination_id,
         trip_id=post.trip_id,
         city_id=post.city_id,
         is_aerial=post.is_aerial,
+        is_cover=post.is_cover,
         suggested_trip=suggested_trip,
         previous_labels=None,
     )
 
 
-@router.post("/posts/{post_id}/label")
+@router.post("/posts/{ig_id}/label")
 def label_post(
-    post_id: int,
+    ig_id: str,
     data: LabelRequest,
     _user: Annotated[User, Depends(get_admin_user)],
     db: Session = Depends(get_db),
 ) -> LabelResponse:
     """Label a post or mark it as skipped."""
-    post = db.query(InstagramPost).filter(InstagramPost.id == post_id).first()
+    post = db.query(InstagramPost).filter(InstagramPost.ig_id == ig_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
@@ -487,26 +526,42 @@ def label_post(
         post.trip_id = data.trip_id
         post.city_id = data.city_id
         post.is_aerial = data.is_aerial
-        post.labeled_at = datetime.now(timezone.utc)
+        post.labeled_at = datetime.now(UTC)
+
+        # Handle cover photo - only one cover per trip
+        if data.is_cover and data.trip_id:
+            # Clear cover from other posts in same trip
+            db.query(InstagramPost).filter(
+                InstagramPost.trip_id == data.trip_id,
+                InstagramPost.id != post.id,
+                InstagramPost.is_cover.is_(True),
+            ).update({"is_cover": False})
+            post.is_cover = True
+        else:
+            post.is_cover = False
 
     db.commit()
 
-    return LabelResponse(success=True, post_id=post.id)
+    return LabelResponse(success=True, ig_id=post.ig_id)
 
 
-@router.get("/media/{media_id}")
+@router.get("/media/{media_id}", response_model=None)
 def get_media_file(
     media_id: int,
     _user: Annotated[User, Depends(get_admin_user)],
     db: Session = Depends(get_db),
-):
+) -> FileResponse | RedirectResponse:
     """Get media file path for serving."""
-    from fastapi.responses import FileResponse
 
     media = db.query(InstagramMedia).filter(InstagramMedia.id == media_id).first()
     if not media or not media.storage_path:
         raise HTTPException(status_code=404, detail="Media not found")
 
+    # If storage_path is a URL (GCS), redirect to it
+    if media.storage_path.startswith("http"):
+        return RedirectResponse(url=media.storage_path, status_code=302)
+
+    # Fallback to local file serving (dev mode)
     path = Path(media.storage_path)
 
     # If path doesn't exist, try Docker mount path
@@ -534,7 +589,7 @@ def _load_cursor() -> str | None:
     """Load saved pagination cursor."""
     if CURSOR_FILE.exists():
         try:
-            data = json.loads(CURSOR_FILE.read_text())
+            data: dict[str, str] = json.loads(CURSOR_FILE.read_text())
             return data.get("next_url")
         except (json.JSONDecodeError, KeyError):
             pass
@@ -547,34 +602,43 @@ def _save_cursor(next_url: str | None) -> None:
     CURSOR_FILE.write_text(json.dumps({"next_url": next_url}))
 
 
-def _api_request_with_retry(url: str, params: dict | None = None, max_retries: int = 3) -> dict:
+def _api_request_with_retry(
+    url: str, params: dict[str, Any] | None = None, max_retries: int = 3
+) -> dict[str, Any]:
     """Make API request with retry logic."""
     import time
+
+    last_error: Exception | None = None
     for attempt in range(max_retries):
         try:
             response = requests.get(url, params=params or {}, timeout=60)
             response.raise_for_status()
-            return response.json()
+            return cast(dict[str, Any], response.json())
         except (requests.Timeout, requests.ConnectionError) as e:
+            last_error = e
             if attempt < max_retries - 1:
-                time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
+                time.sleep(2**attempt)  # Exponential backoff: 1s, 2s, 4s
                 continue
             raise e
+    # Should not reach here, but satisfy mypy
+    raise last_error or RuntimeError("Request failed")
 
 
-def _fetch_posts_from_api(limit: int, cursor_url: str | None = None) -> tuple[list[dict], str | None]:
+def _fetch_posts_from_api(
+    limit: int, cursor_url: str | None = None
+) -> tuple[list[dict[str, Any]], str | None]:
     """Fetch posts from Instagram Graph API."""
-    posts = []
+    posts: list[dict[str, Any]] = []
 
     if cursor_url:
         url = cursor_url
-        params = {}
+        params: dict[str, Any] = {}
     else:
-        url = f"{GRAPH_API_URL}/{INSTAGRAM_ACCOUNT_ID}/media"
+        url = f"{GRAPH_API_URL}/{settings.instagram_account_id}/media"
         params = {
             "fields": "id,caption,media_type,timestamp,permalink,location",
             "limit": min(limit, 100),
-            "access_token": INSTAGRAM_PAGE_TOKEN,
+            "access_token": settings.instagram_page_token or "",
         }
 
     while len(posts) < limit:
@@ -583,57 +647,68 @@ def _fetch_posts_from_api(limit: int, cursor_url: str | None = None) -> tuple[li
         posts.extend(data.get("data", []))
 
         paging = data.get("paging", {})
-        next_url = paging.get("next")
+        next_url = paging.get("next") if isinstance(paging, dict) else None
         if not next_url or len(posts) >= limit:
-            return posts[:limit], next_url
+            return posts[:limit], str(next_url) if next_url else None
 
-        url = next_url
+        url = str(next_url)
         params = {}
 
     return posts[:limit], None
 
 
-def _fetch_carousel_children(post_id: str) -> list[dict]:
+def _fetch_carousel_children(post_id: str) -> list[dict[str, Any]]:
     """Fetch children of a carousel post."""
     url = f"{GRAPH_API_URL}/{post_id}/children"
-    params = {
+    params: dict[str, Any] = {
         "fields": "id,media_type,media_url",
-        "access_token": INSTAGRAM_PAGE_TOKEN,
+        "access_token": settings.instagram_page_token or "",
     }
     data = _api_request_with_retry(url, params)
-    return data.get("data", [])
+    return cast(list[dict[str, Any]], data.get("data", []))
 
 
 def _fetch_media_url(media_id: str) -> str | None:
     """Fetch media URL for a single post."""
     url = f"{GRAPH_API_URL}/{media_id}"
-    params = {
+    params: dict[str, Any] = {
         "fields": "media_url",
-        "access_token": INSTAGRAM_PAGE_TOKEN,
+        "access_token": settings.instagram_page_token or "",
     }
     data = _api_request_with_retry(url, params)
-    return data.get("media_url")
+    media_url = data.get("media_url")
+    return str(media_url) if media_url else None
 
 
-def _download_image(url: str, path: Path) -> tuple[int, int] | None:
-    """Download image and return dimensions."""
+def _download_image(
+    url: str, filename: str, storage: StorageBackend
+) -> tuple[str, tuple[int, int] | None]:
+    """Download image, save to storage, return (storage_path, dimensions)."""
+    from io import BytesIO
+
+    from PIL import Image
+
     try:
         response = requests.get(url, timeout=60)
         response.raise_for_status()
-        path.write_bytes(response.content)
+        content = response.content
 
+        # Get dimensions from content
+        dimensions: tuple[int, int] | None = None
         try:
-            from PIL import Image
+            with Image.open(BytesIO(content)) as img:
+                dimensions = img.size
+        except Exception:
+            pass
 
-            with Image.open(path) as img:
-                return img.size
-        except ImportError:
-            return None
+        # Save to storage (local or GCS)
+        storage_path = storage.save(filename, content)
+        return storage_path, dimensions
     except Exception:
-        return None
+        return "", None
 
 
-def _process_single_post(db: Session, post_data: dict) -> bool:
+def _process_single_post(db: Session, post_data: dict, storage: StorageBackend) -> bool:
     """Process a single Instagram post. Returns True if new post was added."""
     ig_id = post_data["id"]
 
@@ -658,7 +733,7 @@ def _process_single_post(db: Session, post_data: dict) -> bool:
         ig_location_name=location_name,
         ig_location_lat=location_lat,
         ig_location_lng=location_lng,
-        fetched_at=datetime.now(timezone.utc),
+        fetched_at=datetime.now(UTC),
     )
     db.add(post)
     db.flush()
@@ -699,21 +774,22 @@ def _process_single_post(db: Session, post_data: dict) -> bool:
             )
         else:
             filename = f"{item['ig_media_id']}.jpg"
-            filepath = DATA_DIR / filename
 
+            storage_path = ""
             dimensions = None
-            if item.get("media_url"):
-                dimensions = _download_image(item["media_url"], filepath)
+            media_url = item.get("media_url")
+            if media_url:
+                storage_path, dimensions = _download_image(str(media_url), filename, storage)
 
             media = InstagramMedia(
                 post_id=post.id,
                 ig_media_id=item["ig_media_id"],
                 media_order=item["order"],
                 media_type=item["media_type"],
-                storage_path=str(filepath) if filepath.exists() else None,
+                storage_path=storage_path if storage_path else None,
                 width=dimensions[0] if dimensions else None,
                 height=dimensions[1] if dimensions else None,
-                downloaded_at=datetime.now(timezone.utc) if filepath.exists() else None,
+                downloaded_at=datetime.now(UTC) if storage_path else None,
             )
 
         db.add(media)
@@ -728,8 +804,10 @@ def fetch_more_posts(
     count: int = 10,
 ) -> FetchResponse:
     """Fetch older posts from Instagram API (continues from cursor)."""
-    if not INSTAGRAM_ACCOUNT_ID or not INSTAGRAM_PAGE_TOKEN:
+    if not settings.instagram_account_id or not settings.instagram_page_token:
         raise HTTPException(status_code=500, detail="Instagram API not configured")
+
+    storage = get_storage()
 
     # Load cursor to continue from last position
     cursor = _load_cursor()
@@ -738,11 +816,7 @@ def fetch_more_posts(
     # and page until we pass it
     oldest_ig_id = None
     if not cursor:
-        oldest_post = (
-            db.query(InstagramPost)
-            .order_by(InstagramPost.posted_at.asc())
-            .first()
-        )
+        oldest_post = db.query(InstagramPost).order_by(InstagramPost.posted_at.asc()).first()
         if oldest_post:
             oldest_ig_id = oldest_post.ig_id
 
@@ -770,7 +844,7 @@ def fetch_more_posts(
                     continue
 
                 try:
-                    if _process_single_post(db, post_data):
+                    if _process_single_post(db, post_data, storage):
                         fetched += 1
                         if fetched >= count:
                             db.commit()
@@ -809,6 +883,125 @@ def fetch_more_posts(
     )
 
 
+@router.get("/fill-gaps")
+def fill_gaps_stream(
+    _user: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+    max_pages: int = 50,
+) -> Any:
+    """Scan through all Instagram posts and fill any gaps in the database.
+
+    Returns a Server-Sent Events stream with progress updates.
+    """
+    from starlette.responses import StreamingResponse
+
+    if not settings.instagram_account_id or not settings.instagram_page_token:
+        raise HTTPException(status_code=500, detail="Instagram API not configured")
+
+    storage = get_storage()
+
+    def generate() -> Any:
+        # Get the oldest post in DB to know when to stop
+        oldest_post = db.query(InstagramPost).order_by(InstagramPost.posted_at.asc()).first()
+        oldest_timestamp = None
+        if oldest_post and oldest_post.posted_at:
+            # Make timezone-aware for comparison with API timestamps
+            if oldest_post.posted_at.tzinfo is None:
+                oldest_timestamp = oldest_post.posted_at.replace(tzinfo=UTC)
+            else:
+                oldest_timestamp = oldest_post.posted_at
+
+        fetched = 0
+        checked = 0
+        pages_fetched = 0
+
+        url = f"{GRAPH_API_URL}/{settings.instagram_account_id}/media"
+        params: dict = {
+            "fields": "id,caption,media_type,timestamp,permalink,location",
+            "limit": 50,
+            "access_token": settings.instagram_page_token,
+        }
+
+        try:
+            while pages_fetched < max_pages:
+                response = requests.get(url, params=params, timeout=30)
+                response.raise_for_status()
+                data = response.json()
+                pages_fetched += 1
+
+                posts = data.get("data", [])
+                if not posts:
+                    break
+
+                for post_data in posts:
+                    checked += 1
+                    post_timestamp = datetime.fromisoformat(
+                        post_data["timestamp"].replace("+0000", "+00:00")
+                    )
+
+                    # If we've gone past our oldest post, we're done
+                    if oldest_timestamp and post_timestamp < oldest_timestamp:
+                        db.commit()
+                        msg = {
+                            "done": True,
+                            "fetched": fetched,
+                            "checked": checked,
+                            "page": pages_fetched,
+                        }
+                        yield f"data: {json.dumps(msg)}\n\n"
+                        return
+
+                    # Check if this post exists
+                    existing = (
+                        db.query(InstagramPost)
+                        .filter(InstagramPost.ig_id == post_data["id"])
+                        .first()
+                    )
+                    if existing:
+                        continue
+
+                    # Post is missing - try to add it
+                    try:
+                        if _process_single_post(db, post_data, storage):
+                            fetched += 1
+                            db.commit()  # Commit each successful post
+                            # Send progress update when we find a gap
+                            msg = {"fetched": fetched, "checked": checked, "page": pages_fetched}
+                            yield f"data: {json.dumps(msg)}\n\n"
+                    except IntegrityError:
+                        # Post was added by another process - that's fine
+                        db.rollback()
+                        continue
+                    except Exception as e:
+                        db.rollback()
+                        # Log but continue - we want to find all gaps
+                        print(f"Failed to fetch post {post_data['id']}: {e}")
+                        continue
+
+                # Send page progress update
+                msg = {"fetched": fetched, "checked": checked, "page": pages_fetched}
+                yield f"data: {json.dumps(msg)}\n\n"
+
+                # Check for next page
+                paging = data.get("paging", {})
+                next_url = paging.get("next")
+                if not next_url:
+                    break
+
+                url = next_url
+                params = {}
+
+        except requests.RequestException as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            return
+
+        db.commit()
+        msg = {"done": True, "fetched": fetched, "checked": checked, "page": pages_fetched}
+        yield f"data: {json.dumps(msg)}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
 @router.post("/sync-new")
 def sync_new_posts(
     _user: Annotated[User, Depends(get_admin_user)],
@@ -816,19 +1009,20 @@ def sync_new_posts(
     max_pages: int = 5,
 ) -> FetchResponse:
     """Fetch new posts from Instagram (from the beginning until we hit existing posts)."""
-    if not INSTAGRAM_ACCOUNT_ID or not INSTAGRAM_PAGE_TOKEN:
+    if not settings.instagram_account_id or not settings.instagram_page_token:
         raise HTTPException(status_code=500, detail="Instagram API not configured")
 
+    storage = get_storage()
     fetched = 0
     skipped = 0
     consecutive_skips = 0
     pages_fetched = 0
 
-    url = f"{GRAPH_API_URL}/{INSTAGRAM_ACCOUNT_ID}/media"
+    url = f"{GRAPH_API_URL}/{settings.instagram_account_id}/media"
     params: dict = {
         "fields": "id,caption,media_type,timestamp,permalink,location",
         "limit": 50,
-        "access_token": INSTAGRAM_PAGE_TOKEN,
+        "access_token": settings.instagram_page_token,
     }
 
     try:
@@ -844,7 +1038,7 @@ def sync_new_posts(
 
             for post_data in posts:
                 try:
-                    if _process_single_post(db, post_data):
+                    if _process_single_post(db, post_data, storage):
                         fetched += 1
                         consecutive_skips = 0
                     else:
@@ -893,5 +1087,6 @@ def sync_new_posts(
     return FetchResponse(
         fetched=fetched,
         skipped=skipped,
-        message=f"Synced {fetched} new posts" + (f" ({skipped} already existed)" if skipped else ""),
+        message=f"Synced {fetched} new posts"
+        + (f" ({skipped} already existed)" if skipped else ""),
     )

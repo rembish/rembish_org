@@ -3,6 +3,7 @@ import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import CV from "./pages/CV";
 import Projects from "./pages/Projects";
+import Photos from "./pages/Photos";
 import Travels from "./pages/Travels";
 import Admin from "./pages/Admin";
 import Contact from "./pages/Contact";
@@ -15,6 +16,8 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/cv" element={<CV />} />
         <Route path="/projects" element={<Projects />} />
+        <Route path="/photos" element={<Photos />} />
+        <Route path="/photos/:tripId" element={<Photos />} />
         <Route path="/travels" element={<Travels />} />
         <Route path="/travels/:tab" element={<Travels />} />
         <Route path="/admin" element={<Admin />} />

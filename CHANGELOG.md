@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.18.0 (2026-01-30)
+
+### Photos Production Deployment
+- Photos now served from Google Cloud Storage with public CDN URLs
+- Storage abstraction supporting local (dev) and GCS (prod) backends
+- Backend redirects to GCS URLs for optimal performance
+
+### Photos Page Improvements
+- Portrait aspect ratio (4:5) for trip thumbnails on index page
+- "Classification in progress" subtitle while photo labeling continues
+- Hide trips from photos page (admin only) - click eye icon on trip card
+- Hidden trips fade out and auto-remove from list
+- "Show hidden trips" checkbox to view/unhide hidden trips
+
+### Database
+- New `hidden_from_photos` field on trips for visibility control
+
+## 0.17.0 (2026-01-30)
+
+### Public Photos Page
+- New `/photos` page displaying labeled Instagram photos grouped by year and trip
+- Index view shows trips with photo counts and thumbnails, organized by year
+- Trip detail view with responsive photo grid and lightbox viewer
+- Keyboard navigation in lightbox: arrow keys to browse, Escape to close
+- Lazy loading for optimal performance with large photo collections
+- Photos nav item added to main navigation (after Projects)
+
+### Cover Photo Selection
+- Admins can set cover photo for each trip (shown as thumbnail on index)
+- Star icon on trip photos page to select cover (admin only)
+- Cover checkbox in Instagram labeler form (keyboard shortcut: C)
+- Only one cover per trip (selecting new cover clears previous)
+- Falls back to most recent photo if no cover is set
+
+### Instagram Sync Improvements
+- New "Fill gaps" feature to scan and recover missing posts
+- Real-time progress indicator showing pages scanned and posts found
+- Runs in background - continue labeling while scan progresses
+- Fixed timezone comparison error when scanning for gaps
+- Silently handles duplicate posts (no more log spam for IntegrityError)
+
+### Bug Fixes
+- Fixed React Hook warnings in Admin.tsx (missing dependencies)
+- Wrapped callbacks in useCallback with proper dependency arrays
+
 ## 0.16.0 (2026-01-29)
 
 ### Instagram Post Labeler (Admin)

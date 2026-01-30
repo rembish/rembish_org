@@ -88,8 +88,8 @@ interface InstagramMedia {
 }
 
 interface InstagramPost {
-  id: number;
-  ig_id: string;
+  id: number; // DB id (for media endpoints)
+  ig_id: string; // Instagram ID (for routing)
   caption: string | null;
   media_type: string;
   posted_at: string;
@@ -98,11 +98,14 @@ interface InstagramPost {
   ig_location_lat: number | null;
   ig_location_lng: number | null;
   media: InstagramMedia[];
+  position: number;
+  total: number;
   un_country_id: number | null;
   tcc_destination_id: number | null;
   trip_id: number | null;
   city_id: number | null;
   is_aerial: boolean | null;
+  is_cover: boolean;
   suggested_trip: {
     id: number;
     start_date: string;
@@ -134,7 +137,6 @@ interface TripOption {
   end_date: string | null;
   destinations: string[];
 }
-
 
 interface CloseOneUser {
   id: number;
@@ -342,11 +344,11 @@ function CloseOnesTab() {
 }
 
 function InstagramTab({
-  initialPostId,
-  onPostChange,
+  initialIgId,
+  onIgIdChange,
 }: {
-  initialPostId: number | null;
-  onPostChange: (postId: number | null) => void;
+  initialIgId: string | null;
+  onIgIdChange: (igId: string | null) => void;
 }) {
   const [post, setPost] = useState<InstagramPost | null>(null);
   const [stats, setStats] = useState<LabelingStats | null>(null);
@@ -355,12 +357,12 @@ function InstagramTab({
   const [saving, setSaving] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  // Navigation state
-  const [prevPostId, setPrevPostId] = useState<number | null>(null);
-  const [nextPostId, setNextPostId] = useState<number | null>(null);
+  // Navigation state (using ig_id strings)
+  const [prevIgId, setPrevIgId] = useState<string | null>(null);
+  const [nextIgId, setNextIgId] = useState<string | null>(null);
 
-  // Preloaded posts cache
-  const preloadedPosts = useRef<Map<number, InstagramPost>>(new Map());
+  // Preloaded posts cache (keyed by ig_id)
+  const preloadedPosts = useRef<Map<string, InstagramPost>>(new Map());
   const preloadedImages = useRef<Set<string>>(new Set());
 
   // TCC options for destination selection
@@ -371,6 +373,7 @@ function InstagramTab({
 
   // Form state
   const [isAerial, setIsAerial] = useState<boolean>(false);
+  const [isCover, setIsCover] = useState<boolean>(false);
   const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
   const [selectedTccId, setSelectedTccId] = useState<number | null>(null);
 
@@ -382,7 +385,9 @@ function InstagramTab({
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch("/api/v1/admin/instagram/stats", { credentials: "include" });
+      const res = await fetch("/api/v1/admin/instagram/stats", {
+        credentials: "include",
+      });
       const data = await res.json();
       setStats(data);
       return data;
@@ -400,20 +405,22 @@ function InstagramTab({
 
   const fetchTrips = useCallback((postedAt: string) => {
     const dateOnly = postedAt.split("T")[0];
-    fetch(`/api/v1/admin/instagram/trips?before_date=${dateOnly}`, { credentials: "include" })
+    fetch(`/api/v1/admin/instagram/trips?before_date=${dateOnly}`, {
+      credentials: "include",
+    })
       .then((res) => res.json())
       .then((data) => setTrips(data || []))
       .catch(() => {});
   }, []);
 
   // Preload a post's data and images
-  const preloadPost = useCallback((postId: number) => {
-    if (preloadedPosts.current.has(postId)) return;
+  const preloadPost = useCallback((igId: string) => {
+    if (preloadedPosts.current.has(igId)) return;
 
-    fetch(`/api/v1/admin/instagram/posts/${postId}`, { credentials: "include" })
+    fetch(`/api/v1/admin/instagram/posts/${igId}`, { credentials: "include" })
       .then((res) => res.json())
       .then((data: InstagramPost) => {
-        preloadedPosts.current.set(postId, data);
+        preloadedPosts.current.set(igId, data);
         // Preload images
         for (const media of data.media) {
           const imgUrl = `/api/v1/admin/instagram/media/${media.id}`;
@@ -427,100 +434,134 @@ function InstagramTab({
       .catch(() => {});
   }, []);
 
-  const fetchNavigation = useCallback((postId: number) => {
-    fetch(`/api/v1/admin/instagram/posts/${postId}/nav`, { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => {
-        setPrevPostId(data.prev_id);
-        setNextPostId(data.next_id);
-        // Preload adjacent posts
-        if (data.prev_id) preloadPost(data.prev_id);
-        if (data.next_id) {
-          preloadPost(data.next_id);
-          // Preload a few more posts ahead (in the "next" direction)
-          preloadChain(data.next_id, 3);
-        }
-      })
-      .catch(() => {});
-  }, [preloadPost]);
-
   // Preload a chain of posts in the "next" direction
-  const preloadChain = useCallback((startId: number, depth: number) => {
-    if (depth <= 0) return;
-    fetch(`/api/v1/admin/instagram/posts/${startId}/nav`, { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.next_id) {
-          preloadPost(data.next_id);
-          preloadChain(data.next_id, depth - 1);
-        }
+  const preloadChain = useCallback(
+    (startIgId: string, depth: number) => {
+      if (depth <= 0) return;
+      fetch(`/api/v1/admin/instagram/posts/${startIgId}/nav`, {
+        credentials: "include",
       })
-      .catch(() => {});
-  }, [preloadPost]);
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.next_ig_id) {
+            preloadPost(data.next_ig_id);
+            // Recursive call - depth will decrease each time
+            setTimeout(() => preloadChain(data.next_ig_id, depth - 1), 0);
+          }
+        })
+        .catch(() => {});
+    },
+    [preloadPost],
+  );
 
-  const fetchPostById = useCallback((postId: number) => {
-    setCurrentImageIndex(0);
-
-    // Check if we have this post preloaded
-    const cached = preloadedPosts.current.get(postId);
-    if (cached) {
-      // Use cached data - instant!
-      setPost(cached);
-      setIsAerial(cached.is_aerial || false);
-      setSelectedTripId(cached.trip_id || cached.suggested_trip?.id || null);
-      setSelectedTccId(cached.tcc_destination_id || null);
-      setTccSearch("");
-      setTccSearchFocused(false);
-      onPostChange(postId);
-      fetchNavigation(postId);
-      if (cached.posted_at) {
-        fetchTrips(cached.posted_at);
-      }
-      setLoading(false);
-      // Remove from cache to allow refresh on next visit
-      preloadedPosts.current.delete(postId);
-      // Scroll to labeler
-      setTimeout(() => labelerRef.current?.scrollIntoView({ behavior: "instant", block: "start" }), 0);
-      return;
-    }
-
-    setLoading(true);
-    fetch(`/api/v1/admin/instagram/posts/${postId}`, { credentials: "include" })
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch post");
-        return res.json();
+  const fetchNavigation = useCallback(
+    (igId: string) => {
+      fetch(`/api/v1/admin/instagram/posts/${igId}/nav`, {
+        credentials: "include",
       })
-      .then((data) => {
-        setPost(data);
-        setIsAerial(data?.is_aerial || false);
-        // Set trip from saved value or suggestion
-        setSelectedTripId(data?.trip_id || data?.suggested_trip?.id || null);
-        setSelectedTccId(data?.tcc_destination_id || null);
+        .then((res) => res.json())
+        .then((data) => {
+          setPrevIgId(data.prev_ig_id);
+          setNextIgId(data.next_ig_id);
+          // Preload adjacent posts
+          if (data.prev_ig_id) preloadPost(data.prev_ig_id);
+          if (data.next_ig_id) {
+            preloadPost(data.next_ig_id);
+            // Preload a few more posts ahead (in the "next" direction)
+            preloadChain(data.next_ig_id, 3);
+          }
+        })
+        .catch(() => {});
+    },
+    [preloadPost, preloadChain],
+  );
+
+  const fetchPostByIgId = useCallback(
+    (igId: string) => {
+      setCurrentImageIndex(0);
+
+      // Check if we have this post preloaded
+      const cached = preloadedPosts.current.get(igId);
+      if (cached) {
+        // Use cached data - instant!
+        setPost(cached);
+        setIsAerial(cached.is_aerial || false);
+        setIsCover(cached.is_cover || false);
+        setSelectedTripId(cached.trip_id || cached.suggested_trip?.id || null);
+        setSelectedTccId(cached.tcc_destination_id || null);
+        // Czech Republic default is handled by effect when tccOptions loads
         setTccSearch("");
         setTccSearchFocused(false);
-        onPostChange(postId);
-        fetchNavigation(postId);
-        // Fetch trips filtered by post date
-        if (data?.posted_at) {
-          fetchTrips(data.posted_at);
+        onIgIdChange(igId);
+        fetchNavigation(igId);
+        if (cached.posted_at) {
+          fetchTrips(cached.posted_at);
         }
         setLoading(false);
-        // Scroll to labeler after loading
-        setTimeout(() => labelerRef.current?.scrollIntoView({ behavior: "instant", block: "start" }), 0);
+        // Remove from cache to allow refresh on next visit
+        preloadedPosts.current.delete(igId);
+        // Scroll to labeler
+        setTimeout(
+          () =>
+            labelerRef.current?.scrollIntoView({
+              behavior: "instant",
+              block: "start",
+            }),
+          0,
+        );
+        return;
+      }
+
+      setLoading(true);
+      fetch(`/api/v1/admin/instagram/posts/${igId}`, {
+        credentials: "include",
       })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
-      });
-  }, [onPostChange, fetchNavigation, fetchTrips]);
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to fetch post");
+          return res.json();
+        })
+        .then((data) => {
+          setPost(data);
+          setIsAerial(data?.is_aerial || false);
+          setIsCover(data?.is_cover || false);
+          // Set trip from saved value or suggestion
+          setSelectedTripId(data?.trip_id || data?.suggested_trip?.id || null);
+          setSelectedTccId(data?.tcc_destination_id || null);
+          // Czech Republic default is handled by effect when tccOptions loads
+          setTccSearch("");
+          setTccSearchFocused(false);
+          onIgIdChange(igId);
+          fetchNavigation(igId);
+          // Fetch trips filtered by post date
+          if (data?.posted_at) {
+            fetchTrips(data.posted_at);
+          }
+          setLoading(false);
+          // Scroll to labeler after loading
+          setTimeout(
+            () =>
+              labelerRef.current?.scrollIntoView({
+                behavior: "instant",
+                block: "start",
+              }),
+            0,
+          );
+        })
+        .catch((err) => {
+          setError(err.message);
+          setLoading(false);
+        });
+    },
+    [onIgIdChange, fetchNavigation, fetchTrips],
+  );
 
   const fetchLatestPost = useCallback(() => {
     setLoading(true);
     fetch("/api/v1/admin/instagram/posts/latest", { credentials: "include" })
       .then((res) => res.json())
-      .then((postId) => {
-        if (postId) {
-          fetchPostById(postId);
+      .then((igId) => {
+        if (igId) {
+          fetchPostByIgId(igId);
         } else {
           setPost(null);
           setLoading(false);
@@ -530,7 +571,7 @@ function InstagramTab({
         setError(err.message);
         setLoading(false);
       });
-  }, [fetchPostById]);
+  }, [fetchPostByIgId]);
 
   const [fetching, setFetching] = useState(false);
   const [quotaHit, setQuotaHit] = useState(false);
@@ -546,7 +587,12 @@ function InstagramTab({
         const err = await res.json();
         const errMsg = err.detail || "Unknown error";
         // Detect rate limit / quota errors
-        if (res.status === 429 || errMsg.includes("timeout") || errMsg.includes("limit") || errMsg.includes("quota")) {
+        if (
+          res.status === 429 ||
+          errMsg.includes("timeout") ||
+          errMsg.includes("limit") ||
+          errMsg.includes("quota")
+        ) {
           setQuotaHit(true);
           return false;
         }
@@ -565,6 +611,70 @@ function InstagramTab({
     }
   }, [fetchStats]);
 
+  const [syncSuccess, setSyncSuccess] = useState(false);
+  const [fillingGaps, setFillingGaps] = useState(false);
+  const [fillGapsProgress, setFillGapsProgress] = useState<{
+    fetched: number;
+    checked: number;
+    page: number;
+  } | null>(null);
+  const [fillGapsResult, setFillGapsResult] = useState<string | null>(null);
+
+  const fillGaps = useCallback(() => {
+    setFillingGaps(true);
+    setFillGapsResult(null);
+    setFillGapsProgress(null);
+
+    const eventSource = new EventSource("/api/v1/admin/instagram/fill-gaps");
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (data.error) {
+          eventSource.close();
+          setFillingGaps(false);
+          alert(`Failed to fill gaps: ${data.error}`);
+          return;
+        }
+
+        setFillGapsProgress({
+          fetched: data.fetched,
+          checked: data.checked,
+          page: data.page,
+        });
+
+        if (data.done) {
+          eventSource.close();
+          setFillingGaps(false);
+          fetchStats();
+          if (data.fetched > 0) {
+            setFillGapsResult(`Found ${data.fetched} missing`);
+            setTimeout(() => {
+              setFillGapsResult(null);
+              setFillGapsProgress(null);
+            }, 5000);
+          } else {
+            setFillGapsResult("No gaps found");
+            setTimeout(() => {
+              setFillGapsResult(null);
+              setFillGapsProgress(null);
+            }, 3000);
+          }
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    };
+
+    eventSource.onerror = () => {
+      eventSource.close();
+      setFillingGaps(false);
+      setFillGapsResult("Connection lost");
+      setTimeout(() => setFillGapsResult(null), 2000);
+    };
+  }, [fetchStats]);
+
   const syncNewFromInstagram = useCallback(async (): Promise<boolean> => {
     setFetching(true);
     try {
@@ -580,7 +690,11 @@ function InstagramTab({
       const data = await res.json();
       fetchStats();
       if (data.fetched > 0) {
-        alert(data.message);
+        // Navigate to the newest post (the one we just synced)
+        fetchLatestPost();
+        // Show success indicator briefly
+        setSyncSuccess(true);
+        setTimeout(() => setSyncSuccess(false), 1500);
       }
       return data.fetched > 0;
     } catch {
@@ -589,23 +703,28 @@ function InstagramTab({
     } finally {
       setFetching(false);
     }
-  }, [fetchStats]);
+  }, [fetchStats, fetchLatestPost]);
 
   const jumpToFirstUnprocessed = useCallback(async () => {
-    const res = await fetch("/api/v1/admin/instagram/posts/first-unprocessed", { credentials: "include" });
-    const postId = await res.json();
+    const res = await fetch("/api/v1/admin/instagram/posts/first-unprocessed", {
+      credentials: "include",
+    });
+    const igId = await res.json();
 
-    if (postId) {
-      fetchPostById(postId);
+    if (igId) {
+      fetchPostByIgId(igId);
     } else {
       // No unprocessed posts - try to fetch more from Instagram
       const fetched = await fetchMoreFromInstagram();
       if (fetched) {
         // Retry finding first unprocessed
-        const retryRes = await fetch("/api/v1/admin/instagram/posts/first-unprocessed", { credentials: "include" });
-        const retryPostId = await retryRes.json();
-        if (retryPostId) {
-          fetchPostById(retryPostId);
+        const retryRes = await fetch(
+          "/api/v1/admin/instagram/posts/first-unprocessed",
+          { credentials: "include" },
+        );
+        const retryIgId = await retryRes.json();
+        if (retryIgId) {
+          fetchPostByIgId(retryIgId);
         } else {
           alert("Fetched posts but none are unprocessed (all might be videos)");
         }
@@ -613,36 +732,43 @@ function InstagramTab({
         alert("No more posts available from Instagram");
       }
     }
-  }, [fetchPostById, fetchMoreFromInstagram]);
+  }, [fetchPostByIgId, fetchMoreFromInstagram]);
 
   const jumpToFirstSkipped = useCallback(() => {
-    fetch("/api/v1/admin/instagram/posts/first-skipped", { credentials: "include" })
+    fetch("/api/v1/admin/instagram/posts/first-skipped", {
+      credentials: "include",
+    })
       .then((res) => res.json())
-      .then((postId) => {
-        if (postId) {
-          fetchPostById(postId);
+      .then((igId) => {
+        if (igId) {
+          fetchPostByIgId(igId);
         } else {
           alert("No skipped posts found!");
         }
       })
       .catch(() => {});
-  }, [fetchPostById]);
+  }, [fetchPostByIgId]);
 
   useEffect(() => {
     fetchStats();
     fetchTccOptions();
-    // Load specific post if ID provided, otherwise get latest
+    // Load specific post if ig_id provided, otherwise get latest
     // (fetchTrips is called after post loads with post date)
-    if (initialPostId) {
-      fetchPostById(initialPostId);
+    if (initialIgId) {
+      fetchPostByIgId(initialIgId);
     } else {
       fetchLatestPost();
     }
-  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-select TCC when trips load and selected trip has only one destination
   useEffect(() => {
-    if (selectedTripId && !selectedTccId && trips.length > 0 && tccOptions.length > 0) {
+    if (
+      selectedTripId &&
+      !selectedTccId &&
+      trips.length > 0 &&
+      tccOptions.length > 0
+    ) {
       const trip = trips.find((t) => t.id === selectedTripId);
       if (trip && trip.destinations.length === 1) {
         const tcc = tccOptions.find((t) => t.name === trip.destinations[0]);
@@ -651,96 +777,135 @@ function InstagramTab({
     }
   }, [trips, tccOptions, selectedTripId, selectedTccId]);
 
-  // Helper to select trip and auto-select TCC if only one destination
-  const selectTrip = (tripId: number | null) => {
-    setSelectedTripId(tripId);
-    if (tripId) {
-      const trip = trips.find((t) => t.id === tripId);
-      if (trip && trip.destinations.length === 1) {
-        const tcc = tccOptions.find((t) => t.name === trip.destinations[0]);
-        setSelectedTccId(tcc?.id || null);
-      } else {
-        setSelectedTccId(null);
-      }
-    } else {
-      setSelectedTccId(null);
+  // Default to Czech Republic when no trip is selected and tccOptions are loaded
+  useEffect(() => {
+    if (post && !selectedTripId && !selectedTccId && tccOptions.length > 0) {
+      const czechTcc = tccOptions.find((t) => t.name === "Czech Republic");
+      if (czechTcc) setSelectedTccId(czechTcc.id);
     }
-  };
+  }, [post, selectedTripId, selectedTccId, tccOptions]);
 
-  const handleLabel = async (skip: boolean = false) => {
-    if (!post) return;
-    setSaving(true);
-
-    const tripId = skip ? null : selectedTripId;
-
-    try {
-      const res = await fetch(`/api/v1/admin/instagram/posts/${post.id}/label`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          skip,
-          is_aerial: skip ? null : isAerial,
-          un_country_id: null,
-          tcc_destination_id: skip ? null : selectedTccId,
-          trip_id: tripId,
-          city_id: null,
-        }),
-      });
-
-      if (!res.ok) throw new Error("Failed to save label");
-
-      const updatedStats = await fetchStats();
-
-      // After saving, go to next post chronologically
-      if (nextPostId) {
-        fetchPostById(nextPostId);
-        // Proactively fetch more posts when running low (< 5 remaining)
-        if (updatedStats && updatedStats.unlabeled < 5 && !fetching) {
-          fetchMoreFromInstagram();  // Fire and forget - don't await
+  // Helper to select trip and auto-select TCC if only one destination
+  // When "No trip" is selected, default to Czech Republic (home country)
+  const selectTrip = useCallback(
+    (tripId: number | null) => {
+      setSelectedTripId(tripId);
+      if (tripId) {
+        const trip = trips.find((t) => t.id === tripId);
+        if (trip && trip.destinations.length === 1) {
+          const tcc = tccOptions.find((t) => t.name === trip.destinations[0]);
+          setSelectedTccId(tcc?.id || null);
+        } else {
+          setSelectedTccId(null);
         }
       } else {
-        // No next post - fetch more from Instagram and navigate
-        const currentPostId = post.id;
-        const fetched = await fetchMoreFromInstagram();
-        if (fetched) {
-          // Re-fetch navigation to find the newly available next post
-          const navRes = await fetch(`/api/v1/admin/instagram/posts/${currentPostId}/nav`, { credentials: "include" });
-          const navData = await navRes.json();
-          if (navData.next_id) {
-            fetchPostById(navData.next_id);
-          } else {
-            // New posts were fetched but not after this one - jump to first unprocessed
-            jumpToFirstUnprocessed();
+        // No trip = likely home country photo, default to Czech Republic
+        const czechTcc = tccOptions.find((t) => t.name === "Czech Republic");
+        setSelectedTccId(czechTcc?.id || null);
+      }
+    },
+    [trips, tccOptions],
+  );
+
+  const handleLabel = useCallback(
+    async (skip: boolean = false) => {
+      if (!post) return;
+      setSaving(true);
+
+      const tripId = skip ? null : selectedTripId;
+
+      try {
+        const res = await fetch(
+          `/api/v1/admin/instagram/posts/${post.ig_id}/label`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              skip,
+              is_aerial: skip ? null : isAerial,
+              is_cover: skip ? false : isCover,
+              un_country_id: null,
+              tcc_destination_id: skip ? null : selectedTccId,
+              trip_id: tripId,
+              city_id: null,
+            }),
+          },
+        );
+
+        if (!res.ok) throw new Error("Failed to save label");
+
+        const updatedStats = await fetchStats();
+
+        // After saving, go to next post chronologically
+        if (nextIgId) {
+          fetchPostByIgId(nextIgId);
+          // Proactively fetch more posts when running low (< 5 remaining)
+          if (updatedStats && updatedStats.unlabeled < 5 && !fetching) {
+            fetchMoreFromInstagram(); // Fire and forget - don't await
           }
         } else {
-          // No posts fetched - jump to first unprocessed (might be earlier in queue)
-          jumpToFirstUnprocessed();
+          // No next post - fetch more from Instagram and navigate
+          const currentIgId = post.ig_id;
+          const fetched = await fetchMoreFromInstagram();
+          if (fetched) {
+            // Re-fetch navigation to find the newly available next post
+            const navRes = await fetch(
+              `/api/v1/admin/instagram/posts/${currentIgId}/nav`,
+              { credentials: "include" },
+            );
+            const navData = await navRes.json();
+            if (navData.next_ig_id) {
+              fetchPostByIgId(navData.next_ig_id);
+            } else {
+              // New posts were fetched but not after this one - jump to first unprocessed
+              jumpToFirstUnprocessed();
+            }
+          } else {
+            // No posts fetched - jump to first unprocessed (might be earlier in queue)
+            jumpToFirstUnprocessed();
+          }
         }
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Failed to save");
+      } finally {
+        setSaving(false);
       }
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to save");
-    } finally {
-      setSaving(false);
-    }
-  };
+    },
+    [
+      post,
+      selectedTripId,
+      isAerial,
+      isCover,
+      selectedTccId,
+      nextIgId,
+      fetching,
+      fetchPostByIgId,
+      fetchStats,
+      fetchMoreFromInstagram,
+      jumpToFirstUnprocessed,
+    ],
+  );
 
-  const navigatePrev = () => {
-    if (prevPostId && !loading) {
-      fetchPostById(prevPostId);
+  const navigatePrev = useCallback(() => {
+    if (prevIgId && !loading) {
+      fetchPostByIgId(prevIgId);
     }
-  };
+  }, [prevIgId, loading, fetchPostByIgId]);
 
-  const navigateNext = () => {
-    if (nextPostId && !loading) {
-      fetchPostById(nextPostId);
+  const navigateNext = useCallback(() => {
+    if (nextIgId && !loading) {
+      fetchPostByIgId(nextIgId);
     }
-  };
+  }, [nextIgId, loading, fetchPostByIgId]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
         return;
       }
       if (e.key === "Enter" && !saving && post) {
@@ -752,6 +917,9 @@ function InstagramTab({
       } else if (e.key === "d" && post) {
         e.preventDefault();
         setIsAerial((prev) => !prev);
+      } else if (e.key === "c" && post) {
+        e.preventDefault();
+        setIsCover((prev) => !prev);
       } else if (e.key === "f") {
         // Jump to first unprocessed post
         e.preventDefault();
@@ -761,9 +929,11 @@ function InstagramTab({
         e.preventDefault();
         jumpToFirstSkipped();
       } else if (e.key === "0") {
-        // 0 = No trip, then focus TCC search
+        // 0 = Clear trip AND TCC selection, focus search for manual entry
         e.preventDefault();
-        selectTrip(null);
+        setSelectedTripId(null);
+        setSelectedTccId(null);
+        setTccSearch("");
         // Focus TCC search input after state updates
         setTimeout(() => tccSearchInputRef.current?.focus(), 0);
       } else if (e.key >= "1" && e.key <= "9" && trips.length > 0) {
@@ -785,7 +955,7 @@ function InstagramTab({
             const destName = trip.destinations[idx];
             const tcc = tccOptions.find((t) => t.name === destName);
             if (tcc) {
-              setSelectedTccId((prev) => prev === tcc.id ? null : tcc.id);
+              setSelectedTccId((prev) => (prev === tcc.id ? null : tcc.id));
             }
           }
         }
@@ -800,16 +970,32 @@ function InstagramTab({
         navigateNext();
       } else if (e.key === "ArrowLeft" && post && post.media.length > 1) {
         e.preventDefault();
-        setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : post.media.length - 1));
+        setCurrentImageIndex((prev) =>
+          prev > 0 ? prev - 1 : post.media.length - 1,
+        );
       } else if (e.key === "ArrowRight" && post && post.media.length > 1) {
         e.preventDefault();
-        setCurrentImageIndex((prev) => (prev < post.media.length - 1 ? prev + 1 : 0));
+        setCurrentImageIndex((prev) =>
+          prev < post.media.length - 1 ? prev + 1 : 0,
+        );
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [post, saving, tccOptions, trips, selectedTripId, selectedTccId, isAerial, prevPostId, nextPostId, jumpToFirstUnprocessed, jumpToFirstSkipped]);
+  }, [
+    post,
+    saving,
+    tccOptions,
+    trips,
+    selectedTripId,
+    jumpToFirstUnprocessed,
+    jumpToFirstSkipped,
+    handleLabel,
+    navigatePrev,
+    navigateNext,
+    selectTrip,
+  ]);
 
   // Show skeleton with spinner while loading (not blocking fetching)
   const showSpinner = loading;
@@ -851,14 +1037,16 @@ function InstagramTab({
             <span className="stat-item">○ {stats.unlabeled} remaining</span>
           </>
         )}
-        {fetching && <span className="stat-item fetching-indicator">⏳ Fetching...</span>}
+        {fetching && (
+          <span className="stat-item fetching-indicator">⏳ Fetching...</span>
+        )}
         <button
-          className="btn-sync-new"
+          className={`btn-sync-new ${syncSuccess ? "sync-success" : ""}`}
           onClick={() => syncNewFromInstagram()}
           disabled={fetching}
           title="Sync new posts from Instagram (recent posts you've added)"
         >
-          ↻ Sync new
+          {syncSuccess ? "✓ Synced" : "↻ Sync new"}
         </button>
         <button
           className="btn-fetch-more"
@@ -868,7 +1056,32 @@ function InstagramTab({
         >
           + Fetch older
         </button>
+        <button
+          className="btn-fill-gaps"
+          onClick={() => fillGaps()}
+          disabled={fetching || fillingGaps}
+          title="Scan for and fill missing posts between existing ones"
+        >
+          {fillingGaps ? "Scanning..." : "Fill gaps"}
+        </button>
       </div>
+
+      {/* Fill gaps progress indicator */}
+      {(fillingGaps || fillGapsResult) && (
+        <div className="fill-gaps-progress">
+          {fillingGaps && fillGapsProgress && (
+            <span>
+              Scanning page {fillGapsProgress.page}... Found{" "}
+              <strong>{fillGapsProgress.fetched}</strong> missing posts (checked{" "}
+              {fillGapsProgress.checked})
+            </span>
+          )}
+          {fillingGaps && !fillGapsProgress && <span>Starting scan...</span>}
+          {!fillingGaps && fillGapsResult && (
+            <span className="fill-gaps-done">{fillGapsResult}</span>
+          )}
+        </div>
+      )}
 
       <div className="instagram-labeler" ref={labelerRef}>
         {/* Image section */}
@@ -878,7 +1091,13 @@ function InstagramTab({
               <span className="quota-icon">☕</span>
               <h3>Rate limit reached</h3>
               <p>Instagram API quota hit. Take a break!</p>
-              <button className="btn-retry" onClick={() => { setQuotaHit(false); fetchMoreFromInstagram(); }}>
+              <button
+                className="btn-retry"
+                onClick={() => {
+                  setQuotaHit(false);
+                  fetchMoreFromInstagram();
+                }}
+              >
                 Try again
               </button>
             </div>
@@ -896,13 +1115,23 @@ function InstagramTab({
           {post && post.media.length > 1 && !showSpinner && !quotaHit && (
             <div className="image-nav">
               <button
-                onClick={() => setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : post.media.length - 1))}
+                onClick={() =>
+                  setCurrentImageIndex((prev) =>
+                    prev > 0 ? prev - 1 : post.media.length - 1,
+                  )
+                }
               >
                 ‹
               </button>
-              <span>{currentImageIndex + 1} / {post.media.length}</span>
+              <span>
+                {currentImageIndex + 1} / {post.media.length}
+              </span>
               <button
-                onClick={() => setCurrentImageIndex((prev) => (prev < post.media.length - 1 ? prev + 1 : 0))}
+                onClick={() =>
+                  setCurrentImageIndex((prev) =>
+                    prev < post.media.length - 1 ? prev + 1 : 0,
+                  )
+                }
               >
                 ›
               </button>
@@ -915,6 +1144,9 @@ function InstagramTab({
           {post && postedDate ? (
             <>
               <div className="post-meta">
+                <span className="post-position">
+                  {post.position} / {post.total}
+                </span>
                 <span className="post-date">
                   {postedDate.toLocaleDateString("en-GB", {
                     day: "numeric",
@@ -922,7 +1154,12 @@ function InstagramTab({
                     year: "numeric",
                   })}
                 </span>
-                <a href={post.permalink} target="_blank" rel="noopener noreferrer" className="post-link">
+                <a
+                  href={post.permalink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="post-link"
+                >
                   View on IG ↗
                 </a>
               </div>
@@ -945,59 +1182,93 @@ function InstagramTab({
             {trips.length > 0 && (
               <div className="trip-selector">
                 <span className="selector-label">Trip:</span>
-                <div className="trip-buttons">
-                  <button
-                    type="button"
-                    className={`trip-btn ${selectedTripId === null ? "selected" : ""}`}
-                    onClick={() => selectTrip(null)}
-                  >
-                    <span className="trip-shortcut">0</span> None
-                  </button>
-                  {trips.map((trip, idx) => {
-                    const isSelected = selectedTripId === trip.id;
-                    const label = trip.destinations.join(", ") || "—";
-                    return (
-                      <button
-                        key={trip.id}
-                        type="button"
-                        className={`trip-btn ${isSelected ? "selected" : ""}`}
-                        onClick={() => selectTrip(isSelected ? null : trip.id)}
-                      >
-                        <span className="trip-shortcut">{idx + 1}</span> {label}
-                      </button>
-                    );
-                  })}
+                <div className="trip-selector-content">
+                  <div className="trip-buttons">
+                    <button
+                      type="button"
+                      className={`trip-btn ${selectedTripId === null ? "selected" : ""}`}
+                      onClick={() => selectTrip(null)}
+                    >
+                      <span className="trip-shortcut">0</span> None
+                    </button>
+                    {trips.map((trip, idx) => {
+                      const isSelected = selectedTripId === trip.id;
+                      const label = trip.destinations.join(", ") || "—";
+                      return (
+                        <button
+                          key={trip.id}
+                          type="button"
+                          className={`trip-btn ${isSelected ? "selected" : ""}`}
+                          onClick={() =>
+                            selectTrip(isSelected ? null : trip.id)
+                          }
+                        >
+                          <span className="trip-shortcut">{idx + 1}</span>{" "}
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {selectedTripId &&
+                    (() => {
+                      const trip = trips.find((t) => t.id === selectedTripId);
+                      if (!trip) return null;
+                      const start = new Date(
+                        trip.start_date,
+                      ).toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                      });
+                      const end = trip.end_date
+                        ? new Date(trip.end_date).toLocaleDateString("en-GB", {
+                            day: "numeric",
+                            month: "short",
+                          })
+                        : null;
+                      return (
+                        <span className="trip-dates">
+                          {start}
+                          {end ? ` — ${end}` : ""}
+                        </span>
+                      );
+                    })()}
                 </div>
               </div>
             )}
 
             {/* TCC Destination selector - show selected trip's destinations */}
-            {selectedTripId && (() => {
-              const trip = trips.find((t) => t.id === selectedTripId);
-              if (!trip || trip.destinations.length === 0) return null;
-              return (
-                <div className="tcc-selector">
-                  <span className="selector-label">TCC:</span>
-                  <div className="tcc-buttons">
-                    {trip.destinations.map((destName, idx) => {
-                      const tcc = tccOptions.find((t) => t.name === destName);
-                      if (!tcc) return null;
-                      const isSelected = selectedTccId === tcc.id;
-                      return (
-                        <button
-                          key={tcc.id}
-                          type="button"
-                          className={`tcc-btn ${isSelected ? "selected" : ""}`}
-                          onClick={() => setSelectedTccId(isSelected ? null : tcc.id)}
-                        >
-                          <span className="tcc-shortcut">{"qwertyuiop"[idx]}</span> {destName}
-                        </button>
-                      );
-                    })}
+            {selectedTripId &&
+              (() => {
+                const trip = trips.find((t) => t.id === selectedTripId);
+                if (!trip || trip.destinations.length === 0) return null;
+                return (
+                  <div className="tcc-selector">
+                    <span className="selector-label">TCC:</span>
+                    <div className="tcc-buttons">
+                      {trip.destinations.map((destName, idx) => {
+                        const tcc = tccOptions.find((t) => t.name === destName);
+                        if (!tcc) return null;
+                        const isSelected = selectedTccId === tcc.id;
+                        return (
+                          <button
+                            key={tcc.id}
+                            type="button"
+                            className={`tcc-btn ${isSelected ? "selected" : ""}`}
+                            onClick={() =>
+                              setSelectedTccId(isSelected ? null : tcc.id)
+                            }
+                          >
+                            <span className="tcc-shortcut">
+                              {"qwertyuiop"[idx]}
+                            </span>{" "}
+                            {destName}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })()}
+                );
+              })()}
 
             {/* TCC manual search when no trip selected */}
             {!selectedTripId && (
@@ -1006,7 +1277,10 @@ function InstagramTab({
                 <div className="tcc-search-container">
                   {selectedTccId && !tccSearchFocused ? (
                     <div className="tcc-selected-display">
-                      <span>{tccOptions.find((t) => t.id === selectedTccId)?.name || "Unknown"}</span>
+                      <span>
+                        {tccOptions.find((t) => t.id === selectedTccId)?.name ||
+                          "Unknown"}
+                      </span>
                       <button
                         type="button"
                         className="tcc-clear-btn"
@@ -1024,22 +1298,43 @@ function InstagramTab({
                         ref={tccSearchInputRef}
                         type="text"
                         className="tcc-search-input"
-                        placeholder="Search destination..."
+                        placeholder={
+                          selectedTccId
+                            ? tccOptions.find((t) => t.id === selectedTccId)
+                                ?.name || "Search..."
+                            : "Search destination..."
+                        }
                         value={tccSearch}
-                        onChange={(e) => setTccSearch(e.target.value)}
+                        onChange={(e) => {
+                          setTccSearch(e.target.value);
+                          // Clear default selection when user starts typing
+                          if (e.target.value && selectedTccId) {
+                            setSelectedTccId(null);
+                          }
+                        }}
                         onFocus={() => setTccSearchFocused(true)}
-                        onBlur={() => setTimeout(() => setTccSearchFocused(false), 200)}
+                        onBlur={() =>
+                          setTimeout(() => setTccSearchFocused(false), 200)
+                        }
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             e.preventDefault();
-                            // Select first matching TCC
-                            const matches = tccOptions.filter((t) =>
-                              t.name.toLowerCase().includes(tccSearch.toLowerCase()) ||
-                              t.region.toLowerCase().includes(tccSearch.toLowerCase())
-                            );
-                            if (matches.length > 0) {
-                              setSelectedTccId(matches[0].id);
+                            // If search text, select first match; otherwise keep default
+                            if (tccSearch) {
+                              const matches = tccOptions.filter(
+                                (t) =>
+                                  t.name
+                                    .toLowerCase()
+                                    .includes(tccSearch.toLowerCase()) ||
+                                  t.region
+                                    .toLowerCase()
+                                    .includes(tccSearch.toLowerCase()),
+                              );
+                              if (matches.length > 0) {
+                                setSelectedTccId(matches[0].id);
+                              }
                             }
+                            // Keep default (Czech Republic) if no search text
                             setTccSearch("");
                             setTccSearchFocused(false);
                             tccSearchInputRef.current?.blur();
@@ -1054,9 +1349,14 @@ function InstagramTab({
                       {tccSearchFocused && tccSearch.length >= 1 && (
                         <div className="tcc-dropdown">
                           {tccOptions
-                            .filter((t) =>
-                              t.name.toLowerCase().includes(tccSearch.toLowerCase()) ||
-                              t.region.toLowerCase().includes(tccSearch.toLowerCase())
+                            .filter(
+                              (t) =>
+                                t.name
+                                  .toLowerCase()
+                                  .includes(tccSearch.toLowerCase()) ||
+                                t.region
+                                  .toLowerCase()
+                                  .includes(tccSearch.toLowerCase()),
                             )
                             .slice(0, 10)
                             .map((tcc) => (
@@ -1083,15 +1383,26 @@ function InstagramTab({
               </div>
             )}
 
-            <label className="aerial-toggle">
-              <input
-                type="checkbox"
-                checked={isAerial}
-                onChange={(e) => setIsAerial(e.target.checked)}
-              />
-              <TbDrone className="drone-icon" /> Aerial/Drone shot
-              <span className="shortcut">(D)</span>
-            </label>
+            <div className="photo-toggles">
+              <label className="aerial-toggle">
+                <input
+                  type="checkbox"
+                  checked={isAerial}
+                  onChange={(e) => setIsAerial(e.target.checked)}
+                />
+                <TbDrone className="drone-icon" /> Aerial
+                <span className="shortcut">(D)</span>
+              </label>
+              <label className="cover-toggle">
+                <input
+                  type="checkbox"
+                  checked={isCover}
+                  onChange={(e) => setIsCover(e.target.checked)}
+                />
+                Cover
+                <span className="shortcut">(C)</span>
+              </label>
+            </div>
           </div>
 
           {/* Navigation and actions */}
@@ -1100,7 +1411,7 @@ function InstagramTab({
               <button
                 className="btn-nav"
                 onClick={navigatePrev}
-                disabled={!prevPostId || loading}
+                disabled={!prevIgId || loading}
                 title="Newer post (↑)"
               >
                 ↑
@@ -1108,7 +1419,7 @@ function InstagramTab({
               <button
                 className="btn-nav"
                 onClick={navigateNext}
-                disabled={!nextPostId || loading}
+                disabled={!nextIgId || loading}
                 title="Older post (↓)"
               >
                 ↓
@@ -2153,9 +2464,9 @@ export default function Admin() {
   const { tab, year } = useParams();
   const activeTab = (tab as AdminTab) || "trips";
   // For trips tab, 'year' is the year number
-  // For instagram tab, 'year' is the post ID
-  const selectedYear = tab === "instagram" ? null : (year ? Number(year) : null);
-  const instagramPostId = tab === "instagram" && year ? Number(year) : null;
+  // For instagram tab, 'year' is the ig_id (Instagram ID string)
+  const selectedYear = tab === "instagram" ? null : year ? Number(year) : null;
+  const instagramIgId = tab === "instagram" && year ? year : null;
 
   const setActiveTab = (newTab: AdminTab) => {
     if (newTab === "trips" && selectedYear) {
@@ -2169,9 +2480,9 @@ export default function Admin() {
     navigate(`/admin/${activeTab}/${newYear}`);
   };
 
-  const setInstagramPostId = (postId: number | null) => {
-    if (postId) {
-      navigate(`/admin/instagram/${postId}`, { replace: true });
+  const setInstagramIgId = (igId: string | null) => {
+    if (igId) {
+      navigate(`/admin/instagram/${igId}`, { replace: true });
     } else {
       navigate(`/admin/instagram`, { replace: true });
     }
@@ -2235,9 +2546,9 @@ export default function Admin() {
           {activeTab === "close-ones" && <CloseOnesTab />}
           {activeTab === "instagram" && (
             <InstagramTab
-              key={instagramPostId ?? "latest"}
-              initialPostId={instagramPostId}
-              onPostChange={setInstagramPostId}
+              key={instagramIgId ?? "latest"}
+              initialIgId={instagramIgId}
+              onIgIdChange={setInstagramIgId}
             />
           )}
         </div>
