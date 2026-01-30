@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.19.0 (2026-01-30)
+
+### Photos Page UX Improvements
+- Mobile-responsive Instagram labeler with compact layout for phone use
+- Captions now display line breaks properly (CSS + database fix for escaped newlines)
+- Hashtags stripped from captions on photos page
+- Flag emoji on first line merged with description text
+- URL slugs for trip pages (e.g., `/photos/218-spain-2026`)
+- Cross-trip navigation in lightbox with peek/transition screen
+- Keyboard arrow keys and on-screen buttons to browse between trips
+- Instagram permalink icon in lightbox (next to close button)
+- Photo counter moved to top-left corner
+- "Show hidden trips" toggle as superscript eye icon (persisted to localStorage)
+- "LIVE" badge on trips currently in progress (today between start/end dates)
+
+### Admin Labeler Mobile Fixes
+- Stats bar and sync buttons fit mobile width
+- Trip selection buttons wrap to fit screen
+- Action buttons (aerial, cover, skip, save) compact single-row layout
+- Keyboard shortcuts hidden on mobile (tap-only interface)
+- Moved "Unprocessed" and "Skipped" buttons to stats row with icons
+
+### Bug Fixes
+- Fixed trip hide button escaping to viewport (missing position:relative on parent)
+- Fixed cross-trip navigation going to wrong photo index
+- Fixed peek screen persisting after trip navigation
+
 ## 0.18.0 (2026-01-30)
 
 ### Photos Production Deployment

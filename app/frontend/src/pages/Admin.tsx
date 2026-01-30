@@ -7,6 +7,8 @@ import {
   BiCar,
   BiChevronLeft,
   BiChevronRight,
+  BiChevronUp,
+  BiChevronDown,
   BiPaperPlane,
   BiParty,
   BiPlus,
@@ -15,6 +17,8 @@ import {
   BiTrash,
   BiCheck,
   BiSkipNext,
+  BiTargetLock,
+  BiFlag,
 } from "react-icons/bi";
 import { TbDrone } from "react-icons/tb";
 import { useAuth } from "../hooks/useAuth";
@@ -1064,6 +1068,22 @@ function InstagramTab({
         >
           {fillingGaps ? "Scanning..." : "Fill gaps"}
         </button>
+        <button
+          className="btn-jump btn-unprocessed"
+          onClick={jumpToFirstUnprocessed}
+          disabled={loading}
+          title="Jump to first unprocessed post"
+        >
+          <BiTargetLock /> Unprocessed
+        </button>
+        <button
+          className="btn-jump btn-skipped"
+          onClick={jumpToFirstSkipped}
+          disabled={loading}
+          title="Jump to first skipped post"
+        >
+          <BiFlag /> Skipped
+        </button>
       </div>
 
       {/* Fill gaps progress indicator */}
@@ -1414,7 +1434,7 @@ function InstagramTab({
                 disabled={!prevIgId || loading}
                 title="Newer post (↑)"
               >
-                ↑
+                <BiChevronUp />
               </button>
               <button
                 className="btn-nav"
@@ -1422,23 +1442,7 @@ function InstagramTab({
                 disabled={!nextIgId || loading}
                 title="Older post (↓)"
               >
-                ↓
-              </button>
-              <button
-                className="btn-nav btn-unprocessed"
-                onClick={jumpToFirstUnprocessed}
-                disabled={loading}
-                title="First unprocessed (F)"
-              >
-                F
-              </button>
-              <button
-                className="btn-nav btn-skipped"
-                onClick={jumpToFirstSkipped}
-                disabled={loading}
-                title="First skipped (K)"
-              >
-                K
+                <BiChevronDown />
               </button>
             </div>
             <button

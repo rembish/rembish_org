@@ -30,6 +30,10 @@
 - [x] Generate PDF from CV data (single source of truth, build-time generation)
 - [x] Update CV PDF to match web version
 - [x] Instagram sync gap detection and recovery
+- [x] Photos page mobile responsive improvements
+- [x] Cross-trip navigation in photo lightbox
+- [x] URL slugs for photo trip pages
+- [x] "LIVE" badge for trips in progress
 
 ## Phase 2: Production
 

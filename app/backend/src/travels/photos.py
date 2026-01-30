@@ -59,6 +59,7 @@ class PhotoData(BaseModel):
     is_aerial: bool
     is_cover: bool
     destination: str | None
+    permalink: str | None
 
 
 class TripPhotosResponse(BaseModel):
@@ -274,6 +275,7 @@ def get_trip_photos(
                     is_aerial=post.is_aerial or False,
                     is_cover=post.is_cover,
                     destination=post.tcc_destination.name if post.tcc_destination else None,
+                    permalink=post.permalink,
                 )
             )
 
