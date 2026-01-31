@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.19.1 (2026-01-31)
+
+### Mobile Safari Fixes
+- Fixed bottom buttons being overlapped by iOS Safari controls
+- Added `viewport-fit=cover` and `safe-area-inset-bottom` padding to:
+  - Location check-in FAB button
+  - Location widget (non-admin view)
+  - Modal action buttons
+  - Trip form on admin page
+
+### Photos Page
+- Caption toggle button in lightbox to hide/show photo descriptions
+- Eye icon appears next to Instagram link when photo has a caption
+- Preference saved to localStorage (works for all visitors)
+
 ## 0.19.0 (2026-01-30)
 
 ### Photos Page UX Improvements
