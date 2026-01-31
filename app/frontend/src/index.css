@@ -3367,7 +3367,7 @@ a {
 /* Location Check-in Feature */
 .location-fab {
   position: fixed;
-  bottom: 1.5rem;
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
   right: 1.5rem;
   z-index: 100;
   display: flex;
@@ -3589,7 +3589,7 @@ a {
 
 @media (width <= 600px) {
   .location-fab {
-    bottom: 1rem;
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     right: 1rem;
   }
 
@@ -3603,7 +3603,7 @@ a {
 /* Location widget for non-admin users */
 .location-widget {
   position: fixed;
-  bottom: 1.5rem;
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
   right: 1.5rem;
   z-index: 100;
   display: flex;
@@ -3632,7 +3632,7 @@ a {
 
 @media (width <= 600px) {
   .location-widget {
-    bottom: 1rem;
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     right: 1rem;
   }
 }
@@ -3658,6 +3658,7 @@ a {
 
   .trip-form {
     padding: 1rem;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
   }
 
   .form-section {
@@ -3782,6 +3783,7 @@ a {
   .modal-actions {
     flex-direction: column;
     gap: 0.75rem;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .modal-actions-right {
@@ -3838,6 +3840,7 @@ a {
 
   .trip-form {
     padding: 0.75rem;
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
   }
 
   .participants-grid {
@@ -5245,6 +5248,29 @@ a {
   }
 }
 
+.lightbox-caption-toggle {
+  position: absolute;
+  top: 1rem;
+  right: 9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: rgb(255 255 255 / 10%);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  z-index: 10;
+
+  &:hover {
+    background: rgb(255 255 255 / 20%);
+  }
+}
+
 .lightbox-counter {
   position: absolute;
   top: 1rem;
@@ -5318,6 +5344,14 @@ a {
   .lightbox-ig-link {
     top: 0.5rem;
     right: 3.5rem;
+    width: 40px;
+    height: 40px;
+    font-size: 1.25rem;
+  }
+
+  .lightbox-caption-toggle {
+    top: 0.5rem;
+    right: 6.5rem;
     width: 40px;
     height: 40px;
     font-size: 1.25rem;

@@ -159,11 +159,19 @@ export default function Photos() {
   const [showHidden, setShowHidden] = useState(() => {
     return localStorage.getItem("photos-show-hidden") === "true";
   });
+  const [showCaption, setShowCaption] = useState(() => {
+    return localStorage.getItem("photos-show-caption") !== "false";
+  });
 
   // Persist showHidden to localStorage
   useEffect(() => {
     localStorage.setItem("photos-show-hidden", String(showHidden));
   }, [showHidden]);
+
+  // Persist showCaption to localStorage
+  useEffect(() => {
+    localStorage.setItem("photos-show-caption", String(showCaption));
+  }, [showCaption]);
 
   const [peekTrip, setPeekTrip] = useState<{
     trip: PhotoTripSummary;
@@ -528,6 +536,18 @@ export default function Photos() {
                   <BiLogoInstagram />
                 </a>
               )}
+              {photos[lightboxIndex].caption && (
+                <button
+                  className="lightbox-caption-toggle"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowCaption(!showCaption);
+                  }}
+                  title={showCaption ? "Hide caption" : "Show caption"}
+                >
+                  {showCaption ? <BiHide /> : <BiShow />}
+                </button>
+              )}
               <button
                 className="lightbox-nav lightbox-prev"
                 onClick={(e) => {
@@ -555,7 +575,7 @@ export default function Photos() {
                   src={`/api/v1/travels/photos/media/${photos[lightboxIndex].media_id}`}
                   alt={photos[lightboxIndex].caption || "Trip photo"}
                 />
-                {photos[lightboxIndex].caption && (
+                {photos[lightboxIndex].caption && showCaption && (
                   <p className="lightbox-caption">
                     {cleanCaption(photos[lightboxIndex].caption)}
                   </p>
