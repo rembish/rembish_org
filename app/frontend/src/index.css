@@ -3644,7 +3644,7 @@ a {
   }
 
   .modal-content {
-    max-height: 95vh;
+    max-height: calc(95vh - env(safe-area-inset-bottom, 0px));
     border-radius: 8px;
   }
 
@@ -3834,7 +3834,7 @@ a {
   }
 
   .modal-content {
-    max-height: 100vh;
+    max-height: calc(100vh - env(safe-area-inset-bottom, 0px));
     border-radius: 0;
   }
 
