@@ -3658,6 +3658,7 @@ a {
 
   .trip-form {
     padding: 1rem;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
   }
 
   .form-section {
@@ -3839,6 +3840,7 @@ a {
 
   .trip-form {
     padding: 0.75rem;
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
   }
 
   .participants-grid {
