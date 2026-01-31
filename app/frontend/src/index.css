@@ -3367,7 +3367,7 @@ a {
 /* Location Check-in Feature */
 .location-fab {
   position: fixed;
-  bottom: 1.5rem;
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
   right: 1.5rem;
   z-index: 100;
   display: flex;
@@ -3589,7 +3589,7 @@ a {
 
 @media (width <= 600px) {
   .location-fab {
-    bottom: 1rem;
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     right: 1rem;
   }
 
@@ -3603,7 +3603,7 @@ a {
 /* Location widget for non-admin users */
 .location-widget {
   position: fixed;
-  bottom: 1.5rem;
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
   right: 1.5rem;
   z-index: 100;
   display: flex;
@@ -3632,7 +3632,7 @@ a {
 
 @media (width <= 600px) {
   .location-widget {
-    bottom: 1rem;
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     right: 1rem;
   }
 }
@@ -3782,6 +3782,7 @@ a {
   .modal-actions {
     flex-direction: column;
     gap: 0.75rem;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .modal-actions-right {
