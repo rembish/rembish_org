@@ -5248,6 +5248,29 @@ a {
   }
 }
 
+.lightbox-caption-toggle {
+  position: absolute;
+  top: 1rem;
+  right: 9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: rgb(255 255 255 / 10%);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  z-index: 10;
+
+  &:hover {
+    background: rgb(255 255 255 / 20%);
+  }
+}
+
 .lightbox-counter {
   position: absolute;
   top: 1rem;
@@ -5321,6 +5344,14 @@ a {
   .lightbox-ig-link {
     top: 0.5rem;
     right: 3.5rem;
+    width: 40px;
+    height: 40px;
+    font-size: 1.25rem;
+  }
+
+  .lightbox-caption-toggle {
+    top: 0.5rem;
+    right: 6.5rem;
     width: 40px;
     height: 40px;
     font-size: 1.25rem;
