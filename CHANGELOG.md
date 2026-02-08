@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.19.2 (2026-02-08)
+
+### Bug Fixes
+- Fixed visit dates being cleared when editing trips
+- Location check-in data is now preserved when recalculating trip visits
+- Modal max-height now accounts for iOS Safari safe area
+
 ## 0.19.1 (2026-01-31)
 
 ### Mobile Safari Fixes
