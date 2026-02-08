@@ -355,7 +355,11 @@ def _update_visits_for_trip(db: Session, trip: Trip) -> None:
 
 
 def _recalculate_visit(db: Session, tcc_destination_id: int) -> None:
-    """Find earliest trip visiting this destination and update Visit."""
+    """Find earliest trip visiting this destination and update Visit.
+
+    Only updates first_visit_date if trip date is earlier than existing.
+    Never clears existing dates (preserves check-in data).
+    """
     earliest_trip = (
         db.query(Trip)
         .join(TripDestination)
@@ -368,15 +372,14 @@ def _recalculate_visit(db: Session, tcc_destination_id: int) -> None:
 
     if earliest_trip:
         # Use end_date (trip completion) or start_date for single-day trips
-        # Can be refined via location check-in for more precision
         visit_date = earliest_trip.end_date or earliest_trip.start_date
         if visit:
-            visit.first_visit_date = visit_date
+            # Only update if trip date is earlier (preserve check-in dates)
+            if visit.first_visit_date is None or visit_date < visit.first_visit_date:
+                visit.first_visit_date = visit_date
         else:
             db.add(Visit(tcc_destination_id=tcc_destination_id, first_visit_date=visit_date))
-    elif visit:
-        # No trips visit this destination anymore - clear the visit date
-        visit.first_visit_date = None
+    # If no trips, don't clear existing visit date (may have been set by check-in)
 
 
 def _trip_to_data(trip: Trip) -> TripData:
