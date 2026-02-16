@@ -4,7 +4,7 @@ from typing import Annotated, cast
 from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 from starlette.config import Config
 
@@ -38,6 +38,8 @@ oauth.register(
 
 
 class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     email: str
     name: str | None
@@ -45,9 +47,6 @@ class UserResponse(BaseModel):
     picture: str | None
     birthday: date | None
     is_admin: bool
-
-    class Config:
-        from_attributes = True
 
 
 @router.get("/me")
@@ -92,6 +91,7 @@ async def login(request: Request, redirect: str | None = None) -> RedirectRespon
             path="/",
             httponly=True,
             samesite="lax",
+            secure=settings.env == "production",
         )
     return response
 

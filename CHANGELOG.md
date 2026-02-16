@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.21.1 (2026-02-16)
+
+### Security
+- Restricted CORS to explicit HTTP methods and headers (was `*`)
+- Added max_length validation to contact form fields (name, subject, message)
+- Removed Markdown parse_mode from Telegram notifications (prevents injection)
+- Added `secure` flag to OAuth redirect cookie in production
+
+### Code Quality
+- Replaced deprecated `datetime.utcnow()` with `datetime.now(UTC)` (4 locations)
+- Replaced stray `print()` with structured logging in Instagram gap-fill
+- Replaced deprecated Pydantic `class Config` with `model_config = ConfigDict(...)`
+
+### Testing
+- Added test infrastructure with SQLite in-memory database
+- Added 25 tests covering health, contact form, auth, admin users, and photos
+- Added pytest step to CI pipeline
+
 ## 0.21.0 (2026-02-16)
 
 ### Performance

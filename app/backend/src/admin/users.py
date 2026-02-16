@@ -3,7 +3,7 @@ from typing import Annotated
 
 from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -17,6 +17,8 @@ router = APIRouter(prefix="/users", tags=["admin-users"])
 
 
 class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     email: str
     name: str | None
@@ -26,9 +28,6 @@ class UserResponse(BaseModel):
     is_admin: bool
     is_active: bool
     trips_count: int = 0
-
-    class Config:
-        from_attributes = True
 
 
 class UserListResponse(BaseModel):

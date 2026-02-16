@@ -21,7 +21,7 @@ log = get_logger(__name__)
 
 app = FastAPI(
     title="rembish.org API",
-    version="0.21.0",
+    version="0.21.1",
     docs_url="/docs" if settings.debug else None,
     redoc_url="/redoc" if settings.debug else None,
     openapi_url="/openapi.json" if settings.debug else None,
@@ -34,8 +34,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_url],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["content-type"],
 )
 
 
@@ -84,7 +84,6 @@ def send_telegram_message(text: str) -> bool:
             json={
                 "chat_id": chat_id,
                 "text": text,
-                "parse_mode": "Markdown",
             },
         )
         if response.is_success:
@@ -107,7 +106,7 @@ def health() -> dict[str, str]:
 def info() -> dict[str, str]:
     return {
         "name": "rembish.org",
-        "version": "0.21.0",
+        "version": "0.21.1",
     }
 
 
@@ -133,10 +132,10 @@ def verify_turnstile(token: str) -> bool:
 
 @app.post("/api/v1/contact")
 def contact(
-    name: str = Form(..., min_length=2),
+    name: str = Form(..., min_length=2, max_length=255),
     email: EmailStr = Form(...),
-    subject: str = Form(""),
-    message: str = Form(..., min_length=10),
+    subject: str = Form("", max_length=255),
+    message: str = Form(..., min_length=10, max_length=5000),
     website: str = Form(""),  # Honeypot
     ts: str = Form("0"),  # Timestamp when form was loaded
     cf_turnstile_response: str = Form(""),  # Turnstile token

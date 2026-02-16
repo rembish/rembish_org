@@ -47,6 +47,9 @@ jobs:
       - name: Backend typecheck (mypy)
         run: cd app/backend && mypy src/
 
+      - name: Backend tests (pytest)
+        run: cd app/backend && pytest tests/ -v
+
       - name: Frontend lint (eslint)
         run: cd app/frontend && npm run lint
 

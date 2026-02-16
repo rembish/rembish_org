@@ -1,5 +1,5 @@
 import time
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Annotated
 
 import httpx
@@ -329,7 +329,7 @@ def search_cities(
                                 display_name=nr.display_name,
                                 lat=nr.lat,
                                 lng=nr.lng,
-                                geocoded_at=datetime.utcnow(),
+                                geocoded_at=datetime.now(UTC),
                                 confidence="nominatim",
                             )
                         )

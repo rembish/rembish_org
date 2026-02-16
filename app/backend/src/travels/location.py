@@ -1,5 +1,5 @@
 import time
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from math import atan2, cos, radians, sin, sqrt
 from typing import Annotated
 
@@ -229,7 +229,7 @@ def get_nearby_cities(
                 else city_name,
                 lat=geocoded["lat"],
                 lng=geocoded["lng"],
-                geocoded_at=datetime.utcnow(),
+                geocoded_at=datetime.now(UTC),
                 confidence="nominatim",
             )
             db.add(new_city)
@@ -309,7 +309,7 @@ def check_in_location(
     if not city:
         raise HTTPException(status_code=404, detail="City not found")
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
 
     # Upsert user location
     location = db.query(UserLastLocation).filter(UserLastLocation.user_id == admin.id).first()

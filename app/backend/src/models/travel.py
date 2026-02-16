@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from enum import StrEnum
 
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text
@@ -155,7 +155,9 @@ class Trip(Base):
     # Hide from photos page (for trips with few/unimportant photos)
     hidden_from_photos: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+    )
 
     # Relationships
     destinations: Mapped[list["TripDestination"]] = relationship(

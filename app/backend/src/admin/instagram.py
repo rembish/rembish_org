@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from ..auth.session import get_admin_user
 from ..config import settings
 from ..database import get_db
+from ..log_config import get_logger
 from ..models import (
     City,
     InstagramMedia,
@@ -27,6 +28,7 @@ from ..models import (
 )
 from ..storage import StorageBackend, get_storage
 
+log = get_logger(__name__)
 router = APIRouter(prefix="/instagram", tags=["instagram"])
 
 # Instagram API config
@@ -981,7 +983,7 @@ def fill_gaps_stream(
                     except Exception as e:
                         db.rollback()
                         # Log but continue - we want to find all gaps
-                        print(f"Failed to fetch post {post_data['id']}: {e}")
+                        log.error(f"Failed to fetch post {post_data['id']}: {e}")
                         continue
 
                 # Send page progress update
