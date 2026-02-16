@@ -1,6 +1,9 @@
+import calendar
+import logging
 import time
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta, timezone
 from typing import Annotated
+from zoneinfo import ZoneInfo
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -22,12 +25,18 @@ from ..models import (
 from .models import (
     CitySearchResponse,
     CitySearchResult,
+    CountryHoliday,
+    CountryInfoData,
+    CountryInfoTCCDestination,
+    CurrencyInfo,
     HolidaysResponse,
     PublicHoliday,
+    SunriseSunset,
     TCCDestinationOption,
     TCCDestinationOptionsResponse,
     TripCityData,
     TripCityInput,
+    TripCountryInfoResponse,
     TripCreateRequest,
     TripData,
     TripDestinationData,
@@ -37,6 +46,7 @@ from .models import (
     TripUpdateRequest,
     UserOption,
     UserOptionsResponse,
+    WeatherInfo,
 )
 
 # Nominatim rate limiting - track last request time
@@ -46,6 +56,23 @@ _NOMINATIM_COOLDOWN = 1.0  # seconds between requests
 # Holidays cache: {(year, country_code): (holidays_list, timestamp)}
 _holidays_cache: dict[tuple[int, str], tuple[list[dict], float]] = {}
 _HOLIDAYS_CACHE_TTL = 86400  # 24 hours
+
+# Currency cache: {currency_code: (rates_dict, timestamp)}
+_currency_cache: dict[str, tuple[dict[str, float] | None, float]] = {}
+_CURRENCY_CACHE_TTL = 3600  # 1 hour
+
+# Weather cache: {(lat, lng, month): (data_dict, timestamp)}
+_weather_cache: dict[tuple[float, float, int], tuple[dict[str, float | None | int], float]] = {}
+_WEATHER_CACHE_TTL = 86400  # 24 hours
+
+# Sunrise/sunset cache: {(lat, lng, date_str): (data, timestamp)}
+_sunrise_cache: dict[tuple[float, float, str], tuple[SunriseSunset | None, float]] = {}
+_SUNRISE_CACHE_TTL = 86400  # 24 hours
+
+# Czech socket types for adapter comparison
+_CZ_SOCKETS = {"C", "E"}
+
+log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -739,3 +766,623 @@ def get_holidays(
     except Exception:
         # Return empty on any error (network, timeout, rate limit, etc.)
         return HolidaysResponse(holidays=[])
+
+
+_CURRENCY_NAMES: dict[str, str] = {
+    "AED": "UAE Dirham",
+    "AFN": "Afghani",
+    "ALL": "Lek",
+    "AMD": "Armenian Dram",
+    "ANG": "Netherlands Antillean Guilder",
+    "AOA": "Kwanza",
+    "ARS": "Argentine Peso",
+    "AUD": "Australian Dollar",
+    "AWG": "Aruban Florin",
+    "AZN": "Azerbaijani Manat",
+    "BAM": "Convertible Mark",
+    "BBD": "Barbados Dollar",
+    "BDT": "Taka",
+    "BGN": "Bulgarian Lev",
+    "BHD": "Bahraini Dinar",
+    "BIF": "Burundi Franc",
+    "BMD": "Bermudian Dollar",
+    "BND": "Brunei Dollar",
+    "BOB": "Boliviano",
+    "BRL": "Brazilian Real",
+    "BSD": "Bahamian Dollar",
+    "BTN": "Ngultrum",
+    "BWP": "Pula",
+    "BYN": "Belarusian Ruble",
+    "BZD": "Belize Dollar",
+    "CAD": "Canadian Dollar",
+    "CDF": "Congolese Franc",
+    "CHF": "Swiss Franc",
+    "CLP": "Chilean Peso",
+    "CNY": "Yuan Renminbi",
+    "COP": "Colombian Peso",
+    "CRC": "Costa Rican Colon",
+    "CUP": "Cuban Peso",
+    "CVE": "Cabo Verde Escudo",
+    "CZK": "Czech Koruna",
+    "DJF": "Djibouti Franc",
+    "DKK": "Danish Krone",
+    "DOP": "Dominican Peso",
+    "DZD": "Algerian Dinar",
+    "EGP": "Egyptian Pound",
+    "ERN": "Nakfa",
+    "ETB": "Ethiopian Birr",
+    "EUR": "Euro",
+    "FJD": "Fiji Dollar",
+    "FKP": "Falkland Islands Pound",
+    "GBP": "Pound Sterling",
+    "GEL": "Lari",
+    "GHS": "Ghana Cedi",
+    "GIP": "Gibraltar Pound",
+    "GMD": "Dalasi",
+    "GNF": "Guinean Franc",
+    "GTQ": "Quetzal",
+    "GYD": "Guyana Dollar",
+    "HKD": "Hong Kong Dollar",
+    "HNL": "Lempira",
+    "HRK": "Kuna",
+    "HTG": "Gourde",
+    "HUF": "Forint",
+    "IDR": "Rupiah",
+    "ILS": "New Israeli Sheqel",
+    "INR": "Indian Rupee",
+    "IQD": "Iraqi Dinar",
+    "IRR": "Iranian Rial",
+    "ISK": "Iceland Krona",
+    "JMD": "Jamaican Dollar",
+    "JOD": "Jordanian Dinar",
+    "JPY": "Yen",
+    "KES": "Kenyan Shilling",
+    "KGS": "Som",
+    "KHR": "Riel",
+    "KMF": "Comorian Franc",
+    "KPW": "North Korean Won",
+    "KRW": "Won",
+    "KWD": "Kuwaiti Dinar",
+    "KYD": "Cayman Islands Dollar",
+    "KZT": "Tenge",
+    "LAK": "Lao Kip",
+    "LBP": "Lebanese Pound",
+    "LKR": "Sri Lanka Rupee",
+    "LRD": "Liberian Dollar",
+    "LSL": "Loti",
+    "LYD": "Libyan Dinar",
+    "MAD": "Moroccan Dirham",
+    "MDL": "Moldovan Leu",
+    "MGA": "Malagasy Ariary",
+    "MKD": "Denar",
+    "MMK": "Kyat",
+    "MNT": "Tugrik",
+    "MOP": "Pataca",
+    "MRU": "Ouguiya",
+    "MUR": "Mauritius Rupee",
+    "MVR": "Rufiyaa",
+    "MWK": "Malawi Kwacha",
+    "MXN": "Mexican Peso",
+    "MYR": "Malaysian Ringgit",
+    "MZN": "Mozambique Metical",
+    "NAD": "Namibia Dollar",
+    "NGN": "Naira",
+    "NIO": "Cordoba Oro",
+    "NOK": "Norwegian Krone",
+    "NPR": "Nepalese Rupee",
+    "NZD": "New Zealand Dollar",
+    "OMR": "Rial Omani",
+    "PAB": "Balboa",
+    "PEN": "Sol",
+    "PGK": "Kina",
+    "PHP": "Philippine Peso",
+    "PKR": "Pakistan Rupee",
+    "PLN": "Zloty",
+    "PYG": "Guarani",
+    "QAR": "Qatari Rial",
+    "RON": "Romanian Leu",
+    "RSD": "Serbian Dinar",
+    "RUB": "Russian Ruble",
+    "RWF": "Rwanda Franc",
+    "SAR": "Saudi Riyal",
+    "SBD": "Solomon Islands Dollar",
+    "SCR": "Seychelles Rupee",
+    "SDG": "Sudanese Pound",
+    "SEK": "Swedish Krona",
+    "SGD": "Singapore Dollar",
+    "SHP": "Saint Helena Pound",
+    "SLE": "Leone",
+    "SOS": "Somali Shilling",
+    "SRD": "Surinam Dollar",
+    "SSP": "South Sudanese Pound",
+    "STN": "Dobra",
+    "SVC": "El Salvador Colon",
+    "SYP": "Syrian Pound",
+    "SZL": "Lilangeni",
+    "THB": "Baht",
+    "TJS": "Somoni",
+    "TMT": "Turkmenistan Manat",
+    "TND": "Tunisian Dinar",
+    "TOP": "Pa'anga",
+    "TRY": "Turkish Lira",
+    "TTD": "Trinidad and Tobago Dollar",
+    "TWD": "New Taiwan Dollar",
+    "TZS": "Tanzanian Shilling",
+    "UAH": "Hryvnia",
+    "UGX": "Uganda Shilling",
+    "USD": "US Dollar",
+    "UYU": "Peso Uruguayo",
+    "UZS": "Uzbekistan Sum",
+    "VES": "Bolivar Soberano",
+    "VND": "Dong",
+    "VUV": "Vatu",
+    "WST": "Tala",
+    "XAF": "CFA Franc BEAC",
+    "XCD": "East Caribbean Dollar",
+    "XOF": "CFA Franc BCEAO",
+    "XPF": "CFP Franc",
+    "YER": "Yemeni Rial",
+    "ZAR": "Rand",
+    "ZMW": "Zambian Kwacha",
+    "ZWL": "Zimbabwe Dollar",
+}
+
+
+def _get_currency_name(code: str) -> str | None:
+    return _CURRENCY_NAMES.get(code)
+
+
+def _fetch_currency_rates(currency_code: str) -> dict[str, float] | None:
+    """Fetch exchange rates with caching.
+
+    Uses Frankfurter (ECB) for supported currencies, falls back to
+    open.er-api.com (free, no key, 150+ currencies) for others.
+    """
+    now = time.time()
+    if currency_code in _currency_cache:
+        cached_rates, cached_time = _currency_cache[currency_code]
+        if now - cached_time < _CURRENCY_CACHE_TTL:
+            return cached_rates
+
+    # ECB-supported currencies via Frankfurter (more reliable)
+    ecb_supported = {
+        "AUD",
+        "BGN",
+        "BRL",
+        "CAD",
+        "CHF",
+        "CNY",
+        "CZK",
+        "DKK",
+        "EUR",
+        "GBP",
+        "HKD",
+        "HUF",
+        "IDR",
+        "ILS",
+        "INR",
+        "ISK",
+        "JPY",
+        "KRW",
+        "MXN",
+        "MYR",
+        "NOK",
+        "NZD",
+        "PHP",
+        "PLN",
+        "RON",
+        "SEK",
+        "SGD",
+        "THB",
+        "TRY",
+        "USD",
+        "ZAR",
+    }
+
+    rates = _fetch_frankfurter(currency_code) if currency_code in ecb_supported else None
+    if rates is None:
+        rates = _fetch_open_er(currency_code)
+
+    _currency_cache[currency_code] = (rates, now)
+    return rates
+
+
+def _fetch_frankfurter(currency_code: str) -> dict[str, float] | None:
+    """Fetch from Frankfurter API (ECB data, 31 currencies)."""
+    try:
+        targets = {"CZK", "EUR", "USD"} - {currency_code}
+        resp = httpx.get(
+            f"https://api.frankfurter.app/latest?from={currency_code}&to={','.join(sorted(targets))}",
+            timeout=5.0,
+        )
+        resp.raise_for_status()
+        rates: dict[str, float] = resp.json().get("rates", {})
+        rates[currency_code] = 1.0
+        return rates
+    except Exception:
+        log.warning("Frankfurter failed for %s", currency_code)
+        return None
+
+
+def _fetch_open_er(currency_code: str) -> dict[str, float] | None:
+    """Fetch from open.er-api.com (free, no key, 150+ currencies)."""
+    try:
+        resp = httpx.get(
+            f"https://open.er-api.com/v6/latest/{currency_code}",
+            timeout=5.0,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if data.get("result") != "success":
+            return None
+        all_rates = data.get("rates", {})
+        # Extract only the currencies we care about
+        result: dict[str, float] = {}
+        for target in ("CZK", "EUR", "USD", currency_code):
+            if target in all_rates:
+                result[target] = all_rates[target]
+        return result if result else None
+    except Exception:
+        log.warning("open.er-api failed for %s", currency_code)
+        return None
+
+
+def _fetch_weather(lat: float, lng: float, month: int) -> dict[str, float | None | int]:
+    """Fetch climate averages from Open-Meteo Climate API with caching."""
+    # Round coords to 2 decimal places for cache key stability
+    cache_key = (round(lat, 2), round(lng, 2), month)
+    now = time.time()
+    if cache_key in _weather_cache:
+        cached_data, cached_time = _weather_cache[cache_key]
+        if now - cached_time < _WEATHER_CACHE_TTL:
+            return cached_data
+
+    # Use a representative year range for climate data
+    year = 2020
+    last_day = min(28, calendar.monthrange(year, month)[1])
+    start = f"{year}-{month:02d}-01"
+    end = f"{year}-{month:02d}-{last_day:02d}"
+
+    try:
+        resp = httpx.get(
+            "https://climate-api.open-meteo.com/v1/climate",
+            params={
+                "latitude": lat,
+                "longitude": lng,
+                "start_date": start,
+                "end_date": end,
+                "daily": ",".join(
+                    [
+                        "temperature_2m_mean",
+                        "temperature_2m_min",
+                        "temperature_2m_max",
+                        "precipitation_sum",
+                    ]
+                ),
+                "models": "EC_Earth3P_HR",
+            },
+            timeout=10.0,
+        )
+        resp.raise_for_status()
+        daily = resp.json().get("daily", {})
+        temps = [t for t in (daily.get("temperature_2m_mean") or []) if t is not None]
+        mins = [t for t in (daily.get("temperature_2m_min") or []) if t is not None]
+        maxs = [t for t in (daily.get("temperature_2m_max") or []) if t is not None]
+        precip = [p for p in (daily.get("precipitation_sum") or []) if p is not None]
+        rainy = sum(1 for p in precip if p > 0.5)
+
+        result: dict[str, float | None | int] = {
+            "avg_temp_c": round(sum(temps) / len(temps), 1) if temps else None,
+            "min_temp_c": round(sum(mins) / len(mins), 1) if mins else None,
+            "max_temp_c": round(sum(maxs) / len(maxs), 1) if maxs else None,
+            "avg_precipitation_mm": round(sum(precip) / len(precip), 1) if precip else None,
+            "rainy_days": rainy if precip else None,
+        }
+        _weather_cache[cache_key] = (result, now)
+        return result
+    except Exception:
+        log.warning("Failed to fetch weather for (%.2f, %.2f, %d)", lat, lng, month)
+        fallback: dict[str, float | None | int] = {
+            "avg_temp_c": None,
+            "min_temp_c": None,
+            "max_temp_c": None,
+            "avg_precipitation_mm": None,
+            "rainy_days": None,
+        }
+        _weather_cache[cache_key] = (fallback, now)
+        return fallback
+
+
+def _fetch_sunrise_sunset(
+    lat: float, lng: float, trip_date: date, tz_offset: float | None
+) -> SunriseSunset | None:
+    """Fetch sunrise/sunset for a location and date."""
+    date_str = trip_date.isoformat()
+    cache_key = (round(lat, 2), round(lng, 2), date_str)
+    now = time.time()
+    if cache_key in _sunrise_cache:
+        cached, cached_time = _sunrise_cache[cache_key]
+        if now - cached_time < _SUNRISE_CACHE_TTL:
+            return cached
+
+    try:
+        resp = httpx.get(
+            "https://api.sunrise-sunset.org/json",
+            params={
+                "lat": lat,
+                "lng": lng,
+                "date": date_str,
+                "formatted": 0,
+            },
+            timeout=5.0,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if data.get("status") != "OK":
+            _sunrise_cache[cache_key] = (None, now)
+            return None
+
+        results = data["results"]
+        sunrise_utc = results["sunrise"]  # ISO 8601
+        sunset_utc = results["sunset"]
+        day_length = results.get("day_length", 0)
+
+        # Parse UTC times and apply timezone offset
+        offset_h = tz_offset if tz_offset is not None else 0
+        # tz_offset is relative to CET; compute actual UTC offset
+        # CET = UTC+1 (winter) or UTC+2 (summer)
+        try:
+            cet = ZoneInfo("Europe/Prague")
+            cet_offset = datetime(
+                trip_date.year, trip_date.month, trip_date.day, 12, tzinfo=cet
+            ).utcoffset()
+            cet_h = cet_offset.total_seconds() / 3600 if cet_offset else 1
+        except Exception:
+            cet_h = 1
+        country_utc_offset = cet_h + offset_h
+
+        tz = timezone(timedelta(hours=country_utc_offset))
+        sr = datetime.fromisoformat(sunrise_utc).astimezone(tz)
+        ss = datetime.fromisoformat(sunset_utc).astimezone(tz)
+
+        result = SunriseSunset(
+            sunrise=sr.strftime("%H:%M"),
+            sunset=ss.strftime("%H:%M"),
+            day_length_hours=round(day_length / 3600, 1),
+        )
+        _sunrise_cache[cache_key] = (result, now)
+        return result
+    except Exception:
+        log.warning("Failed sunrise/sunset for (%.2f, %.2f, %s)", lat, lng, date_str)
+        _sunrise_cache[cache_key] = (None, now)
+        return None
+
+
+def _needs_adapter(socket_types: str | None) -> bool | None:
+    """Check if country needs a power adapter (compared to Czech C/E)."""
+    if not socket_types:
+        return None
+    country_sockets = {s.strip() for s in socket_types.split(",")}
+    # Adapter not needed if country supports C or E (Czech standard)
+    return not bool(country_sockets & _CZ_SOCKETS)
+
+
+def _fetch_holidays_for_country(country_code: str, start: date, end: date) -> list[CountryHoliday]:
+    """Fetch public holidays for a country within a date range."""
+    holidays: list[CountryHoliday] = []
+
+    # Determine years to fetch
+    years = set()
+    for y in range(start.year, end.year + 1):
+        years.add(y)
+
+    for year in sorted(years):
+        cache_key = (year, country_code.upper())
+        now = time.time()
+
+        # Check cache
+        raw_holidays: list[dict] = []
+        if cache_key in _holidays_cache:
+            cached, cached_time = _holidays_cache[cache_key]
+            if now - cached_time < _HOLIDAYS_CACHE_TTL:
+                raw_holidays = cached
+            else:
+                raw_holidays = _fetch_holidays_raw(year, country_code)
+        else:
+            raw_holidays = _fetch_holidays_raw(year, country_code)
+
+        for h in raw_holidays:
+            h_date = h.get("date", "")
+            if h_date and start.isoformat() <= h_date <= end.isoformat():
+                holidays.append(
+                    CountryHoliday(
+                        date=h_date,
+                        name=h.get("name", ""),
+                        local_name=h.get("localName"),
+                    )
+                )
+
+    return sorted(holidays, key=lambda h: h.date)
+
+
+def _fetch_holidays_raw(year: int, country_code: str) -> list[dict]:
+    """Fetch raw holidays from Nager.Date API and cache them."""
+    cache_key = (year, country_code.upper())
+    try:
+        resp = httpx.get(
+            f"https://date.nager.at/api/v3/PublicHolidays/{year}/{country_code.upper()}",
+            timeout=10.0,
+        )
+        if resp.status_code in (204, 404):
+            _holidays_cache[cache_key] = ([], time.time())
+            return []
+        resp.raise_for_status()
+        data: list[dict] = resp.json()
+        _holidays_cache[cache_key] = (data, time.time())
+        return data
+    except Exception:
+        _holidays_cache[cache_key] = ([], time.time())
+        return []
+
+
+def _compute_timezone_offset(tz_name: str, ref_date: date) -> float | None:
+    """Compute timezone offset from CET in hours."""
+    try:
+        country_tz = ZoneInfo(tz_name)
+        cet_tz = ZoneInfo("Europe/Prague")
+        ref_dt = datetime(ref_date.year, ref_date.month, ref_date.day, 12, 0)
+        country_offset = ref_dt.replace(tzinfo=country_tz).utcoffset()
+        cet_offset = ref_dt.replace(tzinfo=cet_tz).utcoffset()
+        if country_offset is None or cet_offset is None:
+            return None
+        diff_seconds = (country_offset - cet_offset).total_seconds()
+        return diff_seconds / 3600
+    except Exception:
+        return None
+
+
+@router.get("/trips/{trip_id}/country-info", response_model=TripCountryInfoResponse)
+def get_trip_country_info(
+    trip_id: int,
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+) -> TripCountryInfoResponse:
+    """Get aggregated country reference data for a trip's destinations (admin only)."""
+    trip = (
+        db.query(Trip)
+        .options(
+            joinedload(Trip.destinations)
+            .joinedload(TripDestination.tcc_destination)
+            .joinedload(TCCDestination.un_country),
+        )
+        .filter(Trip.id == trip_id)
+        .first()
+    )
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    # Group TCC destinations by UN country
+    # Key: un_country_id (or negative tcc_id for orphans)
+    grouped: dict[int, tuple[UNCountry | None, list[tuple[str, bool]]]] = {}
+    for td in trip.destinations:
+        tcc = td.tcc_destination
+        un = tcc.un_country
+        key = un.id if un else -tcc.id
+        if key not in grouped:
+            grouped[key] = (un, [])
+        grouped[key][1].append((tcc.name, td.is_partial))
+
+    trip_start = trip.start_date
+    trip_end = trip.end_date or trip.start_date
+    # Use mid-trip date for weather month
+    mid_trip = trip_start + (trip_end - trip_start) / 2
+    trip_month = mid_trip.month
+
+    countries: list[CountryInfoData] = []
+    for _key, (un_country, tcc_dests) in sorted(
+        grouped.items(),
+        key=lambda x: x[1][0].name if x[1][0] else x[1][1][0][0],
+    ):
+        if un_country:
+            country_name = un_country.name
+            iso = un_country.iso_alpha2
+
+            # Currency
+            currency = None
+            if un_country.currency_code:
+                rates = _fetch_currency_rates(un_country.currency_code)
+                currency = CurrencyInfo(
+                    code=un_country.currency_code,
+                    name=_get_currency_name(un_country.currency_code),
+                    rates=rates,
+                )
+
+            # Weather
+            weather = None
+            if un_country.capital_lat is not None and un_country.capital_lng is not None:
+                w = _fetch_weather(un_country.capital_lat, un_country.capital_lng, trip_month)
+                rainy_days_val = w.get("rainy_days")
+                weather = WeatherInfo(
+                    avg_temp_c=w.get("avg_temp_c"),
+                    min_temp_c=w.get("min_temp_c"),
+                    max_temp_c=w.get("max_temp_c"),
+                    avg_precipitation_mm=w.get("avg_precipitation_mm"),
+                    rainy_days=int(rainy_days_val) if rainy_days_val is not None else None,
+                    month=calendar.month_name[trip_month],
+                )
+
+            # Timezone
+            tz_offset = None
+            if un_country.timezone:
+                tz_offset = _compute_timezone_offset(un_country.timezone, trip_start)
+
+            # Holidays
+            holidays = _fetch_holidays_for_country(iso, trip_start, trip_end)
+
+            # Sunrise/sunset for mid-trip date
+            sunrise_sunset = None
+            if un_country.capital_lat is not None and un_country.capital_lng is not None:
+                sunrise_sunset = _fetch_sunrise_sunset(
+                    un_country.capital_lat,
+                    un_country.capital_lng,
+                    mid_trip,
+                    tz_offset,
+                )
+
+            countries.append(
+                CountryInfoData(
+                    country_name=country_name,
+                    iso_alpha2=iso,
+                    tcc_destinations=[
+                        CountryInfoTCCDestination(name=n, is_partial=p) for n, p in tcc_dests
+                    ],
+                    socket_types=un_country.socket_types,
+                    voltage=un_country.voltage,
+                    phone_code=un_country.phone_code,
+                    driving_side=un_country.driving_side,
+                    emergency_number=un_country.emergency_number,
+                    tap_water=un_country.tap_water,
+                    currency=currency,
+                    weather=weather,
+                    timezone_offset_hours=tz_offset,
+                    holidays=holidays,
+                    languages=un_country.languages,
+                    tipping=un_country.tipping,
+                    speed_limits=un_country.speed_limits,
+                    visa_free_days=un_country.visa_free_days,
+                    eu_roaming=un_country.eu_roaming,
+                    adapter_needed=_needs_adapter(un_country.socket_types),
+                    sunrise_sunset=sunrise_sunset,
+                )
+            )
+        else:
+            # Orphan TCC destination (e.g., Kosovo) — minimal card
+            name = tcc_dests[0][0] if tcc_dests else "Unknown"
+            countries.append(
+                CountryInfoData(
+                    country_name=name,
+                    iso_alpha2="",
+                    tcc_destinations=[
+                        CountryInfoTCCDestination(name=n, is_partial=p) for n, p in tcc_dests
+                    ],
+                    socket_types=None,
+                    voltage=None,
+                    phone_code=None,
+                    driving_side=None,
+                    emergency_number=None,
+                    tap_water=None,
+                    currency=None,
+                    weather=None,
+                    timezone_offset_hours=None,
+                    holidays=[],
+                    languages=None,
+                    tipping=None,
+                    speed_limits=None,
+                    visa_free_days=None,
+                    eu_roaming=None,
+                    adapter_needed=None,
+                    sunrise_sunset=None,
+                )
+            )
+
+    return TripCountryInfoResponse(countries=countries)

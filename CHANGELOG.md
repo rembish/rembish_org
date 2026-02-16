@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.23.0 (2026-02-16)
+
+### Trip Info Tab — Extended Data
+- Added languages, tipping guide, speed limits, visa-free days (CZ passport), EU roaming status, sunrise/sunset times
+- Related data grouped together: adapter compatibility shown with sockets, speed limits with driving side, EU roaming with phone code, tipping with currency
+- Smart currency display: weak currencies auto-multiplied (e.g. "1000 VND = 1.02 CZK"), full currency name shown
+- Weather now shows min/max temperature range and rainy days count with icons
+- Local time displayed instead of timezone offset
+- Sunrise/sunset times for mid-trip date with day length
+- Socket types use common names (EU, UK, Schuko, etc.) instead of type letters
+- Info tab is now the default landing tab with its own URL (/info), refreshable
+- Visa status color-coded (green for visa-free, red for visa required)
+
+### Database
+- Migration 032: Added languages, tipping, speed limits, visa-free days, EU roaming to UN countries
+- Seeded extended reference data for all 193 UN member states
+
+## 0.22.0 (2026-02-16)
+
+### Trip Info Tab
+- New "Info" tab on trip edit page with aggregated country reference data
+- Per-country cards showing: power sockets (with visual icons), voltage, phone code, driving side, emergency number, tap water safety, currency exchange rates, weather averages, timezone offset from CET, and public holidays during trip
+- Socket type illustrations (A through O) for quick visual identification
+- Currency rates fetched live from ECB (31 currencies) with broader fallback (150+ currencies)
+- Weather averages from Open-Meteo climate API using capital city coordinates
+- Public holidays per country within trip dates (from Nager.Date API)
+- TCC destinations grouped under their parent UN country
+
+### Database
+- Added 10 reference columns to UN countries table (sockets, voltage, phone code, driving side, emergency number, tap water, currency, capital coordinates, timezone)
+- Seeded reference data for all 193 UN member states
+
 ## 0.21.1 (2026-02-16)
 
 ### Security

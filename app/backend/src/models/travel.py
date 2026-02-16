@@ -1,7 +1,7 @@
 from datetime import UTC, date, datetime
 from enum import StrEnum
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
@@ -34,6 +34,25 @@ class UNCountry(Base):
     # Activity tracking: driving_type = 'rental', 'own', or NULL
     driving_type: Mapped[str | None] = mapped_column(String(10), nullable=True)
     drone_flown: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+
+    # Reference data
+    socket_types: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    voltage: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    phone_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    driving_side: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    emergency_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    tap_water: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    currency_code: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    capital_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    capital_lng: Mapped[float | None] = mapped_column(Float, nullable=True)
+    timezone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+    # Extended reference data
+    languages: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    tipping: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    speed_limits: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    visa_free_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    eu_roaming: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
     tcc_destinations: Mapped[list["TCCDestination"]] = relationship(back_populates="un_country")
 

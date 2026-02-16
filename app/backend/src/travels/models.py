@@ -214,3 +214,63 @@ class CityMarkerData(BaseModel):
 
 class MapCitiesResponse(BaseModel):
     cities: list[CityMarkerData]
+
+
+# Country info models for trip info tab
+class CountryInfoTCCDestination(BaseModel):
+    name: str
+    is_partial: bool = False
+
+
+class CurrencyInfo(BaseModel):
+    code: str
+    name: str | None = None  # full currency name, e.g. "US Dollar"
+    rates: dict[str, float] | None  # {"CZK": 25.5, "EUR": 1.0, "USD": 1.08}
+
+
+class WeatherInfo(BaseModel):
+    avg_temp_c: float | None = None
+    min_temp_c: float | None = None  # night / daily minimum
+    max_temp_c: float | None = None  # day / daily maximum
+    avg_precipitation_mm: float | None = None
+    rainy_days: int | None = None  # days with precipitation > 0.5mm
+    month: str  # "January", "February", etc.
+
+
+class CountryHoliday(BaseModel):
+    date: str  # ISO date YYYY-MM-DD
+    name: str
+    local_name: str | None
+
+
+class SunriseSunset(BaseModel):
+    sunrise: str  # "06:42"
+    sunset: str  # "18:15"
+    day_length_hours: float  # 11.5
+
+
+class CountryInfoData(BaseModel):
+    country_name: str
+    iso_alpha2: str
+    tcc_destinations: list[CountryInfoTCCDestination]
+    socket_types: str | None
+    voltage: str | None
+    phone_code: str | None
+    driving_side: str | None
+    emergency_number: str | None
+    tap_water: str | None
+    currency: CurrencyInfo | None
+    weather: WeatherInfo | None
+    timezone_offset_hours: float | None  # +2.0 means "2h ahead of CET"
+    holidays: list[CountryHoliday]
+    languages: str | None
+    tipping: str | None
+    speed_limits: str | None  # "city/rural/highway" in km/h
+    visa_free_days: int | None  # NULL = unlimited (EU)
+    eu_roaming: bool | None
+    adapter_needed: bool | None  # computed: True if country sockets differ from CZ
+    sunrise_sunset: SunriseSunset | None
+
+
+class TripCountryInfoResponse(BaseModel):
+    countries: list[CountryInfoData]

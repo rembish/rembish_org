@@ -2421,12 +2421,303 @@ a {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 
   & h2 {
     font-size: 1.5rem;
     margin: 0;
   }
+}
+
+/* Trip Form Tabs */
+.trip-form-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.trip-form-tab {
+  padding: 0.625rem 1.25rem;
+  border: none;
+  background: none;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all var(--transition-fast);
+
+  &:hover {
+    color: var(--color-text);
+  }
+
+  &.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+  }
+}
+
+/* Country Info Panel */
+.country-info-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.country-info-loading,
+.country-info-empty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--color-text-secondary);
+}
+
+.country-info-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+
+.country-info-header {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 0.625rem;
+
+  & h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0;
+  }
+}
+
+.country-tcc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 0.75rem;
+}
+
+.country-tcc-tag {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+
+  &.partial {
+    opacity: 0.6;
+    font-style: italic;
+  }
+}
+
+.country-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
+
+  @media (width <= 480px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.country-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.375rem 0;
+}
+
+.info-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+}
+
+.info-value {
+  font-size: 0.875rem;
+  color: var(--color-text);
+}
+
+.socket-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.socket-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+}
+
+.socket-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+}
+
+.socket-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.emergency-number {
+  font-weight: 600;
+  color: #dc3545;
+}
+
+.tap-safe {
+  color: #198754;
+  font-weight: 500;
+}
+
+.tap-caution {
+  color: #f57c00;
+  font-weight: 500;
+}
+
+.tap-unsafe {
+  color: #dc3545;
+  font-weight: 500;
+}
+
+.currency-name {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.currency-rates {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  margin-top: 0.125rem;
+}
+
+.weather-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.weather-temp::before {
+  content: "\1F321\FE0F ";
+}
+
+.weather-rain::before {
+  content: "\1F327\FE0F ";
+}
+
+.weather-rain {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+/* Extended info styles */
+.driving-info,
+.phone-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.speed-limits {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.tipping-info {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  margin-top: 0.125rem;
+}
+
+.adapter-badge {
+  font-size: 0.625rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.visa-required {
+  color: #dc3545;
+  font-weight: 500;
+}
+
+.visa-free {
+  color: #198754;
+  font-weight: 500;
+}
+
+.roaming-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.roaming-eu {
+  color: #198754;
+  font-weight: 500;
+}
+
+.roaming-local {
+  color: var(--color-text-secondary);
+}
+
+.adapter-yes {
+  color: #f57c00;
+  font-weight: 500;
+}
+
+.adapter-no {
+  color: #198754;
+  font-weight: 500;
+}
+
+.sunrise-sunset {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Country holidays in info panel */
+.country-info-holidays {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.country-holidays-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.country-holiday-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  padding: 0.25rem 0;
+}
+
+.country-holiday-date {
+  font-weight: 500;
+  color: var(--color-text);
+  min-width: 3.5rem;
+  flex-shrink: 0;
+}
+
+.country-holiday-name {
+  flex: 1;
 }
 
 .trip-form-back-btn {

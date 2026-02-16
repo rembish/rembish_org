@@ -2100,7 +2100,7 @@ function TripsTab({
   };
 
   const handleEditTrip = (trip: Trip) => {
-    navigate(`/admin/trips/${trip.id}/edit`);
+    navigate(`/admin/trips/${trip.id}/info`);
   };
 
   // Handle calendar date click
