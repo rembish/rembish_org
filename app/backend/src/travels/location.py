@@ -254,7 +254,21 @@ def get_nearby_cities(
             db.commit()
 
     # Also search local database for other nearby cities within 50km
-    local_cities = db.query(City).filter(City.lat.isnot(None), City.lng.isnot(None)).all()
+    # Use bounding box pre-filter (50km ≈ 0.45° lat, wider for lng at equator)
+    lat_delta = 0.45
+    lng_delta = 0.45 / max(cos(radians(lat)), 0.01)
+    local_cities = (
+        db.query(City)
+        .filter(
+            City.lat.isnot(None),
+            City.lng.isnot(None),
+            City.lat >= lat - lat_delta,
+            City.lat <= lat + lat_delta,
+            City.lng >= lng - lng_delta,
+            City.lng <= lng + lng_delta,
+        )
+        .all()
+    )
 
     for city in local_cities:
         if city.lat is None or city.lng is None:
@@ -374,12 +388,20 @@ def check_in_location(
                     )
                     .all()
                 )
+                # Batch-load visits for all matching destinations
+                dest_ids = [td.tcc_destination_id for td in matching_destinations]
+                existing_visits = (
+                    {
+                        v.tcc_destination_id: v
+                        for v in db.query(Visit)
+                        .filter(Visit.tcc_destination_id.in_(dest_ids))
+                        .all()
+                    }
+                    if dest_ids
+                    else {}
+                )
                 for td in matching_destinations:
-                    visit = (
-                        db.query(Visit)
-                        .filter(Visit.tcc_destination_id == td.tcc_destination_id)
-                        .first()
-                    )
+                    visit = existing_visits.get(td.tcc_destination_id)
                     if visit:
                         # Update if no date set or if trip start is earlier
                         if visit.first_visit_date is None or visit.first_visit_date > visit_date:

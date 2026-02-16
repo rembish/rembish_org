@@ -88,67 +88,118 @@ class ToggleHiddenResponse(BaseModel):
     is_hidden: bool
 
 
-def _get_thumbnail_media_id(db: Session, trip_id: int) -> int | None:
-    """Get the thumbnail media ID for a trip (cover photo or most recent)."""
-    # First try to find a cover photo
-    cover_post = (
+def _batch_get_thumbnail_media_ids(db: Session, trip_ids: list[int]) -> dict[int, int]:
+    """Get thumbnail media IDs for multiple trips in batch.
+
+    Returns a dict of trip_id -> media_id. Trips without valid thumbnails
+    are omitted.
+    """
+    if not trip_ids:
+        return {}
+
+    result: dict[int, int] = {}
+
+    # 1) Cover posts: trips that have an explicit cover photo
+    cover_posts = (
         db.query(InstagramPost)
         .join(InstagramMedia, InstagramMedia.post_id == InstagramPost.id)
         .filter(
-            InstagramPost.trip_id == trip_id,
+            InstagramPost.trip_id.in_(trip_ids),
             InstagramPost.is_cover.is_(True),
             InstagramPost.labeled_at.isnot(None),
             InstagramPost.skipped.is_(False),
             InstagramMedia.media_type != "VIDEO",
         )
-        .first()
+        .all()
     )
 
-    if cover_post:
-        # Use specific cover media if set (carousel support)
-        if cover_post.cover_media_id:
-            return cover_post.cover_media_id
-        # Fallback to first non-video media from cover post
-        media = (
+    cover_post_ids: list[int] = []
+    for post in cover_posts:
+        if post.trip_id is None or post.trip_id in result:
+            continue
+        if post.cover_media_id:
+            result[post.trip_id] = post.cover_media_id
+        else:
+            cover_post_ids.append(post.id)
+
+    # Get first non-video media for cover posts without cover_media_id
+    if cover_post_ids:
+        cover_media = (
             db.query(InstagramMedia)
             .filter(
-                InstagramMedia.post_id == cover_post.id,
+                InstagramMedia.post_id.in_(cover_post_ids),
                 InstagramMedia.media_type != "VIDEO",
             )
-            .order_by(InstagramMedia.media_order)
-            .first()
+            .order_by(InstagramMedia.post_id, InstagramMedia.media_order)
+            .all()
         )
-        if media:
-            return media.id
+        # Map post_id -> first media, then map back to trip_id
+        post_to_media: dict[int, int] = {}
+        for m in cover_media:
+            if m.post_id not in post_to_media:
+                post_to_media[m.post_id] = m.id
+        post_id_to_trip: dict[int, int] = {
+            p.id: p.trip_id
+            for p in cover_posts
+            if p.trip_id is not None and p.trip_id not in result
+        }
+        for post_id, media_id in post_to_media.items():
+            trip_id = post_id_to_trip.get(post_id)
+            if trip_id and trip_id not in result:
+                result[trip_id] = media_id
 
-    # Fallback to most recent photo
-    recent_post = (
+    # 2) Fallback: trips without covers — use most recent labeled post
+    remaining = [tid for tid in trip_ids if tid not in result]
+    if not remaining:
+        return result
+
+    # Get the most recent labeled post per remaining trip
+    recent_posts = (
         db.query(InstagramPost)
         .join(InstagramMedia, InstagramMedia.post_id == InstagramPost.id)
         .filter(
-            InstagramPost.trip_id == trip_id,
+            InstagramPost.trip_id.in_(remaining),
             InstagramPost.labeled_at.isnot(None),
             InstagramPost.skipped.is_(False),
             InstagramMedia.media_type != "VIDEO",
         )
-        .order_by(InstagramPost.posted_at.desc())
-        .first()
+        .order_by(
+            InstagramPost.trip_id,
+            InstagramPost.posted_at.desc(),
+        )
+        .all()
     )
 
-    if recent_post:
-        media = (
+    # Pick first (most recent) post per trip
+    recent_post_ids: list[int] = []
+    seen_trips: set[int] = set()
+    recent_post_trip_map: dict[int, int] = {}
+    for post in recent_posts:
+        if post.trip_id is not None and post.trip_id not in seen_trips:
+            seen_trips.add(post.trip_id)
+            recent_post_ids.append(post.id)
+            recent_post_trip_map[post.id] = post.trip_id
+
+    if recent_post_ids:
+        fallback_media = (
             db.query(InstagramMedia)
             .filter(
-                InstagramMedia.post_id == recent_post.id,
+                InstagramMedia.post_id.in_(recent_post_ids),
                 InstagramMedia.media_type != "VIDEO",
             )
-            .order_by(InstagramMedia.media_order)
-            .first()
+            .order_by(InstagramMedia.post_id, InstagramMedia.media_order)
+            .all()
         )
-        if media:
-            return media.id
+        fb_post_to_media: dict[int, int] = {}
+        for m in fallback_media:
+            if m.post_id not in fb_post_to_media:
+                fb_post_to_media[m.post_id] = m.id
+        for post_id, media_id in fb_post_to_media.items():
+            trip_id = recent_post_trip_map.get(post_id)
+            if trip_id and trip_id not in result:
+                result[trip_id] = media_id
 
-    return None
+    return result
 
 
 @router.get("", response_model=PhotosIndexResponse)
@@ -190,13 +241,17 @@ def get_photos_index(
 
     trips_data = query.order_by(Trip.start_date.desc()).all()
 
-    # Group by year and get thumbnails
+    # Batch-load thumbnails for all trips at once
+    all_trip_ids = [trip.id for trip, _ in trips_data]
+    thumbnail_map = _batch_get_thumbnail_media_ids(db, all_trip_ids)
+
+    # Group by year
     years_dict: dict[int, list[PhotoTripSummary]] = {}
     total_photos = 0
     total_trips = 0
 
     for trip, photo_count in trips_data:
-        thumbnail_id = _get_thumbnail_media_id(db, trip.id)
+        thumbnail_id = thumbnail_map.get(trip.id)
         if thumbnail_id is None:
             continue  # Skip trips without valid thumbnails
 

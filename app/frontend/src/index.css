@@ -268,7 +268,7 @@ a {
   padding: 2rem;
   background:
     linear-gradient(to right, rgb(255 255 255 / 85%), rgb(255 255 255 / 70%)),
-    url("/hero-bg.jpg") top right / cover no-repeat;
+    url("/hero-bg.webp") top right / cover no-repeat;
 
   @media (width >= 992px) {
     padding-inline-start: calc(var(--header-width) + 60px);
@@ -5475,4 +5475,13 @@ a {
     margin-inline: 1rem;
     font-size: 0.8125rem;
   }
+}
+
+/* Lazy-load page placeholder */
+.loading-page {
+  display: grid;
+  place-items: center;
+  min-block-size: 50vh;
+  color: var(--color-text-light);
+  font-size: 1rem;
 }

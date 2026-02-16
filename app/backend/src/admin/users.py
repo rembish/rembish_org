@@ -4,12 +4,13 @@ from typing import Annotated
 from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..auth.session import get_admin_user
 from ..database import get_db
 from ..log_config import get_logger
-from ..models import User
+from ..models import TripParticipant, User
 
 log = get_logger(__name__)
 router = APIRouter(prefix="/users", tags=["admin-users"])
@@ -86,9 +87,16 @@ def list_users(
     db: Session = Depends(get_db),
 ) -> UserListResponse:
     """List all users except the current admin."""
-    users = db.query(User).filter(User.id != admin.id).order_by(User.email).all()
+    rows = (
+        db.query(User, func.count(TripParticipant.id).label("trips_count"))
+        .outerjoin(TripParticipant, TripParticipant.user_id == User.id)
+        .filter(User.id != admin.id)
+        .group_by(User.id)
+        .order_by(User.email)
+        .all()
+    )
     result = []
-    for user in users:
+    for user, trips_count in rows:
         user_dict = {
             "id": user.id,
             "email": user.email,
@@ -98,7 +106,7 @@ def list_users(
             "birthday": user.birthday,
             "is_admin": user.is_admin,
             "is_active": user.is_active,
-            "trips_count": len(user.trip_participations),
+            "trips_count": trips_count,
         }
         result.append(UserResponse.model_validate(user_dict))
     return UserListResponse(users=result)

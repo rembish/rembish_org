@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.21.0 (2026-02-16)
+
+### Performance
+- Added composite database index for Instagram labeler navigation queries
+- Photos index page loads thumbnails in batch (2-3 queries instead of N per trip)
+- Travel stats page loads TCC destinations with eager-loaded country data
+- Admin user list counts trips via SQL instead of loading all participations
+- Location nearby search uses SQL bounding box pre-filter before distance calculation
+- Trip create/update validates destinations and participants in batch queries
+- Frontend code splitting: pages lazy-loaded on navigation (smaller initial bundle)
+- Hero background image converted from JPG (305KB) to WebP (93KB)
+- Removed unused `flag-icons` dependency (flags served from local SVGs)
+
 ## 0.20.1 (2026-02-16)
 
 ### Security Headers

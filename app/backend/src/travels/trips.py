@@ -462,20 +462,21 @@ def _create_trip_relations(
     participant_ids: list[int],
 ) -> None:
     """Create trip destinations, cities, and participants."""
-    # Add destinations
-    for dest_input in destinations:
-        tcc_dest = (
-            db.query(TCCDestination)
-            .filter(TCCDestination.id == dest_input.tcc_destination_id)
-            .first()
-        )
-        if tcc_dest:
-            trip.destinations.append(
-                TripDestination(
-                    tcc_destination_id=dest_input.tcc_destination_id,
-                    is_partial=dest_input.is_partial,
+    # Batch-validate destinations
+    if destinations:
+        dest_ids = [d.tcc_destination_id for d in destinations]
+        valid_dests = {
+            d.id for d in db.query(TCCDestination.id).filter(TCCDestination.id.in_(dest_ids)).all()
+        }
+        dest_partial = {d.tcc_destination_id: d.is_partial for d in destinations}
+        for dest_id in dest_ids:
+            if dest_id in valid_dests:
+                trip.destinations.append(
+                    TripDestination(
+                        tcc_destination_id=dest_id,
+                        is_partial=dest_partial[dest_id],
+                    )
                 )
-            )
 
     # Add cities
     for i, city_input in enumerate(cities):
@@ -487,11 +488,12 @@ def _create_trip_relations(
             )
         )
 
-    # Add participants
-    for user_id in participant_ids:
-        user = db.query(User).filter(User.id == user_id).first()
-        if user:
-            trip.participants.append(TripParticipant(user_id=user_id))
+    # Batch-validate participants
+    if participant_ids:
+        valid_users = {u.id for u in db.query(User.id).filter(User.id.in_(participant_ids)).all()}
+        for user_id in participant_ids:
+            if user_id in valid_users:
+                trip.participants.append(TripParticipant(user_id=user_id))
 
 
 @router.post("/trips", response_model=TripData)
@@ -576,15 +578,20 @@ def update_trip(
 
     # Update destinations if provided
     if request.destinations is not None:
+        # Batch-validate destination IDs
+        dest_ids = [d.tcc_destination_id for d in request.destinations]
+        valid_dests = (
+            {
+                d.id
+                for d in db.query(TCCDestination.id).filter(TCCDestination.id.in_(dest_ids)).all()
+            }
+            if dest_ids
+            else set()
+        )
         # Clear existing and recreate
         trip.destinations.clear()
         for dest_input in request.destinations:
-            tcc_dest = (
-                db.query(TCCDestination)
-                .filter(TCCDestination.id == dest_input.tcc_destination_id)
-                .first()
-            )
-            if tcc_dest:
+            if dest_input.tcc_destination_id in valid_dests:
                 trip.destinations.append(
                     TripDestination(
                         tcc_destination_id=dest_input.tcc_destination_id,
@@ -609,10 +616,14 @@ def update_trip(
 
     # Update participants if provided
     if request.participant_ids is not None:
+        valid_users = (
+            {u.id for u in db.query(User.id).filter(User.id.in_(request.participant_ids)).all()}
+            if request.participant_ids
+            else set()
+        )
         trip.participants.clear()
         for user_id in request.participant_ids:
-            user = db.query(User).filter(User.id == user_id).first()
-            if user:
+            if user_id in valid_users:
                 trip.participants.append(TripParticipant(user_id=user_id))
 
     db.flush()

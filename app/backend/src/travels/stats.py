@@ -6,7 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from ..auth import get_current_user_optional
 from ..database import get_db
@@ -77,11 +77,10 @@ def get_travel_stats(
 
     today = date.today()
 
-    # Get started trips (start_date <= today) - includes ongoing trips
-    started_trips = db.query(Trip).filter(Trip.start_date <= today).order_by(Trip.start_date).all()
-
-    # Get future/planned trips (start_date > today)
-    future_trips = db.query(Trip).filter(Trip.start_date > today).order_by(Trip.start_date).all()
+    # Single query for all trips, split in Python
+    all_trips = db.query(Trip).order_by(Trip.start_date).all()
+    started_trips = [t for t in all_trips if t.start_date <= today]
+    future_trips = [t for t in all_trips if t.start_date > today]
 
     planned_trips_count = len(future_trips)
 
@@ -94,8 +93,8 @@ def get_travel_stats(
     else:
         trips = started_trips
 
-    # Get TCC destinations with their UN country info
-    tcc_destinations = db.query(TCCDestination).all()
+    # Get TCC destinations with their UN country info (eager-load to avoid N+1)
+    tcc_destinations = db.query(TCCDestination).options(joinedload(TCCDestination.un_country)).all()
     tcc_info: dict[int, tuple[str, str | None]] = {}  # tcc_id -> (name, iso_code)
     for tcc in tcc_destinations:
         # Use TCC's own iso_alpha2 first (for non-UN territories), then fall back to UN country
