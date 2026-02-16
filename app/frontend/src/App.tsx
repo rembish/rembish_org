@@ -6,6 +6,7 @@ import Projects from "./pages/Projects";
 import Photos from "./pages/Photos";
 import Travels from "./pages/Travels";
 import Admin from "./pages/Admin";
+import TripFormPage from "./pages/TripFormPage";
 import Contact from "./pages/Contact";
 import Changelog from "./pages/Changelog";
 
@@ -20,6 +21,8 @@ function App() {
         <Route path="/photos/:tripId" element={<Photos />} />
         <Route path="/travels" element={<Travels />} />
         <Route path="/travels/:tab" element={<Travels />} />
+        <Route path="/admin/trips/new" element={<TripFormPage />} />
+        <Route path="/admin/trips/:tripId/edit" element={<TripFormPage />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/admin/:tab" element={<Admin />} />
         <Route path="/admin/:tab/:year" element={<Admin />} />

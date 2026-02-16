@@ -22,7 +22,6 @@ import {
 } from "react-icons/bi";
 import { TbDrone } from "react-icons/tb";
 import { useAuth } from "../hooks/useAuth";
-import TripFormModal, { TripFormData } from "../components/TripFormModal";
 import UserFormModal, { UserFormData } from "../components/UserFormModal";
 
 interface TripDestination {
@@ -1891,13 +1890,11 @@ function TripsTab({
   selectedYear: number | null;
   onYearChange: (year: number) => void;
 }) {
+  const navigate = useNavigate();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [tccOptions, setTccOptions] = useState<TCCDestinationOption[]>([]);
-  const [preselectedDate, setPreselectedDate] = useState<string | null>(null);
 
   // View mode: table or calendar
   const [viewMode, setViewMode] = useState<"table" | "calendar">(() => {
@@ -2099,15 +2096,11 @@ function TripsTab({
   };
 
   const handleAddTrip = () => {
-    setEditingTrip(null);
-    setPreselectedDate(null);
-    setModalOpen(true);
+    navigate("/admin/trips/new");
   };
 
   const handleEditTrip = (trip: Trip) => {
-    setEditingTrip(trip);
-    setPreselectedDate(null);
-    setModalOpen(true);
+    navigate(`/admin/trips/${trip.id}/edit`);
   };
 
   // Handle calendar date click
@@ -2115,9 +2108,7 @@ function TripsTab({
     if (trip) {
       handleEditTrip(trip);
     } else {
-      setEditingTrip(null);
-      setPreselectedDate(date);
-      setModalOpen(true);
+      navigate(`/admin/trips/new?date=${date}`);
     }
   };
 
@@ -2138,76 +2129,6 @@ function TripsTab({
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to delete trip");
     }
-  };
-
-  const handleSaveTrip = async (data: TripFormData) => {
-    const url = editingTrip
-      ? `/api/v1/travels/trips/${editingTrip.id}`
-      : "/api/v1/travels/trips";
-    const method = editingTrip ? "PUT" : "POST";
-
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(data),
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.detail || "Failed to save trip");
-    }
-
-    fetchTrips();
-  };
-
-  // Convert Trip to TripFormData for editing or preselected date for new trip
-  const getInitialFormData = (): TripFormData | null => {
-    if (editingTrip) {
-      return {
-        start_date: editingTrip.start_date,
-        end_date: editingTrip.end_date,
-        trip_type: editingTrip.trip_type,
-        flights_count: editingTrip.flights_count,
-        working_days: editingTrip.working_days,
-        rental_car: editingTrip.rental_car,
-        description: editingTrip.description,
-        destinations: editingTrip.destinations
-          .map((d) => {
-            const tccOpt = tccOptions.find((o) => o.name === d.name);
-            return {
-              tcc_destination_id: tccOpt?.id || 0,
-              is_partial: d.is_partial,
-            };
-          })
-          .filter((d) => d.tcc_destination_id !== 0),
-        cities: editingTrip.cities.map((c) => ({
-          name: c.name,
-          is_partial: c.is_partial,
-        })),
-        participant_ids: editingTrip.participants.map((p) => p.id),
-        other_participants_count: editingTrip.other_participants_count,
-      };
-    }
-
-    // If preselected date from calendar, return form with that date
-    if (preselectedDate) {
-      return {
-        start_date: preselectedDate,
-        end_date: null,
-        trip_type: "regular",
-        flights_count: null,
-        working_days: null,
-        rental_car: null,
-        description: null,
-        destinations: [],
-        cities: [],
-        participant_ids: [],
-        other_participants_count: null,
-      };
-    }
-
-    return null;
   };
 
   return (
@@ -2462,21 +2383,6 @@ function TripsTab({
       <div className="trips-total">
         Total: {trips.length} trips across {years.length} years
       </div>
-
-      <TripFormModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSave={handleSaveTrip}
-        onDelete={
-          editingTrip
-            ? async () => {
-                await deleteTripById(editingTrip.id);
-              }
-            : undefined
-        }
-        initialData={getInitialFormData()}
-        title={editingTrip ? "Edit Trip" : "Add Trip"}
-      />
     </div>
   );
 }

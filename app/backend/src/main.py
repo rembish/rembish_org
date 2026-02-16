@@ -21,7 +21,7 @@ log = get_logger(__name__)
 
 app = FastAPI(
     title="rembish.org API",
-    version="0.20.0",
+    version="0.20.1",
     docs_url="/docs" if settings.debug else None,
     redoc_url="/redoc" if settings.debug else None,
     openapi_url="/openapi.json" if settings.debug else None,
@@ -46,8 +46,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = (
+            "camera=(), microphone=(), geolocation=(), payment=()"
+        )
         if settings.env == "production":
-            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains; preload"
+            )
         return response
 
 
@@ -101,7 +107,7 @@ def health() -> dict[str, str]:
 def info() -> dict[str, str]:
     return {
         "name": "rembish.org",
-        "version": "0.20.0",
+        "version": "0.20.1",
     }
 
 

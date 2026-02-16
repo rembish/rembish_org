@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.20.1 (2026-02-16)
+
+### Security Headers
+- Fixed Content-Security-Policy to allow all external resources the site actually uses
+- Added Cloudflare Turnstile domains to `script-src` and `frame-src`
+- Added Google Fonts to `style-src` and `font-src`
+- Added map tiles, Leaflet icons, and Google avatars to `img-src`
+- Mozilla Observatory score: D → A/A+ (expected after deploy)
+
+### Trip Form: Modal to Full Page
+- Trip create/edit form is now a proper page instead of a modal overlay
+- New URLs: `/admin/trips/new` and `/admin/trips/:id/edit` (bookmarkable, refreshable)
+- Calendar date click navigates to `/admin/trips/new?date=YYYY-MM-DD`
+- Back arrow replaces the X close button
+- Fixes mobile usability: form scrolls naturally, all buttons always accessible (Save, Cancel, Delete were previously hidden behind iOS Safari bottom bar on 95vh modal)
+
 ## 0.20.0 (2026-02-16)
 
 ### Cover Photo Selection for Carousels
