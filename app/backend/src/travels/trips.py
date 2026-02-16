@@ -151,6 +151,7 @@ def _search_nominatim(
     query: str,
     country_name: str | None = None,
     fallback_country_code: str | None = None,
+    country_codes: list[str] | None = None,
 ) -> list[CitySearchResult]:
     """Search Nominatim with rate limiting. Returns empty list on error."""
     global _nominatim_last_request
@@ -171,6 +172,9 @@ def _search_nominatim(
     if country_name:
         # Single country - use structured search with country name
         params["country"] = country_name
+    elif country_codes:
+        # Multiple countries - use countrycodes filter (comma-separated ISO alpha-2)
+        params["countrycodes"] = ",".join(c.lower() for c in country_codes)
 
     try:
         _nominatim_last_request = time.time()
@@ -296,7 +300,10 @@ def search_cities(
             un_country = db.query(UNCountry).filter(UNCountry.iso_alpha2 == codes[0]).first()
             if un_country:
                 country_name = un_country.name
-        nominatim_results = _search_nominatim(q, country_name, fallback_code)
+        multi_codes = codes if codes and len(codes) > 1 else None
+        nominatim_results = _search_nominatim(
+            q, country_name, fallback_code, country_codes=multi_codes
+        )
         # Add only non-duplicate results
         local_names = {r.name.lower() for r in results}
         for nr in nominatim_results:
@@ -587,6 +594,8 @@ def update_trip(
 
     # Update cities if provided
     if request.cities is not None:
+        # Preserve city_id links set by location check-in
+        old_city_ids = {tc.name: tc.city_id for tc in trip.cities if tc.city_id}
         trip.cities.clear()
         for i, city_input in enumerate(request.cities):
             trip.cities.append(
@@ -594,6 +603,7 @@ def update_trip(
                     name=city_input.name,
                     is_partial=city_input.is_partial,
                     order=i,
+                    city_id=old_city_ids.get(city_input.name),
                 )
             )
 

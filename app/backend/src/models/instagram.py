@@ -39,6 +39,9 @@ class InstagramPost(Base):
     )
     is_aerial: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     is_cover: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    cover_media_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("instagram_media.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Workflow
     labeled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -47,7 +50,10 @@ class InstagramPost(Base):
 
     # Relationships
     media: Mapped[list["InstagramMedia"]] = relationship(
-        back_populates="post", cascade="all, delete-orphan", order_by="InstagramMedia.media_order"
+        back_populates="post",
+        cascade="all, delete-orphan",
+        order_by="InstagramMedia.media_order",
+        foreign_keys="[InstagramMedia.post_id]",
     )
     un_country: Mapped["UNCountry | None"] = relationship()
     tcc_destination: Mapped["TCCDestination | None"] = relationship()
@@ -76,7 +82,9 @@ class InstagramMedia(Base):
     downloaded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
-    post: Mapped[InstagramPost] = relationship(back_populates="media")
+    post: Mapped[InstagramPost] = relationship(
+        back_populates="media", foreign_keys="[InstagramMedia.post_id]"
+    )
 
     def __repr__(self) -> str:
         return f"<InstagramMedia #{self.id}: post={self.post_id} order={self.media_order}>"

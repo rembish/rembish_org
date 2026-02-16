@@ -93,7 +93,7 @@ def _get_thumbnail_media_id(db: Session, trip_id: int) -> int | None:
     # First try to find a cover photo
     cover_post = (
         db.query(InstagramPost)
-        .join(InstagramMedia)
+        .join(InstagramMedia, InstagramMedia.post_id == InstagramPost.id)
         .filter(
             InstagramPost.trip_id == trip_id,
             InstagramPost.is_cover.is_(True),
@@ -105,7 +105,10 @@ def _get_thumbnail_media_id(db: Session, trip_id: int) -> int | None:
     )
 
     if cover_post:
-        # Get first non-video media from cover post
+        # Use specific cover media if set (carousel support)
+        if cover_post.cover_media_id:
+            return cover_post.cover_media_id
+        # Fallback to first non-video media from cover post
         media = (
             db.query(InstagramMedia)
             .filter(
@@ -121,7 +124,7 @@ def _get_thumbnail_media_id(db: Session, trip_id: int) -> int | None:
     # Fallback to most recent photo
     recent_post = (
         db.query(InstagramPost)
-        .join(InstagramMedia)
+        .join(InstagramMedia, InstagramMedia.post_id == InstagramPost.id)
         .filter(
             InstagramPost.trip_id == trip_id,
             InstagramPost.labeled_at.isnot(None),
@@ -273,7 +276,8 @@ def get_trip_photos(
                     caption=post.caption,
                     posted_at=post.posted_at.isoformat(),
                     is_aerial=post.is_aerial or False,
-                    is_cover=post.is_cover,
+                    is_cover=post.is_cover
+                    and (media.id == post.cover_media_id if post.cover_media_id else True),
                     destination=post.tcc_destination.name if post.tcc_destination else None,
                     permalink=post.permalink,
                 )
@@ -301,7 +305,7 @@ def set_cover_photo(
     # Verify the media belongs to a labeled post in this trip
     media = (
         db.query(InstagramMedia)
-        .join(InstagramPost)
+        .join(InstagramPost, InstagramPost.id == InstagramMedia.post_id)
         .filter(
             InstagramMedia.id == media_id,
             InstagramPost.trip_id == trip_id,
@@ -318,12 +322,13 @@ def set_cover_photo(
     db.query(InstagramPost).filter(
         InstagramPost.trip_id == trip_id,
         InstagramPost.is_cover.is_(True),
-    ).update({"is_cover": False})
+    ).update({"is_cover": False, "cover_media_id": None})
 
-    # Set the new cover
+    # Set the new cover with specific media
     post = db.query(InstagramPost).filter(InstagramPost.id == media.post_id).first()
     if post:
         post.is_cover = True
+        post.cover_media_id = media_id
 
     db.commit()
 
@@ -361,7 +366,7 @@ def get_public_media_file(
     # Get media with associated post
     media = (
         db.query(InstagramMedia)
-        .join(InstagramPost)
+        .join(InstagramPost, InstagramPost.id == InstagramMedia.post_id)
         .filter(
             InstagramMedia.id == media_id,
             InstagramPost.labeled_at.isnot(None),

@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.20.0 (2026-02-16)
+
+### Cover Photo Selection for Carousels
+- Cover photo now remembers the specific image from a carousel post
+- Previously, setting a carousel post as cover always showed the first image
+- Star indicator on photos page now marks only the selected cover image, not the entire carousel
+- When editing a cover post in the labeler, the carousel auto-scrolls to the selected cover image
+
+### Location & Geocoding Improvements
+- Reverse geocode now finds smaller settlements (hamlets, suburbs, counties)
+- Local city search radius expanded from 15km to 50km for remote areas
+- Zoom level increased from city (10) to village (14) for finer granularity
+- Administrative prefixes stripped from city names (e.g., "Commune de Grand-Bassam" → "Grand-Bassam")
+
+### Trip Editing Fixes
+- City search in trip edit now filters by all trip countries (was only filtering for single-country trips)
+- City-to-database links preserved when editing trip cities (were previously lost on save)
+
+### Mobile UX Improvements
+- Map legend and view toggle moved below map on mobile (were covering the map)
+- Compact single-line legend with icon for "Show cities" toggle on mobile
+- Trip edit dialog buttons: single row with icon-only delete button (fixes Safari bottom bar overlap)
+- Photo lightbox captions now scrollable with thin translucent scrollbar
+
+### Admin Improvements
+- Partial cities shown individually in parentheses in trip table, preserving order
+- "Close Ones" tab moved after Instagram tab
+- Cover checkbox (C key) in labeler now captures the currently viewed carousel image
+
 ## 0.19.2 (2026-02-08)
 
 ### Bug Fixes

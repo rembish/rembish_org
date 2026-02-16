@@ -110,7 +110,7 @@ def _reverse_geocode(lat: float, lng: float) -> dict | None:
                 "lon": lng,
                 "format": "json",
                 "addressdetails": 1,
-                "zoom": 10,  # City level
+                "zoom": 14,  # Suburb/village level (10 misses small settlements)
             },
             headers={
                 "User-Agent": "rembish.org travel tracker (hobby project)",
@@ -126,16 +126,42 @@ def _reverse_geocode(lat: float, lng: float) -> dict | None:
 
         address = data.get("address", {})
 
-        # Get city name from address
+        # Get city name from address (ordered from most to least specific)
         city_name = (
             address.get("city")
             or address.get("town")
             or address.get("village")
             or address.get("municipality")
+            or address.get("hamlet")
+            or address.get("suburb")
+            or address.get("county")
+            or address.get("state_district")
         )
 
         if not city_name:
             return None
+
+        # Strip administrative prefixes (Commune de, District de, etc.)
+        for prefix in (
+            "Commune de ",
+            "Commune d'",
+            "Commune du ",
+            "District de ",
+            "District d'",
+            "District du ",
+            "Département de ",
+            "Département d'",
+            "Département du ",
+            "Municipality of ",
+            "City of ",
+            "Municipio de ",
+            "Municipio del ",
+            "Prefeitura de ",
+            "Concelho de ",
+        ):
+            if city_name.startswith(prefix):
+                city_name = city_name[len(prefix) :]
+                break
 
         return {
             "name": city_name,
@@ -238,7 +264,7 @@ def get_nearby_cities(
             continue
 
         distance = haversine_km(lat, lng, city.lat, city.lng)
-        if distance <= 15:
+        if distance <= 50:
             nearby.append(
                 NearbyCityData(
                     id=city.id,

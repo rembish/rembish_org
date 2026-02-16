@@ -7,7 +7,14 @@ import {
   ZoomableGroup,
   Marker,
 } from "react-simple-maps";
-import { BiWorld, BiMapAlt, BiGlobe, BiX, BiTrip } from "react-icons/bi";
+import {
+  BiWorld,
+  BiMapAlt,
+  BiGlobe,
+  BiX,
+  BiTrip,
+  BiBuildings,
+} from "react-icons/bi";
 import { FaCar } from "react-icons/fa";
 import { TbDrone } from "react-icons/tb";
 import { useAuth } from "../hooks/useAuth";
@@ -523,7 +530,7 @@ export default function Travels() {
           />
           <span className="map-legend-label">Recent</span>
         </div>
-        <label className="map-legend-toggle">
+        <label className="map-legend-toggle" title="Show cities">
           <input
             type="checkbox"
             checked={showCities}
@@ -535,7 +542,8 @@ export default function Travels() {
               );
             }}
           />
-          <span>Show cities</span>
+          <span className="map-legend-toggle-label">Show cities</span>
+          <BiBuildings className="map-legend-toggle-icon" />
         </label>
       </div>
     );

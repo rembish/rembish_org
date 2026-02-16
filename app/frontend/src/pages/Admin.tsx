@@ -110,6 +110,7 @@ interface InstagramPost {
   city_id: number | null;
   is_aerial: boolean | null;
   is_cover: boolean;
+  cover_media_id: number | null;
   suggested_trip: {
     id: number;
     start_date: string;
@@ -482,8 +483,6 @@ function InstagramTab({
 
   const fetchPostByIgId = useCallback(
     (igId: string) => {
-      setCurrentImageIndex(0);
-
       // Check if we have this post preloaded
       const cached = preloadedPosts.current.get(igId);
       if (cached) {
@@ -491,6 +490,13 @@ function InstagramTab({
         setPost(cached);
         setIsAerial(cached.is_aerial || false);
         setIsCover(cached.is_cover || false);
+        // Set carousel index to cover media if editing a cover post
+        const coverIdx = cached.cover_media_id
+          ? cached.media.findIndex(
+              (m: { id: number }) => m.id === cached.cover_media_id,
+            )
+          : -1;
+        setCurrentImageIndex(coverIdx >= 0 ? coverIdx : 0);
         setSelectedTripId(cached.trip_id || cached.suggested_trip?.id || null);
         setSelectedTccId(cached.tcc_destination_id || null);
         // Czech Republic default is handled by effect when tccOptions loads
@@ -528,6 +534,13 @@ function InstagramTab({
           setPost(data);
           setIsAerial(data?.is_aerial || false);
           setIsCover(data?.is_cover || false);
+          // Set carousel index to cover media if editing a cover post
+          const cIdx = data?.cover_media_id
+            ? data.media.findIndex(
+                (m: { id: number }) => m.id === data.cover_media_id,
+              )
+            : -1;
+          setCurrentImageIndex(cIdx >= 0 ? cIdx : 0);
           // Set trip from saved value or suggestion
           setSelectedTripId(data?.trip_id || data?.suggested_trip?.id || null);
           setSelectedTccId(data?.tcc_destination_id || null);
@@ -829,6 +842,10 @@ function InstagramTab({
               skip,
               is_aerial: skip ? null : isAerial,
               is_cover: skip ? false : isCover,
+              cover_media_id:
+                !skip && isCover && post.media[currentImageIndex]
+                  ? post.media[currentImageIndex].id
+                  : null,
               un_country_id: null,
               tcc_destination_id: skip ? null : selectedTccId,
               trip_id: tripId,
@@ -881,6 +898,7 @@ function InstagramTab({
       selectedTripId,
       isAerial,
       isCover,
+      currentImageIndex,
       selectedTccId,
       nextIgId,
       fetching,
@@ -2404,12 +2422,13 @@ function TripsTab({
                   {trip.cities.length > 0 && (
                     <div className="trip-cities">
                       {trip.cities.map((city, i) => (
-                        <span
-                          key={i}
-                          className={city.is_partial ? "city-partial" : ""}
-                        >
+                        <span key={city.name}>
                           {i > 0 && ", "}
-                          {city.name}
+                          {city.is_partial ? (
+                            <span className="city-partial">({city.name})</span>
+                          ) : (
+                            city.name
+                          )}
                         </span>
                       ))}
                     </div>
@@ -2527,16 +2546,16 @@ export default function Admin() {
             Trips
           </button>
           <button
-            className={`admin-tab ${activeTab === "close-ones" ? "active" : ""}`}
-            onClick={() => setActiveTab("close-ones")}
-          >
-            Close Ones
-          </button>
-          <button
             className={`admin-tab ${activeTab === "instagram" ? "active" : ""}`}
             onClick={() => setActiveTab("instagram")}
           >
             Instagram
+          </button>
+          <button
+            className={`admin-tab ${activeTab === "close-ones" ? "active" : ""}`}
+            onClick={() => setActiveTab("close-ones")}
+          >
+            Close Ones
           </button>
         </div>
 

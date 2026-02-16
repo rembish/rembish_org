@@ -836,8 +836,10 @@ export default function TripFormModal({
                     onClose();
                   }
                 }}
+                title="Delete trip"
               >
-                <BiTrash /> Delete
+                <BiTrash />
+                <span className="btn-delete-label">Delete</span>
               </button>
             )}
             <div className="modal-actions-right">

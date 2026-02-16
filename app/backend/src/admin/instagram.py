@@ -69,6 +69,7 @@ class InstagramPostData(BaseModel):
     city_id: int | None
     is_aerial: bool | None
     is_cover: bool
+    cover_media_id: int | None
     # Suggestions
     suggested_trip: dict | None
     previous_labels: dict | None
@@ -92,6 +93,7 @@ class LabelRequest(BaseModel):
     city_id: int | None = None
     is_aerial: bool | None = None
     is_cover: bool = False
+    cover_media_id: int | None = None
     skip: bool = False
 
 
@@ -432,6 +434,7 @@ def get_next_unlabeled_post(
         city_id=post.city_id,
         is_aerial=post.is_aerial,
         is_cover=post.is_cover,
+        cover_media_id=post.cover_media_id,
         suggested_trip=suggested_trip,
         previous_labels=previous_labels,
     )
@@ -499,6 +502,7 @@ def get_post_by_ig_id(
         city_id=post.city_id,
         is_aerial=post.is_aerial,
         is_cover=post.is_cover,
+        cover_media_id=post.cover_media_id,
         suggested_trip=suggested_trip,
         previous_labels=None,
     )
@@ -535,10 +539,12 @@ def label_post(
                 InstagramPost.trip_id == data.trip_id,
                 InstagramPost.id != post.id,
                 InstagramPost.is_cover.is_(True),
-            ).update({"is_cover": False})
+            ).update({"is_cover": False, "cover_media_id": None})
             post.is_cover = True
+            post.cover_media_id = data.cover_media_id
         else:
             post.is_cover = False
+            post.cover_media_id = None
 
     db.commit()
 
