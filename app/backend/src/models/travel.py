@@ -192,6 +192,9 @@ class Trip(Base):
     cities: Mapped[list["TripCity"]] = relationship(
         back_populates="trip", cascade="all, delete-orphan", order_by="TripCity.order"
     )
+    flights: Mapped[list["Flight"]] = relationship(
+        back_populates="trip", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Trip #{self.id}: {self.start_date}>"
@@ -286,6 +289,62 @@ class TripCity(Base):
 
     def __repr__(self) -> str:
         return f"<TripCity trip={self.trip_id} name={self.name}>"
+
+
+class Airport(Base):
+    """Airport reference data, upserted from AeroDataBox API responses."""
+
+    __tablename__ = "airports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    iata_code: Mapped[str] = mapped_column(String(3), unique=True, nullable=False, index=True)
+    name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    country_code: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    timezone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<Airport #{self.id}: {self.iata_code}>"
+
+
+class Flight(Base):
+    """Individual flight record linked to a trip."""
+
+    __tablename__ = "flights"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    trip_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    flight_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    flight_number: Mapped[str] = mapped_column(String(10), nullable=False)
+    airline_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    departure_airport_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("airports.id"), nullable=False
+    )
+    arrival_airport_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("airports.id"), nullable=False
+    )
+    departure_time: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    arrival_time: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    arrival_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    terminal: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    arrival_terminal: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    gate: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    aircraft_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    seat: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    booking_reference: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Relationships
+    trip: Mapped[Trip] = relationship(back_populates="flights")
+    departure_airport: Mapped[Airport] = relationship(foreign_keys=[departure_airport_id])
+    arrival_airport: Mapped[Airport] = relationship(foreign_keys=[arrival_airport_id])
+
+    def __repr__(self) -> str:
+        return f"<Flight #{self.id}: {self.flight_number} on {self.flight_date}>"
 
 
 # Import to complete relationship

@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.27.0 (2026-02-17)
+
+### Flight Tracking
+- Transport tab on trip edit page: add flights by number + date with AeroDataBox API auto-fill
+- Flight lookup shows multiple legs (connecting flights) with airport names for selection
+- Manual flight entry for when API is unavailable (historical or far-future flights)
+- Auto-syncing flights_count: trip counter updates automatically when flights are added/deleted
+- Self-healing: viewing the transport tab corrects any stale flight count
+- Arrival date support for overnight flights with +1 badge
+- Trip context bar on transport tab: dates, destinations, cities with flags for email cross-referencing
+- API date range notice: warns when trip dates are outside AeroDataBox coverage (1 year back, ~6 weeks ahead)
+
+### Flights on World Map
+- New "Flights" layer on the Travels map with great-circle arc routes between airports
+- Airport markers with names on hover
+- Route thickness and opacity scale by flight count
+- Countries with airports highlighted in warm background
+- Legend shows route and airport counts
+
+### Calendar Flight Icons
+- Small plane icon on calendar days that have flights recorded
+- New lightweight endpoint for fetching flight dates by year
+
+### Mobile Improvements
+- "Add Trip" and "Add Event" buttons collapse to icon-only on mobile
+- ICS feed button hidden on mobile
+
+### Database
+- Migration 037: airports table (IATA code, name, city, country, coordinates, timezone) + flights table
+- Migration 038: arrival_date column on flights for overnight flights
+
 ## 0.26.0 (2026-02-17)
 
 ### Photos Page Redesign

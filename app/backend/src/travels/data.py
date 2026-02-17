@@ -8,7 +8,9 @@ from sqlalchemy.sql.functions import coalesce
 from ..auth.session import get_admin_user
 from ..database import get_db
 from ..models import (
+    Airport,
     City,
+    Flight,
     Microstate,
     NMRegion,
     TCCDestination,
@@ -21,6 +23,9 @@ from ..models import (
 )
 from .models import (
     CityMarkerData,
+    FlightMapAirport,
+    FlightMapData,
+    FlightMapRoute,
     MapCitiesResponse,
     MapData,
     MicrostateData,
@@ -569,4 +574,83 @@ def get_map_cities(db: Session = Depends(get_db)) -> MapCitiesResponse:
             CityMarkerData(name=name, lat=lat, lng=lng, is_partial=bool(is_partial))
             for name, lat, lng, is_partial in cities
         ]
+    )
+
+
+@router.get("/map-flights", response_model=FlightMapData)
+def get_map_flights(db: Session = Depends(get_db)) -> FlightMapData:
+    """Get airports and flight routes for the map flights layer (past flights only)."""
+    today = date.today()
+
+    # Only include past/today flights
+    past_flights = (
+        db.query(Flight.departure_airport_id, Flight.arrival_airport_id)
+        .filter(Flight.flight_date <= today)
+        .all()
+    )
+
+    # Get unique airport IDs from past flights only
+    dep_ids = {r[0] for r in past_flights}
+    arr_ids = {r[1] for r in past_flights}
+    all_ids = dep_ids | arr_ids
+
+    airports = (
+        db.query(Airport)
+        .filter(Airport.id.in_(all_ids))
+        .filter(Airport.latitude.isnot(None), Airport.longitude.isnot(None))
+        .all()
+    )
+
+    airport_data = [
+        FlightMapAirport(
+            iata_code=a.iata_code,
+            name=a.name,
+            lat=a.latitude,  # type: ignore[arg-type]  # filtered above
+            lng=a.longitude,  # type: ignore[arg-type]  # filtered above
+        )
+        for a in airports
+    ]
+
+    # Get route counts (normalize direction: always smaller IATA first)
+    flights = past_flights
+
+    # Build IATA lookup
+    iata_by_id = {a.id: a.iata_code for a in airports}
+    route_counts: dict[tuple[str, str], int] = {}
+    for dep_id, arr_id in flights:
+        dep_iata = iata_by_id.get(dep_id)
+        arr_iata = iata_by_id.get(arr_id)
+        if not dep_iata or not arr_iata:
+            continue
+        # Normalize: alphabetically smaller first
+        key = (min(dep_iata, arr_iata), max(dep_iata, arr_iata))
+        route_counts[key] = route_counts.get(key, 0) + 1
+
+    route_data = [
+        FlightMapRoute(from_iata=k[0], to_iata=k[1], count=v) for k, v in route_counts.items()
+    ]
+
+    # Count airports per country code
+    cc_counts: dict[str, int] = {}
+    for a in airports:
+        if a.country_code:
+            cc_counts[a.country_code] = cc_counts.get(a.country_code, 0) + 1
+
+    # Map country codes to region codes with airport counts
+    country_regions: dict[str, int] = {}
+    if cc_counts:
+        un_countries = (
+            db.query(UNCountry.iso_alpha2, UNCountry.map_region_codes)
+            .filter(UNCountry.iso_alpha2.in_(cc_counts.keys()))
+            .all()
+        )
+        for iso2, codes_str in un_countries:
+            count = cc_counts[iso2]
+            for code in codes_str.split(","):
+                country_regions[code.strip()] = count
+
+    return FlightMapData(
+        airports=airport_data,
+        routes=route_data,
+        country_regions=country_regions,
     )

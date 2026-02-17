@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     instagram_account_id: str = ""
     instagram_page_token: str = ""
 
+    # AeroDataBox (optional — empty = flight lookup disabled)
+    aerodatabox_api_key: str = ""
+
     # GCS Storage (empty = use local storage for dev)
     gcs_bucket: str = ""
 

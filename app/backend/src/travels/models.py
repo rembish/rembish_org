@@ -85,6 +85,7 @@ class TripDestinationData(BaseModel):
 class TripCityData(BaseModel):
     name: str
     is_partial: bool
+    country_code: str | None = None
 
 
 class TripParticipantData(BaseModel):
@@ -222,6 +223,25 @@ class MapCitiesResponse(BaseModel):
     cities: list[CityMarkerData]
 
 
+class FlightMapAirport(BaseModel):
+    iata_code: str
+    name: str | None
+    lat: float
+    lng: float
+
+
+class FlightMapRoute(BaseModel):
+    from_iata: str
+    to_iata: str
+    count: int
+
+
+class FlightMapData(BaseModel):
+    airports: list[FlightMapAirport]
+    routes: list[FlightMapRoute]
+    country_regions: dict[str, int]  # map region code -> airport count
+
+
 # Country info models for trip info tab
 class CountryInfoTCCDestination(BaseModel):
     name: str
@@ -320,3 +340,75 @@ class EventUpdateRequest(BaseModel):
     title: str | None = None
     note: str | None = None
     category: str | None = None
+
+
+# Flight models
+class AirportData(BaseModel):
+    id: int
+    iata_code: str
+    name: str | None
+    city: str | None
+    country_code: str | None
+
+
+class FlightData(BaseModel):
+    id: int
+    trip_id: int
+    flight_date: str  # ISO date (departure)
+    flight_number: str
+    airline_name: str | None
+    departure_airport: AirportData
+    arrival_airport: AirportData
+    departure_time: str | None
+    arrival_time: str | None
+    arrival_date: str | None  # ISO date, null if same as flight_date
+    terminal: str | None
+    arrival_terminal: str | None
+    gate: str | None
+    aircraft_type: str | None
+    seat: str | None
+    booking_reference: str | None
+    notes: str | None
+
+
+class FlightLookupLeg(BaseModel):
+    flight_number: str
+    airline_name: str | None
+    departure_iata: str
+    departure_name: str | None
+    arrival_iata: str
+    arrival_name: str | None
+    departure_time: str | None  # "HH:MM"
+    arrival_time: str | None  # "HH:MM"
+    departure_date: str | None  # YYYY-MM-DD
+    arrival_date: str | None  # YYYY-MM-DD (if different from departure)
+    terminal: str | None
+    arrival_terminal: str | None
+    aircraft_type: str | None
+
+
+class FlightLookupResponse(BaseModel):
+    legs: list[FlightLookupLeg]
+    error: str | None = None
+
+
+class FlightCreateRequest(BaseModel):
+    flight_date: str  # YYYY-MM-DD (departure)
+    flight_number: str
+    airline_name: str | None = None
+    departure_iata: str
+    arrival_iata: str
+    departure_time: str | None = None
+    arrival_time: str | None = None
+    arrival_date: str | None = None  # YYYY-MM-DD, null if same day
+    terminal: str | None = None
+    arrival_terminal: str | None = None
+    gate: str | None = None
+    aircraft_type: str | None = None
+    seat: str | None = None
+    booking_reference: str | None = None
+    notes: str | None = None
+
+
+class FlightsResponse(BaseModel):
+    flights: list[FlightData]

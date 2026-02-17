@@ -4,6 +4,7 @@ import {
   ComposableMap,
   Geographies,
   Geography,
+  Line,
   ZoomableGroup,
   Marker,
 } from "react-simple-maps";
@@ -80,6 +81,25 @@ interface CurrentLocation {
   lat: number;
   lng: number;
   admin_picture: string | null;
+}
+
+interface FlightMapAirport {
+  iata_code: string;
+  name: string | null;
+  lat: number;
+  lng: number;
+}
+
+interface FlightMapRoute {
+  from_iata: string;
+  to_iata: string;
+  count: number;
+}
+
+interface FlightMapData {
+  airports: FlightMapAirport[];
+  routes: FlightMapRoute[];
+  country_regions: Record<string, number>;
 }
 
 // Calculate color based on visit count (hue) and visit date (lightness)
@@ -256,8 +276,11 @@ export default function Travels() {
   );
   const [activitySaving, setActivitySaving] = useState(false);
   const [mapViewMode, setMapViewMode] = useState<
-    "visits" | "driving" | "drone"
+    "visits" | "driving" | "drone" | "flights"
   >("visits");
+  const [flightMapData, setFlightMapData] = useState<FlightMapData | null>(
+    null,
+  );
   const [statCarouselIndex, setStatCarouselIndex] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
 
@@ -317,13 +340,15 @@ export default function Travels() {
       setMapData(mapDataResult);
       setMapLoading(false);
 
-      // Fetch UN, TCC, stats, and city data in parallel
-      const [unRes, tccRes, statsRes, citiesRes] = await Promise.all([
-        fetch("/api/v1/travels/un-countries"),
-        fetch("/api/v1/travels/tcc-destinations"),
-        fetch("/api/v1/travels/stats"),
-        fetch("/api/v1/travels/map-cities"),
-      ]);
+      // Fetch UN, TCC, stats, city, and flight data in parallel
+      const [unRes, tccRes, statsRes, citiesRes, flightsRes] =
+        await Promise.all([
+          fetch("/api/v1/travels/un-countries"),
+          fetch("/api/v1/travels/tcc-destinations"),
+          fetch("/api/v1/travels/stats"),
+          fetch("/api/v1/travels/map-cities"),
+          fetch("/api/v1/travels/map-flights"),
+        ]);
 
       if (unRes.ok) {
         const unResult = await unRes.json();
@@ -346,6 +371,11 @@ export default function Travels() {
       if (citiesRes.ok) {
         const citiesResult = await citiesRes.json();
         setCityMarkers(citiesResult.cities || []);
+      }
+
+      if (flightsRes.ok) {
+        const flightsResult: FlightMapData = await flightsRes.json();
+        setFlightMapData(flightsResult);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -464,9 +494,19 @@ export default function Travels() {
     } else if (mapViewMode === "driving") {
       if (!unCountry?.driving_type) return "#e6e9ec";
       return unCountry.driving_type === "own" ? "#e74c3c" : "#3498db";
-    } else {
-      // drone
+    } else if (mapViewMode === "drone") {
       return unCountry?.drone_flown ? "#9b59b6" : "#e6e9ec";
+    } else {
+      // flights — intensity based on airport count
+      const airportCount = flightMapData?.country_regions[geoId];
+      if (!airportCount) return "#e6e9ec";
+      // Scale: 1 airport = lightest, 5+ = darkest
+      const t = Math.min((airportCount - 1) / 4, 1);
+      // Interpolate from light peach to warm orange
+      const r = Math.round(253 - t * 30);
+      const g = Math.round(232 - t * 100);
+      const b = Math.round(208 - t * 140);
+      return `rgb(${r}, ${g}, ${b})`;
     }
   };
 
@@ -501,6 +541,24 @@ export default function Travels() {
               style={{ background: "#9b59b6" }}
             />
             <span className="map-legend-label">Flew drone</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (mapViewMode === "flights") {
+      return (
+        <div className="map-legend">
+          <div className="map-legend-row">
+            <span className="map-legend-label">1 airport</span>
+            <div
+              className="map-legend-gradient"
+              style={{
+                background:
+                  "linear-gradient(to right, rgb(253,232,208), rgb(223,132,68))",
+              }}
+            />
+            <span className="map-legend-label">5+</span>
           </div>
         </div>
       );
@@ -573,6 +631,12 @@ export default function Travels() {
             onClick={() => setMapViewMode("drone")}
           >
             Drone
+          </button>
+          <button
+            className={`map-view-btn ${mapViewMode === "flights" ? "active" : ""}`}
+            onClick={() => setMapViewMode("flights")}
+          >
+            Flights
           </button>
         </div>
         <ComposableMap
@@ -681,6 +745,64 @@ export default function Travels() {
                   />
                 </Marker>
               ))}
+            {/* Flight routes and airports */}
+            {mapViewMode === "flights" &&
+              flightMapData &&
+              (() => {
+                const airportByIata = new Map(
+                  flightMapData.airports.map((a) => [a.iata_code, a]),
+                );
+                const maxCount = Math.max(
+                  ...flightMapData.routes.map((r) => r.count),
+                  1,
+                );
+                return (
+                  <>
+                    {flightMapData.routes.map((route) => {
+                      const from = airportByIata.get(route.from_iata);
+                      const to = airportByIata.get(route.to_iata);
+                      if (!from || !to) return null;
+                      const opacity = 0.3 + 0.7 * (route.count / maxCount);
+                      return (
+                        <Line
+                          key={`${route.from_iata}-${route.to_iata}`}
+                          from={[from.lng, from.lat]}
+                          to={[to.lng, to.lat]}
+                          stroke="#e67e22"
+                          strokeWidth={0.5 + (route.count / maxCount) * 1.5}
+                          strokeLinecap="round"
+                          fill="transparent"
+                          style={{ opacity }}
+                        />
+                      );
+                    })}
+                    {flightMapData.airports.map((airport) => (
+                      <Marker
+                        key={airport.iata_code}
+                        coordinates={[airport.lng, airport.lat]}
+                      >
+                        <circle
+                          r={1.5}
+                          fill="#e67e22"
+                          stroke="#ffffff"
+                          strokeWidth={0.3}
+                          style={{ cursor: "pointer" }}
+                          onMouseEnter={(e) => {
+                            setTooltip({
+                              name: airport.name
+                                ? `${airport.iata_code} — ${airport.name}`
+                                : airport.iata_code,
+                              x: e.clientX,
+                              y: e.clientY,
+                            });
+                          }}
+                          onMouseLeave={() => setTooltip(null)}
+                        />
+                      </Marker>
+                    ))}
+                  </>
+                );
+              })()}
             {/* Special location markers - stars for birthplace and home */}
             <Marker coordinates={[82.9357, 55.0084]}>
               <polygon

@@ -39,6 +39,10 @@ function App() {
           <Route path="/admin/trips/new" element={<TripFormPage />} />
           <Route path="/admin/trips/:tripId/edit" element={<TripFormPage />} />
           <Route path="/admin/trips/:tripId/info" element={<TripFormPage />} />
+          <Route
+            path="/admin/trips/:tripId/transport"
+            element={<TripFormPage />}
+          />
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/:tab" element={<Admin />} />
           <Route path="/admin/:tab/:year" element={<Admin />} />

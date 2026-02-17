@@ -168,7 +168,7 @@ jobs:
             --image ${{ env.REGISTRY }}/${{ env.BACKEND_SERVICE }}:${{ steps.version.outputs.VERSION }} \
             --region ${{ env.REGION }} \
             --platform managed \
-            --update-secrets=INSTAGRAM_ACCOUNT_ID=rembish-org-instagram-account-id:latest,INSTAGRAM_PAGE_TOKEN=rembish-org-instagram-page-token:latest \
+            --update-secrets=INSTAGRAM_ACCOUNT_ID=rembish-org-instagram-account-id:latest,INSTAGRAM_PAGE_TOKEN=rembish-org-instagram-page-token:latest,AERODATABOX_API_KEY=rembish-org-aerodatabox-api-key:latest \
             --update-env-vars=GCS_BUCKET=rembish-org-photos
 
       - name: Deploy frontend to Cloud Run

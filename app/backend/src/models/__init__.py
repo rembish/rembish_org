@@ -3,7 +3,9 @@ from .instagram import InstagramMedia, InstagramPost
 from .location import UserLastLocation
 from .setting import AppSetting
 from .travel import (
+    Airport,
     City,
+    Flight,
     Microstate,
     NMRegion,
     TCCDestination,
@@ -17,20 +19,22 @@ from .travel import (
 from .user import User
 
 __all__ = [
+    "Airport",
     "AppSetting",
-    "PersonalEvent",
-    "User",
-    "UserLastLocation",
-    "UNCountry",
-    "TCCDestination",
-    "Visit",
+    "City",
+    "Flight",
+    "InstagramMedia",
+    "InstagramPost",
     "Microstate",
     "NMRegion",
+    "PersonalEvent",
+    "TCCDestination",
     "Trip",
-    "City",
     "TripCity",
     "TripDestination",
     "TripParticipant",
-    "InstagramPost",
-    "InstagramMedia",
+    "UNCountry",
+    "User",
+    "UserLastLocation",
+    "Visit",
 ]

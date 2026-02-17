@@ -1676,6 +1676,7 @@ interface YearCalendarViewProps {
   czechHolidays: Holiday[];
   birthdays: UserBirthday[];
   events: PersonalEvent[];
+  flightDates: Set<string>;
   onDateClick: (date: string, trip?: Trip, event?: PersonalEvent) => void;
   tccOptions: TCCDestinationOption[];
 }
@@ -1687,6 +1688,7 @@ function YearCalendarView({
   czechHolidays,
   birthdays,
   events,
+  flightDates,
   onDateClick,
   tccOptions,
 }: YearCalendarViewProps) {
@@ -1933,6 +1935,9 @@ function YearCalendarView({
           )}
           {hasTripOnBirthday && <BiCake className="day-icon day-icon-left" />}
           {hasTripOnHoliday && <BiParty className="day-icon day-icon-right" />}
+          {trip && flightDates.has(dateStr) && (
+            <BiPaperPlane className="day-icon day-icon-bottom" />
+          )}
         </div>,
       );
     }
@@ -2195,6 +2200,23 @@ function TripsTab({
       .catch(() => setVacationSummary(null));
   }, [selectedYear]);
 
+  // Flight dates for calendar icons
+  const [flightDates, setFlightDates] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!selectedYear) {
+      setFlightDates(new Set());
+      return;
+    }
+
+    fetch(`/api/v1/travels/flights/dates?year=${selectedYear}`, {
+      credentials: "include",
+    })
+      .then((res) => res.json())
+      .then((data) => setFlightDates(new Set(data.dates || [])))
+      .catch(() => setFlightDates(new Set()));
+  }, [selectedYear]);
+
   if (loading) {
     return <p>Loading trips...</p>;
   }
@@ -2325,14 +2347,19 @@ function TripsTab({
           >
             {viewMode === "table" ? <BiCalendar /> : <BiTable />}
           </button>
-          <button className="btn-add-trip" onClick={handleAddTrip}>
-            <BiPlus /> Add Trip
+          <button
+            className="btn-add-trip"
+            onClick={handleAddTrip}
+            title="Add Trip"
+          >
+            <BiPlus /> <span className="btn-label">Add Trip</span>
           </button>
           <button
             className="btn-add-event"
             onClick={() => navigate("/admin/events/new")}
+            title="Add Event"
           >
-            <BiPlus /> Add Event
+            <BiPlus /> <span className="btn-label">Add Event</span>
           </button>
           <div className="ics-feed-wrapper">
             <button
@@ -2423,6 +2450,7 @@ function TripsTab({
           events={events.filter(
             (e) => new Date(e.event_date).getFullYear() === selectedYear,
           )}
+          flightDates={flightDates}
           onDateClick={handleCalendarDateClick}
           tccOptions={tccOptions}
         />

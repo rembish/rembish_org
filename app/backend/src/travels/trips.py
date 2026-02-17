@@ -90,7 +90,7 @@ def get_trips(
         .options(
             joinedload(Trip.destinations).joinedload(TripDestination.tcc_destination),
             joinedload(Trip.participants).joinedload(TripParticipant.user),
-            joinedload(Trip.cities),
+            joinedload(Trip.cities).joinedload(TripCity.city),
         )
         .order_by(Trip.start_date.desc())
         .all()
@@ -406,6 +406,7 @@ def _trip_to_data(trip: Trip) -> TripData:
             TripCityData(
                 name=city.name,
                 is_partial=city.is_partial,
+                country_code=city.city.country_code if city.city else None,
             )
             for city in sorted(trip.cities, key=lambda c: c.order)
         ],
@@ -434,7 +435,7 @@ def get_trip(
         .options(
             joinedload(Trip.destinations).joinedload(TripDestination.tcc_destination),
             joinedload(Trip.participants).joinedload(TripParticipant.user),
-            joinedload(Trip.cities),
+            joinedload(Trip.cities).joinedload(TripCity.city),
         )
         .filter(Trip.id == trip_id)
         .first()
@@ -530,7 +531,7 @@ def create_trip(
         .options(
             joinedload(Trip.destinations).joinedload(TripDestination.tcc_destination),
             joinedload(Trip.participants).joinedload(TripParticipant.user),
-            joinedload(Trip.cities),
+            joinedload(Trip.cities).joinedload(TripCity.city),
         )
         .filter(Trip.id == trip.id)
         .first()
@@ -649,7 +650,7 @@ def update_trip(
         .options(
             joinedload(Trip.destinations).joinedload(TripDestination.tcc_destination),
             joinedload(Trip.participants).joinedload(TripParticipant.user),
-            joinedload(Trip.cities),
+            joinedload(Trip.cities).joinedload(TripCity.city),
         )
         .filter(Trip.id == trip.id)
         .first()

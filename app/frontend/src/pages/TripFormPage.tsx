@@ -15,6 +15,7 @@ import {
   BiTrash,
   BiX,
   BiSignal5,
+  BiSolidPlane,
 } from "react-icons/bi";
 import Flag from "../components/Flag";
 import { useAuth } from "../hooks/useAuth";
@@ -129,6 +130,51 @@ interface CountryInfoData {
   eu_roaming: boolean | null;
   adapter_needed: boolean | null;
   sunrise_sunset: SunriseSunset | null;
+}
+
+// Flight types
+interface AirportData {
+  id: number;
+  iata_code: string;
+  name: string | null;
+  city: string | null;
+  country_code: string | null;
+}
+
+interface FlightDataItem {
+  id: number;
+  trip_id: number;
+  flight_date: string;
+  flight_number: string;
+  airline_name: string | null;
+  departure_airport: AirportData;
+  arrival_airport: AirportData;
+  departure_time: string | null;
+  arrival_time: string | null;
+  arrival_date: string | null;
+  terminal: string | null;
+  arrival_terminal: string | null;
+  gate: string | null;
+  aircraft_type: string | null;
+  seat: string | null;
+  booking_reference: string | null;
+  notes: string | null;
+}
+
+interface FlightLookupLeg {
+  flight_number: string;
+  airline_name: string | null;
+  departure_iata: string;
+  departure_name: string | null;
+  arrival_iata: string;
+  arrival_name: string | null;
+  departure_time: string | null;
+  arrival_time: string | null;
+  departure_date: string | null;
+  arrival_date: string | null;
+  terminal: string | null;
+  arrival_terminal: string | null;
+  aircraft_type: string | null;
 }
 
 // Parse date string (YYYY-MM-DD) as local date, not UTC
@@ -277,9 +323,14 @@ export default function TripFormPage() {
   const isEdit = !!tripId;
   const preselectedDate = searchParams.get("date");
 
-  // Tab from URL: /info or /edit (info is default for existing trips)
-  const activeTab: "edit" | "info" =
-    isEdit && !location.pathname.endsWith("/edit") ? "info" : "edit";
+  // Tab from URL: /info, /edit, or /transport
+  const activeTab: "edit" | "info" | "transport" = location.pathname.endsWith(
+    "/transport",
+  )
+    ? "transport"
+    : isEdit && !location.pathname.endsWith("/edit")
+      ? "info"
+      : "edit";
 
   const [formData, setFormData] = useState<TripFormData>(() => {
     if (preselectedDate) {
@@ -326,6 +377,31 @@ export default function TripFormPage() {
   // Info tab state
   const [countryInfo, setCountryInfo] = useState<CountryInfoData[]>([]);
   const [loadingInfo, setLoadingInfo] = useState(false);
+
+  // Transport tab state
+  const [flights, setFlights] = useState<FlightDataItem[]>([]);
+  const [loadingFlights, setLoadingFlights] = useState(false);
+  const [lookupNumber, setLookupNumber] = useState("");
+  const [lookupDate, setLookupDate] = useState("");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupLegs, setLookupLegs] = useState<FlightLookupLeg[]>([]);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [selectedLegs, setSelectedLegs] = useState<Set<number>>(new Set());
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualForm, setManualForm] = useState({
+    flight_number: "",
+    flight_date: "",
+    departure_iata: "",
+    arrival_iata: "",
+    departure_time: "",
+    arrival_time: "",
+    airline_name: "",
+    aircraft_type: "",
+  });
+  const [addingFlights, setAddingFlights] = useState(false);
+  const [tripCitiesDisplay, setTripCitiesDisplay] = useState<
+    { name: string; country_code: string | null }[]
+  >([]);
 
   // Load TCC options, user options, and personal events on mount
   useEffect(() => {
@@ -393,6 +469,14 @@ export default function TripFormPage() {
           ),
           other_participants_count: trip.other_participants_count,
         });
+        setTripCitiesDisplay(
+          (trip.cities || []).map(
+            (c: { name: string; country_code: string | null }) => ({
+              name: c.name,
+              country_code: c.country_code || null,
+            }),
+          ),
+        );
         setLoadingTrip(false);
       })
       .catch((err) => {
@@ -421,6 +505,35 @@ export default function TripFormPage() {
       })
       .finally(() => setLoadingInfo(false));
   }, [activeTab, isEdit, tripId]);
+
+  // Fetch flights when switching to Transport tab
+  useEffect(() => {
+    if (activeTab !== "transport" || !isEdit) return;
+
+    setLoadingFlights(true);
+    fetch(`/api/v1/travels/trips/${tripId}/flights`, { credentials: "include" })
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load flights");
+        return r.json();
+      })
+      .then((data) => setFlights(data.flights || []))
+      .catch((err) => console.error("Failed to load flights:", err))
+      .finally(() => setLoadingFlights(false));
+  }, [activeTab, isEdit, tripId]);
+
+  // Sync flights_count in formData when flights list changes
+  useEffect(() => {
+    if (flights.length > 0) {
+      setFormData((prev) => ({ ...prev, flights_count: flights.length }));
+    }
+  }, [flights]);
+
+  // Default lookup date to trip start_date
+  useEffect(() => {
+    if (formData.start_date && !lookupDate) {
+      setLookupDate(formData.start_date);
+    }
+  }, [formData.start_date, lookupDate]);
 
   // Search cities when debounced search changes
   useEffect(() => {
@@ -747,6 +860,577 @@ export default function TripFormPage() {
     return false;
   };
 
+  const handleLookup = async () => {
+    if (!lookupNumber || !lookupDate) return;
+    setLookupLoading(true);
+    setLookupLegs([]);
+    setLookupError(null);
+    setSelectedLegs(new Set());
+    try {
+      const params = new URLSearchParams({
+        flight_number: lookupNumber,
+        date: lookupDate,
+      });
+      const res = await fetch(`/api/v1/travels/flights/lookup?${params}`, {
+        credentials: "include",
+      });
+      if (res.status === 501) {
+        setLookupError("Flight lookup not configured. Use manual entry.");
+        setShowManualForm(true);
+        return;
+      }
+      if (!res.ok) throw new Error("Lookup failed");
+      const data = await res.json();
+      if (data.error) setLookupError(data.error);
+      setLookupLegs(data.legs || []);
+      if ((data.legs || []).length === 0 && !data.error) {
+        setLookupError("No flights found. Try manual entry.");
+      }
+    } catch {
+      setLookupError("Lookup failed. Try manual entry.");
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
+  const handleAddSelectedLegs = async () => {
+    if (selectedLegs.size === 0 || !lookupDate) return;
+    setAddingFlights(true);
+    try {
+      for (const idx of Array.from(selectedLegs).sort()) {
+        const leg = lookupLegs[idx];
+        await fetch(`/api/v1/travels/trips/${tripId}/flights`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            flight_date: leg.departure_date || lookupDate,
+            flight_number: leg.flight_number,
+            airline_name: leg.airline_name,
+            departure_iata: leg.departure_iata,
+            arrival_iata: leg.arrival_iata,
+            departure_time: leg.departure_time,
+            arrival_time: leg.arrival_time,
+            arrival_date: leg.arrival_date,
+            terminal: leg.terminal,
+            arrival_terminal: leg.arrival_terminal,
+            aircraft_type: leg.aircraft_type,
+          }),
+        });
+      }
+      // Refresh flights list
+      const res = await fetch(`/api/v1/travels/trips/${tripId}/flights`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+      setFlights(data.flights || []);
+      setLookupLegs([]);
+      setSelectedLegs(new Set());
+      setLookupNumber("");
+    } catch (err) {
+      console.error("Failed to add flights:", err);
+    } finally {
+      setAddingFlights(false);
+    }
+  };
+
+  const handleManualAdd = async () => {
+    if (
+      !manualForm.flight_number ||
+      !manualForm.departure_iata ||
+      !manualForm.arrival_iata
+    )
+      return;
+    setAddingFlights(true);
+    try {
+      const res = await fetch(`/api/v1/travels/trips/${tripId}/flights`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          flight_date:
+            manualForm.flight_date || lookupDate || formData.start_date,
+          flight_number: manualForm.flight_number,
+          departure_iata: manualForm.departure_iata,
+          arrival_iata: manualForm.arrival_iata,
+          departure_time: manualForm.departure_time || null,
+          arrival_time: manualForm.arrival_time || null,
+          airline_name: manualForm.airline_name || null,
+          aircraft_type: manualForm.aircraft_type || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to add flight");
+      // Refresh
+      const listRes = await fetch(`/api/v1/travels/trips/${tripId}/flights`, {
+        credentials: "include",
+      });
+      const data = await listRes.json();
+      setFlights(data.flights || []);
+      setManualForm({
+        flight_number: "",
+        flight_date: "",
+        departure_iata: "",
+        arrival_iata: "",
+        departure_time: "",
+        arrival_time: "",
+        airline_name: "",
+        aircraft_type: "",
+      });
+      setShowManualForm(false);
+    } catch (err) {
+      console.error("Failed to add flight:", err);
+    } finally {
+      setAddingFlights(false);
+    }
+  };
+
+  const handleDeleteFlight = async (flightId: number) => {
+    if (!confirm("Delete this flight?")) return;
+    try {
+      await fetch(`/api/v1/travels/flights/${flightId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      setFlights((prev) => prev.filter((f) => f.id !== flightId));
+    } catch (err) {
+      console.error("Failed to delete flight:", err);
+    }
+  };
+
+  const toggleLeg = (idx: number) => {
+    setSelectedLegs((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
+  const renderTransportTab = () => {
+    if (loadingFlights) {
+      return (
+        <div className="trip-transport-tab">
+          <p>Loading flights...</p>
+        </div>
+      );
+    }
+
+    const tripDests = formData.destinations
+      .map((d) => tccOptions.find((o) => o.id === d.tcc_destination_id)?.name)
+      .filter(Boolean);
+    const dateFrom = formData.start_date
+      ? new Date(formData.start_date + "T00:00:00").toLocaleDateString(
+          "en-GB",
+          { day: "numeric", month: "short", year: "numeric" },
+        )
+      : "";
+    const dateTo = formData.end_date
+      ? new Date(formData.end_date + "T00:00:00").toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "";
+
+    return (
+      <div className="trip-transport-tab">
+        {/* Trip context for email search */}
+        <div className="transport-trip-context">
+          <span className="transport-dates">
+            {dateFrom}
+            {dateTo && ` – ${dateTo}`}
+          </span>
+          {tripDests.length > 0 && (
+            <span className="transport-destinations">
+              {tripDests.join(", ")}
+            </span>
+          )}
+          {tripCitiesDisplay.length > 0 && (
+            <div className="transport-cities">
+              {tripCitiesDisplay.map((c, i) => (
+                <span key={i} className="transport-city">
+                  {c.country_code && <Flag code={c.country_code} size={14} />}
+                  {c.name}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Flight list */}
+        <div className="form-section">
+          <h3>Flights ({flights.length})</h3>
+          {flights.length === 0 ? (
+            <p className="flight-empty">No flights added yet.</p>
+          ) : (
+            <div className="flight-list">
+              {flights.map((f) => (
+                <div key={f.id} className="flight-card">
+                  <div className="flight-card-main">
+                    <div className="flight-card-header">
+                      <span className="flight-number">{f.flight_number}</span>
+                      {f.airline_name && (
+                        <span className="flight-airline">{f.airline_name}</span>
+                      )}
+                      {f.aircraft_type && (
+                        <span className="flight-aircraft">
+                          {f.aircraft_type}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flight-route">
+                      <span className="flight-airport">
+                        <strong>{f.departure_airport.iata_code}</strong>
+                        {f.departure_time && (
+                          <span className="flight-time">
+                            {f.departure_time}
+                          </span>
+                        )}
+                        <span className="flight-date">
+                          {new Date(
+                            f.flight_date + "T00:00:00",
+                          ).toLocaleDateString("en-GB", {
+                            day: "numeric",
+                            month: "short",
+                          })}
+                        </span>
+                        {f.terminal && (
+                          <span className="flight-terminal">T{f.terminal}</span>
+                        )}
+                      </span>
+                      <span className="flight-arrow">
+                        <BiSolidPlane />
+                      </span>
+                      <span className="flight-airport">
+                        <strong>{f.arrival_airport.iata_code}</strong>
+                        {f.arrival_time && (
+                          <span className="flight-time">{f.arrival_time}</span>
+                        )}
+                        <span className="flight-date">
+                          {new Date(
+                            (f.arrival_date || f.flight_date) + "T00:00:00",
+                          ).toLocaleDateString("en-GB", {
+                            day: "numeric",
+                            month: "short",
+                          })}
+                        </span>
+                        {f.arrival_terminal && (
+                          <span className="flight-terminal">
+                            T{f.arrival_terminal}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    {(f.seat || f.booking_reference) && (
+                      <div className="flight-details">
+                        {f.seat && (
+                          <span className="flight-badge">Seat {f.seat}</span>
+                        )}
+                        {f.booking_reference && (
+                          <span className="flight-badge">
+                            {f.booking_reference}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    className="flight-delete-btn"
+                    onClick={() => handleDeleteFlight(f.id)}
+                    title="Delete flight"
+                  >
+                    <BiTrash />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Add flight section */}
+        <div className="form-section">
+          <h3>Add Flight</h3>
+          {(() => {
+            const today = new Date();
+            const yearAgo = new Date(today);
+            yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+            const weeksAhead = new Date(today);
+            weeksAhead.setDate(weeksAhead.getDate() + 42);
+            const tripStart = formData.start_date
+              ? new Date(formData.start_date)
+              : null;
+            const tripEnd = formData.end_date
+              ? new Date(formData.end_date)
+              : tripStart;
+            if (tripEnd && tripEnd < yearAgo) {
+              return (
+                <p className="flight-api-notice">
+                  This trip is older than 1 year — flight lookup is unavailable.
+                  Use manual entry below.
+                </p>
+              );
+            }
+            if (tripStart && tripStart > weeksAhead) {
+              return (
+                <p className="flight-api-notice">
+                  This trip is more than 6 weeks away — airline schedules may
+                  not be published yet. Lookup may return no results.
+                </p>
+              );
+            }
+            return null;
+          })()}
+          <div className="flight-lookup-row">
+            <div className="form-group">
+              <label>Flight Number</label>
+              <input
+                type="text"
+                value={lookupNumber}
+                onChange={(e) => setLookupNumber(e.target.value.toUpperCase())}
+                placeholder="TK1770"
+                className="flight-input"
+              />
+            </div>
+            <div className="form-group">
+              <label>Date</label>
+              <input
+                type="date"
+                value={lookupDate}
+                onChange={(e) => setLookupDate(e.target.value)}
+                min={formData.start_date || undefined}
+                max={formData.end_date || undefined}
+                className="flight-input"
+              />
+            </div>
+            <button
+              type="button"
+              className="btn-save flight-lookup-btn"
+              onClick={handleLookup}
+              disabled={lookupLoading || !lookupNumber || !lookupDate}
+            >
+              {lookupLoading ? "Looking up..." : "Lookup"}
+            </button>
+          </div>
+
+          {lookupError && <p className="flight-lookup-error">{lookupError}</p>}
+
+          {lookupLegs.length > 0 && (
+            <div className="flight-lookup-results">
+              {lookupLegs.map((leg, idx) => (
+                <label key={idx} className="flight-lookup-leg">
+                  <input
+                    type="checkbox"
+                    checked={selectedLegs.has(idx)}
+                    onChange={() => toggleLeg(idx)}
+                  />
+                  <div className="flight-leg-info">
+                    <span className="flight-leg-route">
+                      <strong>{leg.departure_iata}</strong>
+                      {leg.departure_name && (
+                        <span className="flight-leg-airport-name">
+                          {leg.departure_name}
+                        </span>
+                      )}
+                      {leg.departure_time && ` ${leg.departure_time}`}
+                      {" → "}
+                      <strong>{leg.arrival_iata}</strong>
+                      {leg.arrival_name && (
+                        <span className="flight-leg-airport-name">
+                          {leg.arrival_name}
+                        </span>
+                      )}
+                      {leg.arrival_time && ` ${leg.arrival_time}`}
+                      {leg.arrival_date && (
+                        <span className="flight-next-day">+1</span>
+                      )}
+                    </span>
+                    <span className="flight-leg-details">
+                      {[
+                        leg.airline_name,
+                        leg.aircraft_type,
+                        leg.terminal ? `Terminal ${leg.terminal}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  </div>
+                </label>
+              ))}
+              <button
+                type="button"
+                className="btn-save"
+                onClick={handleAddSelectedLegs}
+                disabled={selectedLegs.size === 0 || addingFlights}
+              >
+                {addingFlights
+                  ? "Adding..."
+                  : `Add selected (${selectedLegs.size})`}
+              </button>
+            </div>
+          )}
+
+          {!showManualForm && (
+            <button
+              type="button"
+              className="flight-manual-link"
+              onClick={() => setShowManualForm(true)}
+            >
+              Manual entry
+            </button>
+          )}
+
+          {showManualForm && (
+            <div className="flight-manual-form">
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Flight Number *</label>
+                  <input
+                    type="text"
+                    value={manualForm.flight_number}
+                    onChange={(e) =>
+                      setManualForm((prev) => ({
+                        ...prev,
+                        flight_number: e.target.value.toUpperCase(),
+                      }))
+                    }
+                    placeholder="TK1770"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Date</label>
+                  <input
+                    type="date"
+                    value={manualForm.flight_date || lookupDate}
+                    onChange={(e) =>
+                      setManualForm((prev) => ({
+                        ...prev,
+                        flight_date: e.target.value,
+                      }))
+                    }
+                    min={formData.start_date || undefined}
+                    max={formData.end_date || undefined}
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>From IATA *</label>
+                  <input
+                    type="text"
+                    value={manualForm.departure_iata}
+                    onChange={(e) =>
+                      setManualForm((prev) => ({
+                        ...prev,
+                        departure_iata: e.target.value.toUpperCase(),
+                      }))
+                    }
+                    placeholder="PRG"
+                    maxLength={3}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>To IATA *</label>
+                  <input
+                    type="text"
+                    value={manualForm.arrival_iata}
+                    onChange={(e) =>
+                      setManualForm((prev) => ({
+                        ...prev,
+                        arrival_iata: e.target.value.toUpperCase(),
+                      }))
+                    }
+                    placeholder="IST"
+                    maxLength={3}
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Departure Time</label>
+                  <input
+                    type="time"
+                    value={manualForm.departure_time}
+                    onChange={(e) =>
+                      setManualForm((prev) => ({
+                        ...prev,
+                        departure_time: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Arrival Time</label>
+                  <input
+                    type="time"
+                    value={manualForm.arrival_time}
+                    onChange={(e) =>
+                      setManualForm((prev) => ({
+                        ...prev,
+                        arrival_time: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Airline</label>
+                  <input
+                    type="text"
+                    value={manualForm.airline_name}
+                    onChange={(e) =>
+                      setManualForm((prev) => ({
+                        ...prev,
+                        airline_name: e.target.value,
+                      }))
+                    }
+                    placeholder="Turkish Airlines"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Aircraft</label>
+                  <input
+                    type="text"
+                    value={manualForm.aircraft_type}
+                    onChange={(e) =>
+                      setManualForm((prev) => ({
+                        ...prev,
+                        aircraft_type: e.target.value,
+                      }))
+                    }
+                    placeholder="Airbus A321"
+                  />
+                </div>
+              </div>
+              <div className="flight-manual-actions">
+                <button
+                  type="button"
+                  className="btn-cancel"
+                  onClick={() => setShowManualForm(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-save"
+                  onClick={handleManualAdd}
+                  disabled={
+                    addingFlights ||
+                    !manualForm.flight_number ||
+                    !manualForm.departure_iata ||
+                    !manualForm.arrival_iata
+                  }
+                >
+                  {addingFlights ? "Adding..." : "Add Flight"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderInfoPanel = () => {
     if (loadingInfo) {
       return (
@@ -1065,10 +1749,20 @@ export default function TripFormPage() {
           >
             Edit
           </button>
+          <button
+            className={`trip-form-tab ${activeTab === "transport" ? "active" : ""}`}
+            onClick={() =>
+              navigate(`/admin/trips/${tripId}/transport`, { replace: true })
+            }
+          >
+            Transport
+          </button>
         </div>
       )}
 
-      {activeTab === "info" && isEdit ? (
+      {activeTab === "transport" && isEdit ? (
+        renderTransportTab()
+      ) : activeTab === "info" && isEdit ? (
         renderInfoPanel()
       ) : (
         <form onSubmit={handleSubmit} className="trip-form">
