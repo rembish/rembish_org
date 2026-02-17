@@ -287,3 +287,36 @@ class VacationSummary(BaseModel):
     used_days: float  # past regular trips
     planned_days: float  # future regular trips
     remaining_days: float  # annual - used - planned
+
+
+# Personal events models
+class EventData(BaseModel):
+    id: int
+    event_date: str  # ISO date YYYY-MM-DD
+    end_date: str | None  # ISO date or null for single-day
+    title: str
+    note: str | None
+    category: str
+    category_emoji: str
+
+
+class EventsResponse(BaseModel):
+    events: list[EventData]
+    total: int
+    categories: dict[str, str]  # category name -> emoji
+
+
+class EventCreateRequest(BaseModel):
+    event_date: str  # YYYY-MM-DD
+    end_date: str | None = None
+    title: str
+    note: str | None = None
+    category: str = "other"
+
+
+class EventUpdateRequest(BaseModel):
+    event_date: str | None = None
+    end_date: str | None = None
+    title: str | None = None
+    note: str | None = None
+    category: str | None = None

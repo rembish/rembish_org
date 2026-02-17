@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.25.0 (2026-02-17)
+
+### ICS Calendar Feed
+- Shareable calendar feed URL for Google Calendar, Apple Calendar, or any iCal app
+- All trips and personal events published as VEVENT entries
+- Trips show destination names as summary, cities and description in details
+- Personal events include category emoji in summary (e.g. "🏥 Doctor appointment")
+- Token-protected URL — no login required for calendar apps
+- Admin can generate, copy, and regenerate feed URL from the trips page
+- Regenerating invalidates old links immediately
+
+### Database
+- Migration 036: New `app_settings` key-value table for application settings
+
+### Dependencies
+- Added `icalendar` library for RFC 5545 calendar generation
+
 ## 0.24.0 (2026-02-17)
 
 ### Vacation Balance Tracker

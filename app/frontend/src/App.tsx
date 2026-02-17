@@ -9,6 +9,7 @@ const Photos = lazy(() => import("./pages/Photos"));
 const Travels = lazy(() => import("./pages/Travels"));
 const Admin = lazy(() => import("./pages/Admin"));
 const TripFormPage = lazy(() => import("./pages/TripFormPage"));
+const EventFormPage = lazy(() => import("./pages/EventFormPage"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Changelog = lazy(() => import("./pages/Changelog"));
 
@@ -24,6 +25,11 @@ function App() {
           <Route path="/photos/:tripId" element={<Photos />} />
           <Route path="/travels" element={<Travels />} />
           <Route path="/travels/:tab" element={<Travels />} />
+          <Route path="/admin/events/new" element={<EventFormPage />} />
+          <Route
+            path="/admin/events/:eventId/edit"
+            element={<EventFormPage />}
+          />
           <Route path="/admin/trips/new" element={<TripFormPage />} />
           <Route path="/admin/trips/:tripId/edit" element={<TripFormPage />} />
           <Route path="/admin/trips/:tripId/info" element={<TripFormPage />} />

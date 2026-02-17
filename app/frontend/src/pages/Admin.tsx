@@ -19,6 +19,9 @@ import {
   BiSkipNext,
   BiTargetLock,
   BiFlag,
+  BiLink,
+  BiCopy,
+  BiRefresh,
 } from "react-icons/bi";
 import { TbDrone } from "react-icons/tb";
 import { useAuth } from "../hooks/useAuth";
@@ -87,6 +90,16 @@ interface Holiday {
 interface UserBirthday {
   date: string; // MM-DD format
   name: string;
+}
+
+interface PersonalEvent {
+  id: number;
+  event_date: string;
+  end_date: string | null;
+  title: string;
+  note: string | null;
+  category: string;
+  category_emoji: string;
 }
 
 type AdminTab = "trips" | "close-ones" | "instagram";
@@ -1662,7 +1675,8 @@ interface YearCalendarViewProps {
   holidays: Holiday[];
   czechHolidays: Holiday[];
   birthdays: UserBirthday[];
-  onDateClick: (date: string, trip?: Trip) => void;
+  events: PersonalEvent[];
+  onDateClick: (date: string, trip?: Trip, event?: PersonalEvent) => void;
   tccOptions: TCCDestinationOption[];
 }
 
@@ -1672,6 +1686,7 @@ function YearCalendarView({
   holidays,
   czechHolidays,
   birthdays,
+  events,
   onDateClick,
   tccOptions,
 }: YearCalendarViewProps) {
@@ -1757,6 +1772,20 @@ function YearCalendarView({
     }
   }
 
+  // Build event dates map (supports multi-day events)
+  const eventDates = new Map<string, PersonalEvent>();
+  for (const event of events) {
+    const start = new Date(event.event_date + "T00:00:00");
+    const end = event.end_date
+      ? new Date(event.end_date + "T00:00:00")
+      : new Date(event.event_date + "T00:00:00");
+    const current = new Date(start);
+    while (current <= end) {
+      eventDates.set(toLocalDateStr(current), event);
+      current.setDate(current.getDate() + 1);
+    }
+  }
+
   const isWeekend = (date: Date) => {
     const day = date.getDay();
     return day === 0 || day === 6;
@@ -1806,6 +1835,7 @@ function YearCalendarView({
       const dateHolidays = holidayMap.get(dateStr) || [];
       const dayBirthdays = birthdayMap.get(dateStr);
       const czechHoliday = czechHolidayMap.get(dateStr);
+      const dayEvent = eventDates.get(dateStr);
       const weekend = isWeekend(date);
 
       // Check if trip overlaps with destination country holiday (only for future trips)
@@ -1822,12 +1852,16 @@ function YearCalendarView({
       // Check if trip overlaps with a birthday (for all trips, not just future)
       const hasTripOnBirthday = trip && dayBirthdays && dayBirthdays.length > 0;
 
-      // Priority: trip > birthday > czech-holiday > weekend
+      // Check if trip overlaps with a personal event
+      const hasTripOnEvent = trip && dayEvent;
+
+      // Priority: trip > event > birthday > czech-holiday > weekend
       const classes = ["calendar-day"];
       let title = "";
 
       if (trip) {
         classes.push("trip", getTripClass(trip));
+        if (hasTripOnEvent) classes.push("has-event");
 
         // Check if start/end for border radius
         const isStart = trip.start_date === dateStr;
@@ -1847,9 +1881,12 @@ function YearCalendarView({
             classes.push("vac-light-end");
         }
 
-        // Build tooltip with destinations, holidays, and birthdays
+        // Build tooltip with destinations, holidays, birthdays, and events
         const destNames = trip.destinations.map((d) => d.name).join(", ");
         const parts = [destNames || "Trip"];
+        if (hasTripOnEvent) {
+          parts.push(`${dayEvent!.category_emoji} ${dayEvent!.title}`);
+        }
         if (hasTripOnHoliday) {
           parts.push(matchingHolidays.map((h) => h.name).join(", "));
         }
@@ -1859,6 +1896,14 @@ function YearCalendarView({
           );
         }
         title = parts.join(" - ");
+      } else if (dayEvent) {
+        classes.push("event");
+        const isEventStart = dayEvent.event_date === dateStr;
+        const isEventEnd =
+          (dayEvent.end_date || dayEvent.event_date) === dateStr;
+        if (isEventStart) classes.push("event-start");
+        if (isEventEnd) classes.push("event-end");
+        title = `${dayEvent.category_emoji} ${dayEvent.title}`;
       } else if (dayBirthdays && dayBirthdays.length > 0) {
         classes.push("birthday");
         title = dayBirthdays.map((b) => `${b.name}'s birthday`).join(", ");
@@ -1875,10 +1920,17 @@ function YearCalendarView({
           className={classes.join(" ")}
           title={title}
           onClick={() =>
-            onDateClick(dateStr, dayTrips.length > 0 ? dayTrips[0] : undefined)
+            onDateClick(
+              dateStr,
+              dayTrips.length > 0 ? dayTrips[0] : undefined,
+              dayEvent,
+            )
           }
         >
           {day}
+          {dayEvent && (
+            <span className="event-emoji">{dayEvent.category_emoji}</span>
+          )}
           {hasTripOnBirthday && <BiCake className="day-icon day-icon-left" />}
           {hasTripOnHoliday && <BiParty className="day-icon day-icon-right" />}
         </div>,
@@ -1933,9 +1985,17 @@ function TripsTab({
   // User birthdays for calendar view
   const [birthdays, setBirthdays] = useState<UserBirthday[]>([]);
 
+  // Personal events
+  const [events, setEvents] = useState<PersonalEvent[]>([]);
+
   // Vacation balance
   const [vacationSummary, setVacationSummary] =
     useState<VacationSummary | null>(null);
+
+  // ICS feed
+  const [feedUrl, setFeedUrl] = useState<string | null>(null);
+  const [feedOpen, setFeedOpen] = useState(false);
+  const [feedCopied, setFeedCopied] = useState(false);
 
   // Persist view mode
   useEffect(() => {
@@ -1966,6 +2026,11 @@ function TripsTab({
 
   useEffect(() => {
     fetchTrips();
+    // Fetch personal events
+    fetch("/api/v1/travels/events", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => setEvents(data.events || []))
+      .catch(() => {});
     // Fetch TCC options for mapping names to IDs
     fetch("/api/v1/travels/tcc-options", { credentials: "include" })
       .then((res) => res.json())
@@ -1997,7 +2062,48 @@ function TripsTab({
           .catch(() => {});
       })
       .catch(() => {});
+    // Fetch ICS feed token
+    fetch("/api/v1/travels/calendar/feed-token", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.token) {
+          setFeedUrl(
+            `${window.location.origin}/api/v1/travels/calendar.ics?token=${data.token}`,
+          );
+        }
+      })
+      .catch(() => {});
   }, [fetchTrips]);
+
+  const handleRegenerateToken = async () => {
+    if (
+      feedUrl &&
+      !confirm("Regenerate token? The old link will stop working.")
+    )
+      return;
+    try {
+      const res = await fetch("/api/v1/travels/calendar/regenerate-token", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to regenerate");
+      const data = await res.json();
+      setFeedUrl(
+        `${window.location.origin}/api/v1/travels/calendar.ics?token=${data.token}`,
+      );
+      setFeedCopied(false);
+    } catch {
+      alert("Failed to regenerate feed token");
+    }
+  };
+
+  const handleCopyFeedUrl = () => {
+    if (!feedUrl) return;
+    navigator.clipboard.writeText(feedUrl).then(() => {
+      setFeedCopied(true);
+      setTimeout(() => setFeedCopied(false), 2000);
+    });
+  };
 
   // Fetch holidays for destination countries of trips in selected year
   useEffect(() => {
@@ -2148,9 +2254,15 @@ function TripsTab({
   };
 
   // Handle calendar date click
-  const handleCalendarDateClick = (date: string, trip?: Trip) => {
+  const handleCalendarDateClick = (
+    date: string,
+    trip?: Trip,
+    event?: PersonalEvent,
+  ) => {
     if (trip) {
       handleEditTrip(trip);
+    } else if (event) {
+      navigate(`/admin/events/${event.id}/edit`);
     } else {
       navigate(`/admin/trips/new?date=${date}`);
     }
@@ -2216,9 +2328,51 @@ function TripsTab({
           <button className="btn-add-trip" onClick={handleAddTrip}>
             <BiPlus /> Add Trip
           </button>
+          <button
+            className="btn-add-event"
+            onClick={() => navigate("/admin/events/new")}
+          >
+            <BiPlus /> Add Event
+          </button>
+          <div className="ics-feed-wrapper">
+            <button
+              className="view-toggle-btn"
+              onClick={() => setFeedOpen((v) => !v)}
+              title="ICS Calendar Feed"
+            >
+              <BiLink />
+            </button>
+            {feedOpen && (
+              <div className="ics-feed-popup">
+                {feedUrl ? (
+                  <>
+                    <div className="ics-feed-url">
+                      <input type="text" value={feedUrl} readOnly />
+                      <button onClick={handleCopyFeedUrl} title="Copy URL">
+                        {feedCopied ? <BiCheck /> : <BiCopy />}
+                      </button>
+                    </div>
+                    <button
+                      className="ics-feed-regen"
+                      onClick={handleRegenerateToken}
+                    >
+                      <BiRefresh /> Regenerate
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="ics-feed-regen"
+                    onClick={handleRegenerateToken}
+                  >
+                    <BiRefresh /> Generate Feed URL
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         <div className="trips-stats">
-          <span>
+          <span className="stat-trips">
             <b>{yearTrips.length}</b> trips
           </span>
           <span>
@@ -2228,10 +2382,26 @@ function TripsTab({
             <b>{uniqueDestinations}</b> TCC
           </span>
           {workTrips > 0 && (
-            <span>
+            <span className="stat-work">
               <b>{workTrips}</b> work
             </span>
           )}
+          {selectedYear &&
+            events.filter(
+              (e) => new Date(e.event_date).getFullYear() === selectedYear,
+            ).length > 0 && (
+              <span className="stat-events">
+                <b>
+                  {
+                    events.filter(
+                      (e) =>
+                        new Date(e.event_date).getFullYear() === selectedYear,
+                    ).length
+                  }
+                </b>{" "}
+                events
+              </span>
+            )}
           {vacationSummary && (
             <span
               className="vacation-balance"
@@ -2250,6 +2420,9 @@ function TripsTab({
           holidays={holidays}
           czechHolidays={czechHolidays}
           birthdays={birthdays}
+          events={events.filter(
+            (e) => new Date(e.event_date).getFullYear() === selectedYear,
+          )}
           onDateClick={handleCalendarDateClick}
           tccOptions={tccOptions}
         />

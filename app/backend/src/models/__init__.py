@@ -1,5 +1,7 @@
+from .event import PersonalEvent
 from .instagram import InstagramMedia, InstagramPost
 from .location import UserLastLocation
+from .setting import AppSetting
 from .travel import (
     City,
     Microstate,
@@ -15,6 +17,8 @@ from .travel import (
 from .user import User
 
 __all__ = [
+    "AppSetting",
+    "PersonalEvent",
     "User",
     "UserLastLocation",
     "UNCountry",

@@ -308,11 +308,26 @@ export default function TripFormPage() {
   const [tripHolidays, setTripHolidays] = useState<TripHoliday[]>([]);
   const [holidaysVisible, setHolidaysVisible] = useState(false);
 
+  // Personal events conflict state
+  const [allEvents, setAllEvents] = useState<
+    {
+      id: number;
+      event_date: string;
+      end_date: string | null;
+      title: string;
+      category_emoji: string;
+    }[]
+  >([]);
+  const [conflictingEvents, setConflictingEvents] = useState<typeof allEvents>(
+    [],
+  );
+  const [eventsVisible, setEventsVisible] = useState(false);
+
   // Info tab state
   const [countryInfo, setCountryInfo] = useState<CountryInfoData[]>([]);
   const [loadingInfo, setLoadingInfo] = useState(false);
 
-  // Load TCC options and user options on mount
+  // Load TCC options, user options, and personal events on mount
   useEffect(() => {
     Promise.all([
       fetch("/api/v1/travels/tcc-options", { credentials: "include" }).then(
@@ -321,10 +336,14 @@ export default function TripFormPage() {
       fetch("/api/v1/travels/users-options", { credentials: "include" }).then(
         (r) => r.json(),
       ),
+      fetch("/api/v1/travels/events", { credentials: "include" }).then((r) =>
+        r.json(),
+      ),
     ])
-      .then(([tccData, usersData]) => {
+      .then(([tccData, usersData, eventsData]) => {
         setTccOptions(tccData.destinations || []);
         setUserOptions(usersData.users || []);
+        setAllEvents(eventsData.events || []);
       })
       .catch((err) => {
         console.error("Failed to load options:", err);
@@ -518,6 +537,28 @@ export default function TripFormPage() {
     formData.destinations,
     tccOptions,
   ]);
+
+  // Check for personal event conflicts when dates change
+  useEffect(() => {
+    if (!formData.start_date || allEvents.length === 0) {
+      setConflictingEvents([]);
+      return;
+    }
+
+    const tripStart = formData.start_date;
+    const tripEnd = formData.end_date || formData.start_date;
+
+    const conflicts = allEvents.filter((e) => {
+      const eventStart = e.event_date;
+      const eventEnd = e.end_date || e.event_date;
+      return eventStart <= tripEnd && eventEnd >= tripStart;
+    });
+
+    setConflictingEvents(conflicts);
+    if (conflicts.length > 0) {
+      setEventsVisible(true);
+    }
+  }, [formData.start_date, formData.end_date, allEvents]);
 
   const goBack = () => {
     // Navigate back to trips tab, picking the year from start_date or current year
@@ -1106,6 +1147,49 @@ export default function TripFormPage() {
                           </span>
                           <span className="holiday-country">
                             <Flag code={h.country_code} size={14} />
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Personal Events Warning Icon */}
+              {conflictingEvents.length > 0 && (
+                <div className="holidays-warning-container">
+                  <button
+                    type="button"
+                    className="events-warning-btn"
+                    onClick={() => setEventsVisible(!eventsVisible)}
+                    title={`${conflictingEvents.length} personal event(s) during trip`}
+                  >
+                    <BiError />
+                    <span className="holidays-count">
+                      {conflictingEvents.length}
+                    </span>
+                  </button>
+                  {eventsVisible && (
+                    <div className="holidays-dropdown">
+                      <h4>Personal Events During Trip</h4>
+                      {conflictingEvents.map((e) => (
+                        <div
+                          key={e.id}
+                          className="holiday-item holiday-item-link"
+                          onClick={() => navigate(`/admin/events/${e.id}/edit`)}
+                        >
+                          <span className="holiday-date">
+                            {new Date(
+                              e.event_date + "T00:00:00",
+                            ).toLocaleDateString("en-GB", {
+                              day: "numeric",
+                              month: "short",
+                            })}
+                            {e.end_date &&
+                              e.end_date !== e.event_date &&
+                              ` – ${new Date(e.end_date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}
+                          </span>
+                          <span className="holiday-name">
+                            {e.category_emoji} {e.title}
                           </span>
                         </div>
                       ))}

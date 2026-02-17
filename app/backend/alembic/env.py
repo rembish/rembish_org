@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from src.config import settings
 from src.database import Base
-from src.models import User, UNCountry, TCCDestination, Visit  # noqa: F401 - ensure models are imported
+from src.models import User, UNCountry, TCCDestination, Visit, PersonalEvent  # noqa: F401 - ensure models are imported
 
 config = context.config
 
