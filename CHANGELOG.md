@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.24.0 (2026-02-17)
+
+### Vacation Balance Tracker
+- Configurable departure/arrival types per trip: morning, half-day, or late evening
+- Vacation day calculator: accounts for weekends, CZ public holidays, and partial days
+- Vacation balance displayed on calendar page: spent + planned / remaining
+- Half-cell gradient visualization on calendar for partial vacation days
+- Faded cells for departure/arrival with zero vacation cost
+- Only "regular" trips consume vacation days; work and relocation trips excluded
+
+### Database
+- Migration 033: Added departure_type and arrival_type columns to trips
+
+### Fixes
+- Fixed duplicate key error when updating trips (participants clear+reinsert race condition)
+- Improved error message styling in trip form
+
 ## 0.23.0 (2026-02-16)
 
 ### Trip Info Tab — Extended Data

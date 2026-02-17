@@ -171,6 +171,10 @@ class Trip(Base):
     raw_countries: Mapped[str | None] = mapped_column(Text, nullable=True)
     raw_cities: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Departure/arrival type for vacation day calculation
+    departure_type: Mapped[str] = mapped_column(String(10), default="morning")
+    arrival_type: Mapped[str] = mapped_column(String(10), default="evening")
+
     # Hide from photos page (for trips with few/unimportant photos)
     hidden_from_photos: Mapped[bool] = mapped_column(Boolean, default=False)
 

@@ -103,6 +103,8 @@ class TripData(BaseModel):
     working_days: int | None
     rental_car: str | None
     description: str | None
+    departure_type: str = "morning"
+    arrival_type: str = "evening"
     destinations: list[TripDestinationData]
     cities: list[TripCityData]
     participants: list[TripParticipantData]
@@ -133,6 +135,8 @@ class TripCreateRequest(BaseModel):
     working_days: int | None = None
     rental_car: str | None = None
     description: str | None = None
+    departure_type: str = "morning"
+    arrival_type: str = "evening"
     destinations: list[TripDestinationInput] = []
     cities: list[TripCityInput] = []
     participant_ids: list[int] = []
@@ -147,6 +151,8 @@ class TripUpdateRequest(BaseModel):
     working_days: int | None = None
     rental_car: str | None = None
     description: str | None = None
+    departure_type: str | None = None
+    arrival_type: str | None = None
     destinations: list[TripDestinationInput] | None = None
     cities: list[TripCityInput] | None = None
     participant_ids: list[int] | None = None
@@ -274,3 +280,10 @@ class CountryInfoData(BaseModel):
 
 class TripCountryInfoResponse(BaseModel):
     countries: list[CountryInfoData]
+
+
+class VacationSummary(BaseModel):
+    annual_days: int  # 30
+    used_days: float  # past regular trips
+    planned_days: float  # future regular trips
+    remaining_days: float  # annual - used - planned

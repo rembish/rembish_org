@@ -50,10 +50,19 @@ interface Trip {
   working_days: number | null;
   rental_car: string | null;
   description: string | null;
+  departure_type: string;
+  arrival_type: string;
   destinations: TripDestination[];
   cities: TripCity[];
   participants: TripParticipant[];
   other_participants_count: number | null;
+}
+
+interface VacationSummary {
+  annual_days: number;
+  used_days: number;
+  planned_days: number;
+  remaining_days: number;
 }
 
 interface TripsResponse {
@@ -1821,9 +1830,22 @@ function YearCalendarView({
         classes.push("trip", getTripClass(trip));
 
         // Check if start/end for border radius
-        if (trip.start_date === dateStr) classes.push("trip-start");
-        if ((trip.end_date || trip.start_date) === dateStr)
-          classes.push("trip-end");
+        const isStart = trip.start_date === dateStr;
+        const isEnd = (trip.end_date || trip.start_date) === dateStr;
+        if (isStart) classes.push("trip-start");
+        if (isEnd) classes.push("trip-end");
+
+        // Half-cell visualization for departure/arrival types
+        if (isStart) {
+          if (trip.departure_type === "midday") classes.push("vac-half-start");
+          else if (trip.departure_type === "evening")
+            classes.push("vac-light-start");
+        }
+        if (isEnd) {
+          if (trip.arrival_type === "midday") classes.push("vac-half-end");
+          else if (trip.arrival_type === "morning")
+            classes.push("vac-light-end");
+        }
 
         // Build tooltip with destinations, holidays, and birthdays
         const destNames = trip.destinations.map((d) => d.name).join(", ");
@@ -1910,6 +1932,10 @@ function TripsTab({
 
   // User birthdays for calendar view
   const [birthdays, setBirthdays] = useState<UserBirthday[]>([]);
+
+  // Vacation balance
+  const [vacationSummary, setVacationSummary] =
+    useState<VacationSummary | null>(null);
 
   // Persist view mode
   useEffect(() => {
@@ -2045,6 +2071,24 @@ function TripsTab({
       .catch(() => setCzechHolidays([]));
   }, [selectedYear]);
 
+  // Fetch vacation balance for selected year
+  useEffect(() => {
+    if (!selectedYear) {
+      setVacationSummary(null);
+      return;
+    }
+
+    fetch(`/api/v1/travels/vacation-summary?year=${selectedYear}`, {
+      credentials: "include",
+    })
+      .then((res) => {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then((data) => setVacationSummary(data))
+      .catch(() => setVacationSummary(null));
+  }, [selectedYear]);
+
   if (loading) {
     return <p>Loading trips...</p>;
   }
@@ -2174,10 +2218,28 @@ function TripsTab({
           </button>
         </div>
         <div className="trips-stats">
-          <span>{yearTrips.length} trips</span>
-          <span>{totalDays} days</span>
-          <span>{uniqueDestinations} TCC</span>
-          {workTrips > 0 && <span>{workTrips} work</span>}
+          <span>
+            <b>{yearTrips.length}</b> trips
+          </span>
+          <span>
+            <b>{totalDays}</b> days
+          </span>
+          <span>
+            <b>{uniqueDestinations}</b> TCC
+          </span>
+          {workTrips > 0 && (
+            <span>
+              <b>{workTrips}</b> work
+            </span>
+          )}
+          {vacationSummary && (
+            <span
+              className="vacation-balance"
+              dangerouslySetInnerHTML={{
+                __html: `🏖️ <b>${vacationSummary.used_days}</b>${vacationSummary.planned_days > 0 ? `<span class="vacation-planned"><b>+${vacationSummary.planned_days}</b></span>` : ""} spent / <span class="vacation-remaining ${vacationSummary.remaining_days > 0 ? "vacation-ok" : "vacation-low"}"><b>${vacationSummary.remaining_days}</b> left</span>`,
+              }}
+            />
+          )}
         </div>
       </div>
 

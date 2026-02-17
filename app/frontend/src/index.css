@@ -714,12 +714,20 @@ a {
   background: #fef2f2;
   color: #b91c1c;
   border: 1px solid #fecaca;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  line-height: 1.4;
 }
 
 .form-success {
   background: #f0fdf4;
   color: #15803d;
   border: 1px solid #bbf7d0;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  line-height: 1.4;
 }
 
 .btn-submit {
@@ -2062,12 +2070,34 @@ a {
   gap: 1rem;
   font-size: 0.875rem;
   color: var(--color-text-secondary);
+  flex-wrap: wrap;
 
-  & span {
+  & > span {
     padding: 0.25rem 0.75rem;
     background: var(--color-bg-secondary);
     border-radius: 12px;
   }
+}
+
+.vacation-planned {
+  color: #b8860b;
+}
+
+.vacation-remaining.vacation-ok {
+  color: #2e7d32;
+}
+
+.vacation-remaining.vacation-low {
+  color: #c62828;
+}
+
+.departure-arrival-group select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: var(--color-bg);
 }
 
 /* Trip Rows */
@@ -3638,15 +3668,18 @@ a {
   }
 
   &.trip.regular {
-    background: var(--color-primary);
+    --trip-color: var(--color-primary);
+    background: var(--trip-color);
   }
 
   &.trip.work {
-    background: #e67e22;
+    --trip-color: #e67e22;
+    background: var(--trip-color);
   }
 
   &.trip.future {
-    background: #9b59b6;
+    --trip-color: #9b59b6;
+    background: var(--trip-color);
   }
 
   &.trip-start {
@@ -3659,6 +3692,93 @@ a {
 
   &.trip-start.trip-end {
     border-radius: 4px;
+  }
+
+  /* Half-cell: departure half-day → right half colored */
+  &.trip.vac-half-start {
+    background: linear-gradient(
+      to right,
+      transparent 50%,
+      var(--trip-color) 50%
+    );
+    color: var(--color-text);
+  }
+
+  /* Half-cell: arrival half-day → left half colored */
+  &.trip.vac-half-end {
+    background: linear-gradient(
+      to right,
+      var(--trip-color) 50%,
+      transparent 50%
+    );
+    color: var(--color-text);
+  }
+
+  /* Single-day trip with both halves */
+  &.trip.vac-half-start.vac-half-end {
+    background: linear-gradient(
+      to right,
+      transparent 25%,
+      var(--trip-color) 25%,
+      var(--trip-color) 75%,
+      transparent 75%
+    );
+    color: var(--color-text);
+  }
+
+  /* No vacation used — half-cell with faded color */
+  &.trip.vac-light-start {
+    background: linear-gradient(
+      to right,
+      transparent 50%,
+      color-mix(in srgb, var(--trip-color) 30%, transparent) 50%
+    );
+    color: var(--color-text);
+  }
+
+  &.trip.vac-light-end {
+    background: linear-gradient(
+      to right,
+      color-mix(in srgb, var(--trip-color) 30%, transparent) 50%,
+      transparent 50%
+    );
+    color: var(--color-text);
+  }
+
+  &.trip.vac-light-start.vac-light-end {
+    background: linear-gradient(
+      to right,
+      transparent 25%,
+      color-mix(in srgb, var(--trip-color) 30%, transparent) 25%,
+      color-mix(in srgb, var(--trip-color) 30%, transparent) 75%,
+      transparent 75%
+    );
+    color: var(--color-text);
+  }
+
+  /* Mixed: solid half + light half for single-day trips */
+  &.trip.vac-half-start.vac-light-end {
+    background: linear-gradient(
+      to right,
+      color-mix(in srgb, var(--trip-color) 30%, transparent) 25%,
+      color-mix(in srgb, var(--trip-color) 30%, transparent) 50%,
+      var(--trip-color) 50%,
+      var(--trip-color) 75%,
+      transparent 75%
+    );
+    color: var(--color-text);
+  }
+
+  &.trip.vac-light-start.vac-half-end {
+    background: linear-gradient(
+      to right,
+      transparent 25%,
+      var(--trip-color) 25%,
+      var(--trip-color) 50%,
+      color-mix(in srgb, var(--trip-color) 30%, transparent) 50%,
+      color-mix(in srgb, var(--trip-color) 30%, transparent) 75%
+    );
+    color: var(--color-text);
   }
 }
 

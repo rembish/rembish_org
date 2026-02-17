@@ -459,3 +459,238 @@ def test_get_currency_name() -> None:
     assert _get_currency_name("CZK") == "Czech Koruna"
     assert _get_currency_name("GBP") == "Pound Sterling"
     assert _get_currency_name("XYZ") is None
+
+
+# --- Vacation calculator unit tests ---
+
+
+def test_vacation_weekday_trip() -> None:
+    """Full weekday trip (Mon-Fri) with default departure/arrival = 5 days."""
+    from src.travels.vacation import count_vacation_days
+
+    # Mon 2026-03-02 to Fri 2026-03-06
+    result = count_vacation_days(
+        date(2026, 3, 2), date(2026, 3, 6), set()
+    )
+    assert result == 5.0
+
+
+def test_vacation_weekend_exclusion() -> None:
+    """Trip spanning a weekend skips Sat/Sun."""
+    from src.travels.vacation import count_vacation_days
+
+    # Thu 2026-03-05 to Tue 2026-03-10 = Thu,Fri,(Sat,Sun),Mon,Tue = 4 days
+    result = count_vacation_days(
+        date(2026, 3, 5), date(2026, 3, 10), set()
+    )
+    assert result == 4.0
+
+
+def test_vacation_holiday_exclusion() -> None:
+    """Holiday on a weekday is excluded."""
+    from src.travels.vacation import count_vacation_days
+
+    # Mon-Fri, with Wednesday as a holiday
+    holidays = {date(2026, 3, 4)}  # Wednesday
+    result = count_vacation_days(
+        date(2026, 3, 2), date(2026, 3, 6), holidays
+    )
+    assert result == 4.0
+
+
+def test_vacation_midday_departure() -> None:
+    """Midday departure = half day on departure."""
+    from src.travels.vacation import count_vacation_days
+
+    # Mon-Wed, midday departure
+    result = count_vacation_days(
+        date(2026, 3, 2), date(2026, 3, 4), set(),
+        departure_type="midday", arrival_type="evening",
+    )
+    # Mon(0.5) + Tue(1.0) + Wed(1.0) = 2.5
+    assert result == 2.5
+
+
+def test_vacation_midday_arrival() -> None:
+    """Midday arrival = half day on arrival."""
+    from src.travels.vacation import count_vacation_days
+
+    # Mon-Wed, midday arrival
+    result = count_vacation_days(
+        date(2026, 3, 2), date(2026, 3, 4), set(),
+        departure_type="morning", arrival_type="midday",
+    )
+    # Mon(1.0) + Tue(1.0) + Wed(0.5) = 2.5
+    assert result == 2.5
+
+
+def test_vacation_evening_departure() -> None:
+    """Evening departure = 0 days on departure day."""
+    from src.travels.vacation import count_vacation_days
+
+    # Mon-Tue, evening departure
+    result = count_vacation_days(
+        date(2026, 3, 2), date(2026, 3, 3), set(),
+        departure_type="evening", arrival_type="evening",
+    )
+    # Mon(0.0) + Tue(1.0) = 1.0
+    assert result == 1.0
+
+
+def test_vacation_single_day_full() -> None:
+    """Single-day trip morning->evening = 1 full day."""
+    from src.travels.vacation import count_vacation_days
+
+    result = count_vacation_days(
+        date(2026, 3, 2), date(2026, 3, 2), set(),
+        departure_type="morning", arrival_type="evening",
+    )
+    assert result == 1.0
+
+
+def test_vacation_single_day_half() -> None:
+    """Single-day trip morning->midday = 0.5 day."""
+    from src.travels.vacation import count_vacation_days
+
+    result = count_vacation_days(
+        date(2026, 3, 2), date(2026, 3, 2), set(),
+        departure_type="morning", arrival_type="midday",
+    )
+    assert result == 0.5
+
+
+def test_vacation_single_day_weekend() -> None:
+    """Single-day trip on Saturday = 0 days."""
+    from src.travels.vacation import count_vacation_days
+
+    # Sat 2026-03-07
+    result = count_vacation_days(
+        date(2026, 3, 7), date(2026, 3, 7), set()
+    )
+    assert result == 0.0
+
+
+# --- Vacation summary endpoint tests ---
+
+
+@patch("src.travels.trips._fetch_holidays_raw", return_value=[])
+def test_vacation_summary_regular_trips(
+    _mock_holidays: object,
+    admin_client: TestClient,
+    db_session: Session,
+) -> None:
+    """Regular trips are counted in vacation summary."""
+    # Past trip: Mon-Fri (5 weekdays)
+    trip = Trip(
+        start_date=date(2026, 1, 5),
+        end_date=date(2026, 1, 9),
+        trip_type="regular",
+        departure_type="morning",
+        arrival_type="evening",
+    )
+    db_session.add(trip)
+    db_session.commit()
+
+    response = admin_client.get("/api/v1/travels/vacation-summary?year=2026")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["annual_days"] == 30
+    assert data["used_days"] == 5.0
+    assert data["remaining_days"] == 25.0
+
+
+@patch("src.travels.trips._fetch_holidays_raw", return_value=[])
+def test_vacation_summary_work_trips_excluded(
+    _mock_holidays: object,
+    admin_client: TestClient,
+    db_session: Session,
+) -> None:
+    """Work trips don't consume vacation days."""
+    trip = Trip(
+        start_date=date(2026, 1, 5),
+        end_date=date(2026, 1, 9),
+        trip_type="work",
+    )
+    db_session.add(trip)
+    db_session.commit()
+
+    response = admin_client.get("/api/v1/travels/vacation-summary?year=2026")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["used_days"] == 0.0
+    assert data["planned_days"] == 0.0
+    assert data["remaining_days"] == 30.0
+
+
+@patch("src.travels.trips._fetch_holidays_raw", return_value=[])
+def test_vacation_summary_future_as_planned(
+    _mock_holidays: object,
+    admin_client: TestClient,
+    db_session: Session,
+) -> None:
+    """Future trips go into planned_days, not used_days."""
+    trip = Trip(
+        start_date=date(2026, 12, 21),
+        end_date=date(2026, 12, 25),
+        trip_type="regular",
+        departure_type="morning",
+        arrival_type="evening",
+    )
+    db_session.add(trip)
+    db_session.commit()
+
+    response = admin_client.get("/api/v1/travels/vacation-summary?year=2026")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["used_days"] == 0.0
+    assert data["planned_days"] == 5.0
+    assert data["remaining_days"] == 25.0
+
+
+# --- Trip CRUD with departure/arrival types ---
+
+
+def test_create_trip_with_departure_arrival(
+    admin_client: TestClient,
+) -> None:
+    """Trip creation accepts departure/arrival types."""
+    response = admin_client.post(
+        "/api/v1/travels/trips",
+        json={
+            "start_date": "2026-08-01",
+            "end_date": "2026-08-10",
+            "departure_type": "midday",
+            "arrival_type": "morning",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["departure_type"] == "midday"
+    assert data["arrival_type"] == "morning"
+
+
+def test_update_trip_departure_arrival(
+    admin_client: TestClient, db_session: Session,
+) -> None:
+    """Trip update can change departure/arrival types."""
+    trip = _create_trip(db_session)
+    response = admin_client.put(
+        f"/api/v1/travels/trips/{trip.id}",
+        json={"departure_type": "evening", "arrival_type": "midday"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["departure_type"] == "evening"
+    assert data["arrival_type"] == "midday"
+
+
+def test_trip_default_departure_arrival(admin_client: TestClient) -> None:
+    """Trips default to morning departure and evening arrival."""
+    response = admin_client.post(
+        "/api/v1/travels/trips",
+        json={"start_date": "2026-09-01"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["departure_type"] == "morning"
+    assert data["arrival_type"] == "evening"

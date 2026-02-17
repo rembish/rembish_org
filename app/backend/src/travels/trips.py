@@ -46,8 +46,10 @@ from .models import (
     TripUpdateRequest,
     UserOption,
     UserOptionsResponse,
+    VacationSummary,
     WeatherInfo,
 )
+from .vacation import ANNUAL_LEAVE_DAYS, count_vacation_days
 
 # Nominatim rate limiting - track last request time
 _nominatim_last_request: float = 0.0
@@ -94,43 +96,7 @@ def get_trips(
         .all()
     )
 
-    trips_data = [
-        TripData(
-            id=trip.id,
-            start_date=trip.start_date.isoformat(),
-            end_date=trip.end_date.isoformat() if trip.end_date else None,
-            trip_type=trip.trip_type,
-            flights_count=trip.flights_count,
-            working_days=trip.working_days,
-            rental_car=trip.rental_car,
-            description=trip.description,
-            destinations=[
-                TripDestinationData(
-                    name=td.tcc_destination.name,
-                    is_partial=td.is_partial,
-                )
-                for td in trip.destinations
-            ],
-            cities=[
-                TripCityData(
-                    name=city.name,
-                    is_partial=city.is_partial,
-                )
-                for city in sorted(trip.cities, key=lambda c: c.order)
-            ],
-            participants=[
-                TripParticipantData(
-                    id=tp.user.id,
-                    name=tp.user.name,
-                    nickname=tp.user.nickname,
-                    picture=tp.user.picture,
-                )
-                for tp in trip.participants
-            ],
-            other_participants_count=trip.other_participants_count,
-        )
-        for trip in trips
-    ]
+    trips_data = [_trip_to_data(trip) for trip in trips]
 
     return TripsResponse(trips=trips_data, total=len(trips_data))
 
@@ -427,6 +393,8 @@ def _trip_to_data(trip: Trip) -> TripData:
         working_days=trip.working_days,
         rental_car=trip.rental_car,
         description=trip.description,
+        departure_type=trip.departure_type,
+        arrival_type=trip.arrival_type,
         destinations=[
             TripDestinationData(
                 name=td.tcc_destination.name,
@@ -538,6 +506,8 @@ def create_trip(
         working_days=request.working_days,
         rental_car=request.rental_car,
         description=request.description,
+        departure_type=request.departure_type,
+        arrival_type=request.arrival_type,
         other_participants_count=request.other_participants_count,
     )
 
@@ -602,6 +572,10 @@ def update_trip(
         trip.description = request.description
     if request.other_participants_count is not None:
         trip.other_participants_count = request.other_participants_count
+    if request.departure_type is not None:
+        trip.departure_type = request.departure_type
+    if request.arrival_type is not None:
+        trip.arrival_type = request.arrival_type
 
     # Update destinations if provided
     if request.destinations is not None:
@@ -641,17 +615,21 @@ def update_trip(
                 )
             )
 
-    # Update participants if provided
+    # Update participants if changed
     if request.participant_ids is not None:
-        valid_users = (
-            {u.id for u in db.query(User.id).filter(User.id.in_(request.participant_ids)).all()}
-            if request.participant_ids
-            else set()
-        )
-        trip.participants.clear()
-        for user_id in request.participant_ids:
-            if user_id in valid_users:
-                trip.participants.append(TripParticipant(user_id=user_id))
+        existing_ids = sorted(p.user_id for p in trip.participants)
+        requested_ids = sorted(request.participant_ids)
+        if existing_ids != requested_ids:
+            valid_users = (
+                {u.id for u in db.query(User.id).filter(User.id.in_(request.participant_ids)).all()}
+                if request.participant_ids
+                else set()
+            )
+            trip.participants.clear()
+            db.flush()
+            for user_id in request.participant_ids:
+                if user_id in valid_users:
+                    trip.participants.append(TripParticipant(user_id=user_id))
 
     db.flush()
 
@@ -706,6 +684,75 @@ def delete_trip(
     db.commit()
 
     return {"message": "Trip deleted"}
+
+
+@router.get("/vacation-summary", response_model=VacationSummary)
+def get_vacation_summary(
+    admin: Annotated[User, Depends(get_admin_user)],
+    year: int = Query(...),
+    db: Session = Depends(get_db),
+) -> VacationSummary:
+    """Calculate vacation day balance for a year (admin only).
+
+    Only 'regular' trips consume vacation days.
+    Uses CZ public holidays for working day calculation.
+    """
+    today = date.today()
+    year_start = date(year, 1, 1)
+    year_end = date(year, 12, 31)
+
+    # Fetch all regular trips that overlap with the year
+    trips = (
+        db.query(Trip)
+        .filter(
+            Trip.trip_type == "regular",
+            Trip.start_date <= year_end,
+        )
+        .all()
+    )
+
+    # Filter to trips that actually overlap the year (end_date >= year_start)
+    overlapping = [t for t in trips if (t.end_date or t.start_date) >= year_start]
+
+    # Fetch CZ holidays for the year
+    raw_holidays = _fetch_holidays_raw(year, "CZ")
+    holiday_dates: set[date] = set()
+    for h in raw_holidays:
+        try:
+            holiday_dates.add(date.fromisoformat(h["date"]))
+        except (KeyError, ValueError):
+            pass
+
+    used_days = 0.0
+    planned_days = 0.0
+
+    for trip in overlapping:
+        trip_start = trip.start_date
+        trip_end = trip.end_date or trip.start_date
+
+        # Clamp trip dates to year boundaries
+        clamped_start = max(trip_start, year_start)
+        clamped_end = min(trip_end, year_end)
+
+        # Determine departure/arrival types for clamped dates
+        dep_type = trip.departure_type if clamped_start == trip_start else "morning"
+        arr_type = trip.arrival_type if clamped_end == trip_end else "evening"
+
+        days = count_vacation_days(clamped_start, clamped_end, holiday_dates, dep_type, arr_type)
+
+        if trip_end < today:
+            used_days += days
+        else:
+            planned_days += days
+
+    remaining = ANNUAL_LEAVE_DAYS - used_days - planned_days
+
+    return VacationSummary(
+        annual_days=ANNUAL_LEAVE_DAYS,
+        used_days=round(used_days, 1),
+        planned_days=round(planned_days, 1),
+        remaining_days=round(remaining, 1),
+    )
 
 
 @router.get("/holidays/{year}/{country_code}", response_model=HolidaysResponse)

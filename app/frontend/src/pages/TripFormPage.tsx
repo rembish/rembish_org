@@ -67,6 +67,8 @@ interface TripFormData {
   working_days: number | null;
   rental_car: string | null;
   description: string | null;
+  departure_type: string;
+  arrival_type: string;
   destinations: TripDestinationInput[];
   cities: TripCityInput[];
   participant_ids: number[];
@@ -257,6 +259,8 @@ const emptyFormData: TripFormData = {
   working_days: null,
   rental_car: null,
   description: null,
+  departure_type: "morning",
+  arrival_type: "evening",
   destinations: [],
   cities: [],
   participant_ids: [],
@@ -346,6 +350,8 @@ export default function TripFormPage() {
           working_days: trip.working_days,
           rental_car: trip.rental_car,
           description: trip.description,
+          departure_type: trip.departure_type || "morning",
+          arrival_type: trip.arrival_type || "evening",
           destinations: (trip.destinations || [])
             .map((d: { name: string; is_partial: boolean }) => {
               const tccOpt = tccOptions.find((o) => o.name === d.name);
@@ -1107,6 +1113,38 @@ export default function TripFormPage() {
                   )}
                 </div>
               )}
+              <div className="form-group departure-arrival-group">
+                <label>Departure</label>
+                <select
+                  value={formData.departure_type}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      departure_type: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="morning">Morning</option>
+                  <option value="midday">Half-day</option>
+                  <option value="evening">Late evening</option>
+                </select>
+              </div>
+              <div className="form-group departure-arrival-group">
+                <label>Arrival</label>
+                <select
+                  value={formData.arrival_type}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      arrival_type: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="morning">Early morning</option>
+                  <option value="midday">Half-day</option>
+                  <option value="evening">Evening</option>
+                </select>
+              </div>
             </div>
           </div>
 
