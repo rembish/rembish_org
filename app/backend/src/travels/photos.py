@@ -14,8 +14,11 @@ from ..database import get_db
 from ..models import (
     InstagramMedia,
     InstagramPost,
+    Microstate,
+    TCCDestination,
     Trip,
     TripDestination,
+    UNCountry,
     User,
 )
 
@@ -86,6 +89,57 @@ class ToggleHiddenResponse(BaseModel):
     success: bool
     trip_id: int
     is_hidden: bool
+
+
+class PhotoMapCountry(BaseModel):
+    """A country with photos on the map."""
+
+    un_country_id: int
+    country_name: str
+    iso_alpha2: str
+    iso_numeric: str
+    map_region_codes: str
+    latitude: float
+    longitude: float
+    photo_count: int
+    thumbnail_media_id: int
+
+
+class PhotoMapMicrostate(BaseModel):
+    """A microstate marker for the photo map."""
+
+    name: str
+    latitude: float
+    longitude: float
+    map_region_code: str
+
+
+class PhotoMapResponse(BaseModel):
+    """Response for photo map."""
+
+    countries: list[PhotoMapCountry]
+    microstates: list[PhotoMapMicrostate]
+    total_photos: int
+
+
+class CountryTripGroup(BaseModel):
+    """Photos grouped by trip within a country."""
+
+    trip_id: int
+    start_date: str
+    end_date: str | None
+    destinations: list[str]
+    photos: list[PhotoData]
+
+
+class CountryPhotosResponse(BaseModel):
+    """Response for country photos."""
+
+    un_country_id: int
+    country_name: str
+    iso_alpha2: str
+    photo_count: int
+    trips: list[CountryTripGroup]
 
 
 def _batch_get_thumbnail_media_ids(db: Session, trip_ids: list[int]) -> dict[int, int]:
@@ -285,6 +339,275 @@ def get_photos_index(
         years=years,
         total_photos=total_photos,
         total_trips=total_trips,
+    )
+
+
+@router.get("/map", response_model=PhotoMapResponse)
+def get_photo_map(
+    db: Session = Depends(get_db),
+) -> PhotoMapResponse:
+    """Get photo counts per UN country for the map view.
+
+    Country is derived from post's tcc_destination -> un_country link,
+    since un_country_id on instagram_posts is not populated.
+    """
+    # Count non-video media per UN country (via tcc_destination)
+    country_counts = (
+        db.query(
+            TCCDestination.un_country_id,
+            func.count(InstagramMedia.id).label("photo_count"),
+        )
+        .join(InstagramPost, InstagramPost.tcc_destination_id == TCCDestination.id)
+        .join(InstagramMedia, InstagramMedia.post_id == InstagramPost.id)
+        .filter(
+            InstagramPost.labeled_at.isnot(None),
+            InstagramPost.skipped.is_(False),
+            TCCDestination.un_country_id.isnot(None),
+            InstagramMedia.media_type != "VIDEO",
+        )
+        .group_by(TCCDestination.un_country_id)
+        .all()
+    )
+
+    if not country_counts:
+        return PhotoMapResponse(countries=[], microstates=[], total_photos=0)
+
+    country_ids = [cid for cid, _ in country_counts]
+    count_map = {cid: cnt for cid, cnt in country_counts}
+
+    # Get country details
+    countries = db.query(UNCountry).filter(UNCountry.id.in_(country_ids)).all()
+
+    # Get thumbnails: for each country, find the most recent cover post
+    # or most recent post (via tcc_destination -> un_country)
+    thumbnail_map: dict[int, int] = {}
+
+    # 1) Cover posts per country
+    cover_posts = (
+        db.query(InstagramPost, TCCDestination.un_country_id)
+        .join(TCCDestination, InstagramPost.tcc_destination_id == TCCDestination.id)
+        .join(InstagramMedia, InstagramMedia.post_id == InstagramPost.id)
+        .filter(
+            TCCDestination.un_country_id.in_(country_ids),
+            InstagramPost.is_cover.is_(True),
+            InstagramPost.labeled_at.isnot(None),
+            InstagramPost.skipped.is_(False),
+            InstagramMedia.media_type != "VIDEO",
+        )
+        .order_by(InstagramPost.posted_at.desc())
+        .all()
+    )
+    for post, un_cid in cover_posts:
+        if un_cid and un_cid not in thumbnail_map:
+            if post.cover_media_id:
+                thumbnail_map[un_cid] = post.cover_media_id
+            else:
+                first_media = (
+                    db.query(InstagramMedia)
+                    .filter(
+                        InstagramMedia.post_id == post.id,
+                        InstagramMedia.media_type != "VIDEO",
+                    )
+                    .order_by(InstagramMedia.media_order)
+                    .first()
+                )
+                if first_media:
+                    thumbnail_map[un_cid] = first_media.id
+
+    # 2) Fallback: most recent post per remaining country
+    remaining_ids = [cid for cid in country_ids if cid not in thumbnail_map]
+    if remaining_ids:
+        recent_posts = (
+            db.query(InstagramPost, TCCDestination.un_country_id)
+            .join(
+                TCCDestination,
+                InstagramPost.tcc_destination_id == TCCDestination.id,
+            )
+            .join(InstagramMedia, InstagramMedia.post_id == InstagramPost.id)
+            .filter(
+                TCCDestination.un_country_id.in_(remaining_ids),
+                InstagramPost.labeled_at.isnot(None),
+                InstagramPost.skipped.is_(False),
+                InstagramMedia.media_type != "VIDEO",
+            )
+            .order_by(InstagramPost.posted_at.desc())
+            .all()
+        )
+        for post, un_cid in recent_posts:
+            if un_cid and un_cid not in thumbnail_map:
+                first_media = (
+                    db.query(InstagramMedia)
+                    .filter(
+                        InstagramMedia.post_id == post.id,
+                        InstagramMedia.media_type != "VIDEO",
+                    )
+                    .order_by(InstagramMedia.media_order)
+                    .first()
+                )
+                if first_media:
+                    thumbnail_map[un_cid] = first_media.id
+
+    # Build response
+    result: list[PhotoMapCountry] = []
+    total_photos = 0
+    for country in countries:
+        photo_count = count_map.get(country.id, 0)
+        thumbnail_id = thumbnail_map.get(country.id)
+        if not thumbnail_id or not country.capital_lat or not country.capital_lng:
+            continue
+        result.append(
+            PhotoMapCountry(
+                un_country_id=country.id,
+                country_name=country.name,
+                iso_alpha2=country.iso_alpha2,
+                iso_numeric=country.iso_numeric,
+                map_region_codes=country.map_region_codes,
+                latitude=country.capital_lat,
+                longitude=country.capital_lng,
+                photo_count=photo_count,
+                thumbnail_media_id=thumbnail_id,
+            )
+        )
+        total_photos += photo_count
+
+    # Load microstates
+    microstates_data = [
+        PhotoMapMicrostate(
+            name=m.name,
+            latitude=m.latitude,
+            longitude=m.longitude,
+            map_region_code=m.map_region_code,
+        )
+        for m in db.query(Microstate).all()
+    ]
+
+    return PhotoMapResponse(
+        countries=result, microstates=microstates_data, total_photos=total_photos
+    )
+
+
+@router.get("/country/{un_country_id}", response_model=CountryPhotosResponse)
+def get_country_photos(
+    un_country_id: int,
+    db: Session = Depends(get_db),
+) -> CountryPhotosResponse:
+    """Get all photos for a specific UN country, grouped by trip.
+
+    Country is derived from post's tcc_destination -> un_country link.
+    """
+    country = db.query(UNCountry).filter(UNCountry.id == un_country_id).first()
+    if not country:
+        raise HTTPException(status_code=404, detail="Country not found")
+
+    # Get TCC destination IDs that belong to this UN country
+    tcc_ids = [
+        tid
+        for (tid,) in db.query(TCCDestination.id)
+        .filter(TCCDestination.un_country_id == un_country_id)
+        .all()
+    ]
+
+    if not tcc_ids:
+        return CountryPhotosResponse(
+            un_country_id=country.id,
+            country_name=country.name,
+            iso_alpha2=country.iso_alpha2,
+            photo_count=0,
+            trips=[],
+        )
+
+    # Get all labeled posts for these TCC destinations
+    posts = (
+        db.query(InstagramPost)
+        .options(
+            joinedload(InstagramPost.media),
+            joinedload(InstagramPost.tcc_destination),
+            joinedload(InstagramPost.trip)
+            .joinedload(Trip.destinations)
+            .joinedload(TripDestination.tcc_destination),
+        )
+        .filter(
+            InstagramPost.tcc_destination_id.in_(tcc_ids),
+            InstagramPost.labeled_at.isnot(None),
+            InstagramPost.skipped.is_(False),
+        )
+        .order_by(InstagramPost.posted_at.desc())
+        .all()
+    )
+
+    # Group photos by trip (0 = no trip)
+    trip_groups: dict[int, list[PhotoData]] = {}
+    trip_objects: dict[int, Trip] = {}
+    total_count = 0
+
+    for post in posts:
+        group_key = post.trip_id or 0
+        if post.trip_id and post.trip:
+            if post.trip_id not in trip_objects:
+                trip_objects[post.trip_id] = post.trip
+        if group_key not in trip_groups:
+            trip_groups[group_key] = []
+
+        for media in post.media:
+            if media.media_type == "VIDEO":
+                continue
+            trip_groups[group_key].append(
+                PhotoData(
+                    ig_id=post.ig_id,
+                    media_id=media.id,
+                    caption=post.caption,
+                    posted_at=post.posted_at.isoformat(),
+                    is_aerial=post.is_aerial or False,
+                    is_cover=post.is_cover
+                    and (media.id == post.cover_media_id if post.cover_media_id else True),
+                    destination=post.tcc_destination.name if post.tcc_destination else None,
+                    permalink=post.permalink,
+                )
+            )
+            total_count += 1
+
+    # Build trip groups sorted by trip start_date desc
+    trips_sorted = sorted(
+        trip_objects.values(),
+        key=lambda t: t.start_date,
+        reverse=True,
+    )
+
+    trip_list: list[CountryTripGroup] = []
+    for trip in trips_sorted:
+        photos = trip_groups.get(trip.id, [])
+        if not photos:
+            continue
+        destinations = [td.tcc_destination.name for td in trip.destinations if td.tcc_destination]
+        trip_list.append(
+            CountryTripGroup(
+                trip_id=trip.id,
+                start_date=trip.start_date.isoformat(),
+                end_date=trip.end_date.isoformat() if trip.end_date else None,
+                destinations=destinations,
+                photos=photos,
+            )
+        )
+
+    # Add tripless photos as a special group at the end
+    tripless_photos = trip_groups.get(0, [])
+    if tripless_photos:
+        trip_list.append(
+            CountryTripGroup(
+                trip_id=0,
+                start_date="",
+                end_date=None,
+                destinations=[],
+                photos=tripless_photos,
+            )
+        )
+
+    return CountryPhotosResponse(
+        un_country_id=country.id,
+        country_name=country.name,
+        iso_alpha2=country.iso_alpha2,
+        photo_count=total_count,
+        trips=trip_list,
     )
 
 

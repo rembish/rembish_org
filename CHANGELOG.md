@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.26.0 (2026-02-17)
+
+### Photos Page Redesign
+- Albums tab: year filtering with URL-driven pills — see one year at a time instead of all albums
+- Map tab: world map with country photo fills — each country with photos shows its thumbnail cropped to the country shape
+- Country album view: clicking a country opens all its photos grouped by trip
+- Tripless photos supported (e.g. photos not linked to any trip appear in "Other photos" group)
+- Microstate markers on the photo map (same pattern as Travels map)
+- All views have shareable URLs: `/photos/albums/2025`, `/photos/map`, `/photos/map/163-spain`
+- Back button from trip album navigates to the correct year
+
+### Routes
+- `/photos` redirects to `/photos/albums`
+- `/photos/albums/:year` for year-filtered album view
+- `/photos/map` for photo world map
+- `/photos/map/:countrySlug` for country photo album
+
 ## 0.25.0 (2026-02-17)
 
 ### ICS Calendar Feed

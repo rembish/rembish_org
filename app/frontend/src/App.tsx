@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
 
@@ -21,8 +21,14 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/cv" element={<CV />} />
           <Route path="/projects" element={<Projects />} />
-          <Route path="/photos" element={<Photos />} />
-          <Route path="/photos/:tripId" element={<Photos />} />
+          <Route
+            path="/photos"
+            element={<Navigate to="/photos/albums" replace />}
+          />
+          <Route path="/photos/albums" element={<Photos />} />
+          <Route path="/photos/albums/:param" element={<Photos />} />
+          <Route path="/photos/map" element={<Photos />} />
+          <Route path="/photos/map/:countryId" element={<Photos />} />
           <Route path="/travels" element={<Travels />} />
           <Route path="/travels/:tab" element={<Travels />} />
           <Route path="/admin/events/new" element={<EventFormPage />} />

@@ -1,5 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  useParams,
+  useNavigate,
+  useSearchParams,
+  useLocation,
+} from "react-router-dom";
 import {
   BiArrowBack,
   BiX,
@@ -12,7 +17,16 @@ import {
   BiLogoInstagram,
 } from "react-icons/bi";
 import { TbDrone } from "react-icons/tb";
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  ZoomableGroup,
+  Marker,
+} from "react-simple-maps";
 import { useAuth } from "../hooks/useAuth";
+
+const geoUrl = "/world-110m.json";
 
 /** Clean caption: merge solo flag emoji with next line, strip hashtags */
 function cleanCaption(caption: string): string {
@@ -78,6 +92,60 @@ interface TripPhotosResponse {
   photos: PhotoData[];
 }
 
+interface PhotoMapCountry {
+  un_country_id: number;
+  country_name: string;
+  iso_alpha2: string;
+  iso_numeric: string;
+  map_region_codes: string;
+  latitude: number;
+  longitude: number;
+  photo_count: number;
+  thumbnail_media_id: number;
+}
+
+interface PhotoMapMicrostate {
+  name: string;
+  latitude: number;
+  longitude: number;
+  map_region_code: string;
+}
+
+interface PhotoMapResponse {
+  countries: PhotoMapCountry[];
+  microstates: PhotoMapMicrostate[];
+  total_photos: number;
+}
+
+interface CountryTripGroup {
+  trip_id: number;
+  start_date: string;
+  end_date: string | null;
+  destinations: string[];
+  photos: PhotoData[];
+}
+
+interface CountryPhotosResponse {
+  un_country_id: number;
+  country_name: string;
+  iso_alpha2: string;
+  photo_count: number;
+  trips: CountryTripGroup[];
+}
+
+/** Generate URL-friendly slug from country data */
+function countrySlug(country: {
+  un_country_id: number;
+  country_name: string;
+}): string {
+  const name = country.country_name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `${country.un_country_id}-${name}`;
+}
+
 /** Generate URL-friendly slug from trip data */
 function tripSlug(trip: PhotoTripSummary): string {
   const year = new Date(trip.start_date).getFullYear();
@@ -95,6 +163,12 @@ function parseTripId(param: string | undefined): string | undefined {
   if (!param) return undefined;
   const match = param.match(/^(\d+)/);
   return match ? match[1] : undefined;
+}
+
+/** Check if param is a year (4-digit 2020-2099) */
+function isYearParam(param: string | undefined): boolean {
+  if (!param) return false;
+  return /^(20[2-9]\d)$/.test(param);
 }
 
 function formatDateRange(startDate: string, endDate: string | null): string {
@@ -143,19 +217,45 @@ function isTripCurrent(startDate: string, endDate: string | null): boolean {
   return today <= end;
 }
 
+/** Get flag emoji from ISO alpha2 code */
+function countryFlag(iso: string): string {
+  return iso
+    .toUpperCase()
+    .split("")
+    .map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
+    .join("");
+}
+
 export default function Photos() {
-  const { tripId: tripIdParam } = useParams<{ tripId?: string }>();
-  const tripId = parseTripId(tripIdParam);
+  const { param, countryId: countryIdParam } = useParams<{
+    param?: string;
+    countryId?: string;
+  }>();
+  const location = useLocation();
+  // Extract numeric ID from country slug (e.g. "42-spain" -> "42")
+  const countryId = countryIdParam?.match(/^(\d+)/)?.[1];
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
 
+  // Determine active tab from URL
+  const isMapTab = location.pathname.startsWith("/photos/map");
+
+  // Parse param: is it a year or a trip slug?
+  const selectedYear = param && isYearParam(param) ? parseInt(param, 10) : null;
+  const tripId = param && !isYearParam(param) ? parseTripId(param) : undefined;
+
   const [indexData, setIndexData] = useState<PhotosIndexResponse | null>(null);
   const [tripData, setTripData] = useState<TripPhotosResponse | null>(null);
   const [allTrips, setAllTrips] = useState<PhotoTripSummary[]>([]);
+  const [mapData, setMapData] = useState<PhotoMapResponse | null>(null);
+  const [countryData, setCountryData] = useState<CountryPhotosResponse | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [lightboxPhotos, setLightboxPhotos] = useState<PhotoData[]>([]);
   const [showHidden, setShowHidden] = useState(() => {
     return localStorage.getItem("photos-show-hidden") === "true";
   });
@@ -178,16 +278,50 @@ export default function Photos() {
     direction: "next" | "prev";
   } | null>(null);
 
-  // Fetch index or trip data based on route
+  // Fetch data based on route
   useEffect(() => {
     setLoading(true);
     setError(null);
-
-    // Clear peek when changing trips
     setPeekTrip(null);
 
-    if (tripId) {
-      // Fetch trip data and index (for prev/next navigation)
+    if (isMapTab && countryId) {
+      // Country album view
+      fetch(`/api/v1/travels/photos/country/${countryId}`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to load country photos");
+          return res.json();
+        })
+        .then((data: CountryPhotosResponse) => {
+          setCountryData(data);
+          setTripData(null);
+          setMapData(null);
+          setIndexData(null);
+          setLoading(false);
+        })
+        .catch((err) => {
+          setError(err.message);
+          setLoading(false);
+        });
+    } else if (isMapTab) {
+      // Map view
+      fetch("/api/v1/travels/photos/map")
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to load photo map");
+          return res.json();
+        })
+        .then((data: PhotoMapResponse) => {
+          setMapData(data);
+          setTripData(null);
+          setCountryData(null);
+          setIndexData(null);
+          setLoading(false);
+        })
+        .catch((err) => {
+          setError(err.message);
+          setLoading(false);
+        });
+    } else if (tripId) {
+      // Trip album view
       Promise.all([
         fetch(`/api/v1/travels/photos/${tripId}`).then((res) => {
           if (!res.ok) throw new Error("Failed to load photos");
@@ -204,6 +338,8 @@ export default function Photos() {
         .then(([tripDataResult, trips]) => {
           setTripData(tripDataResult);
           setIndexData(null);
+          setMapData(null);
+          setCountryData(null);
           if (trips !== allTrips) setAllTrips(trips);
           setLoading(false);
         })
@@ -212,7 +348,7 @@ export default function Photos() {
           setLoading(false);
         });
     } else {
-      // Fetch index
+      // Albums index
       fetch(`/api/v1/travels/photos${showHidden ? "?show_hidden=true" : ""}`)
         .then((res) => {
           if (!res.ok) throw new Error("Failed to load photos");
@@ -221,6 +357,8 @@ export default function Photos() {
         .then((data: PhotosIndexResponse) => {
           setIndexData(data);
           setTripData(null);
+          setMapData(null);
+          setCountryData(null);
           setAllTrips(data.years.flatMap((y) => y.trips));
           setLoading(false);
         })
@@ -230,7 +368,7 @@ export default function Photos() {
         });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tripId, showHidden]);
+  }, [tripId, showHidden, isMapTab, countryId]);
 
   // Open lightbox from URL param (for cross-trip navigation)
   useEffect(() => {
@@ -244,6 +382,7 @@ export default function Photos() {
           const idx = parseInt(photoParam, 10);
           setLightboxIndex(isNaN(idx) ? 0 : Math.min(idx, photos.length - 1));
         }
+        setLightboxPhotos(photos);
       }
       setPeekTrip(null);
       // Clear the URL param
@@ -307,12 +446,10 @@ export default function Photos() {
   };
 
   // Set cover photo
-  const setCover = async (mediaId: number) => {
-    if (!tripData) return;
-
+  const setCover = async (mediaId: number, coverTripId: number) => {
     try {
       const res = await fetch(
-        `/api/v1/travels/photos/${tripData.trip_id}/cover/${mediaId}`,
+        `/api/v1/travels/photos/${coverTripId}/cover/${mediaId}`,
         {
           method: "POST",
           credentials: "include",
@@ -322,13 +459,15 @@ export default function Photos() {
       if (!res.ok) throw new Error("Failed to set cover");
 
       // Update local state - clear all is_cover flags and set new one
-      setTripData({
-        ...tripData,
-        photos: tripData.photos.map((p) => ({
-          ...p,
-          is_cover: p.media_id === mediaId,
-        })),
-      });
+      if (tripData && tripData.trip_id === coverTripId) {
+        setTripData({
+          ...tripData,
+          photos: tripData.photos.map((p) => ({
+            ...p,
+            is_cover: p.media_id === mediaId,
+          })),
+        });
+      }
     } catch (err) {
       console.error("Failed to set cover:", err);
     }
@@ -337,17 +476,20 @@ export default function Photos() {
   // Lightbox keyboard navigation
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (lightboxIndex === null || !tripData) return;
+      if (lightboxIndex === null) return;
 
-      const photos = tripData.photos;
+      const photos = lightboxPhotos;
 
-      // Find prev/next trips for cross-trip navigation
-      const currentIndex = allTrips.findIndex(
-        (t) => t.trip_id === tripData.trip_id,
-      );
-      const prevTrip = currentIndex > 0 ? allTrips[currentIndex - 1] : null;
+      // Find prev/next trips for cross-trip navigation (only for trip view)
+      const currentIndex = tripData
+        ? allTrips.findIndex((t) => t.trip_id === tripData.trip_id)
+        : -1;
+      const prevTrip =
+        tripData && currentIndex > 0 ? allTrips[currentIndex - 1] : null;
       const nextTrip =
-        currentIndex < allTrips.length - 1 ? allTrips[currentIndex + 1] : null;
+        tripData && currentIndex < allTrips.length - 1
+          ? allTrips[currentIndex + 1]
+          : null;
 
       if (e.key === "Escape") {
         if (peekTrip) {
@@ -357,13 +499,10 @@ export default function Photos() {
         }
       } else if (e.key === "ArrowLeft") {
         if (peekTrip?.direction === "prev") {
-          // Peeking at prev trip, go there
-          navigate(`/photos/${tripSlug(peekTrip.trip)}?photo=last`);
+          navigate(`/photos/albums/${tripSlug(peekTrip.trip)}?photo=last`);
         } else if (peekTrip?.direction === "next") {
-          // Peeking at next trip, cancel peek
           setPeekTrip(null);
         } else if (lightboxIndex === 0 && prevTrip) {
-          // Show peek of previous trip
           setPeekTrip({ trip: prevTrip, direction: "prev" });
         } else {
           setLightboxIndex((prev) =>
@@ -372,13 +511,10 @@ export default function Photos() {
         }
       } else if (e.key === "ArrowRight") {
         if (peekTrip?.direction === "next") {
-          // Peeking at next trip, go there
-          navigate(`/photos/${tripSlug(peekTrip.trip)}?photo=0`);
+          navigate(`/photos/albums/${tripSlug(peekTrip.trip)}?photo=0`);
         } else if (peekTrip?.direction === "prev") {
-          // Peeking at prev trip, cancel peek
           setPeekTrip(null);
         } else if (lightboxIndex === photos.length - 1 && nextTrip) {
-          // Show peek of next trip
           setPeekTrip({ trip: nextTrip, direction: "next" });
         } else {
           setLightboxIndex((prev) =>
@@ -387,7 +523,7 @@ export default function Photos() {
         }
       }
     },
-    [lightboxIndex, tripData, allTrips, navigate, peekTrip],
+    [lightboxIndex, lightboxPhotos, tripData, allTrips, navigate, peekTrip],
   );
 
   useEffect(() => {
@@ -406,6 +542,150 @@ export default function Photos() {
       document.body.style.overflow = "";
     };
   }, [lightboxIndex]);
+
+  // Lightbox renderer (shared between trip and country views)
+  const renderLightbox = (
+    photos: PhotoData[],
+    prevTrip: PhotoTripSummary | null,
+    nextTrip: PhotoTripSummary | null,
+  ) => {
+    if (lightboxIndex === null || !photos[lightboxIndex]) return null;
+    return (
+      <div className="photo-lightbox" onClick={() => setLightboxIndex(null)}>
+        <button
+          className="lightbox-close"
+          onClick={() => setLightboxIndex(null)}
+        >
+          <BiX />
+        </button>
+        {photos[lightboxIndex].permalink && (
+          <a
+            href={photos[lightboxIndex].permalink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="lightbox-ig-link"
+            onClick={(e) => e.stopPropagation()}
+            title="View on Instagram"
+          >
+            <BiLogoInstagram />
+          </a>
+        )}
+        {photos[lightboxIndex].caption && (
+          <button
+            className="lightbox-caption-toggle"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowCaption(!showCaption);
+            }}
+            title={showCaption ? "Hide caption" : "Show caption"}
+          >
+            {showCaption ? <BiHide /> : <BiShow />}
+          </button>
+        )}
+        <button
+          className="lightbox-nav lightbox-prev"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (peekTrip?.direction === "prev") {
+              navigate(`/photos/albums/${tripSlug(peekTrip.trip)}?photo=last`);
+            } else if (peekTrip?.direction === "next") {
+              setPeekTrip(null);
+            } else if (lightboxIndex === 0 && prevTrip) {
+              setPeekTrip({ trip: prevTrip, direction: "prev" });
+            } else {
+              setLightboxIndex(
+                (lightboxIndex - 1 + photos.length) % photos.length,
+              );
+            }
+          }}
+        >
+          <BiChevronLeft />
+        </button>
+        <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+          <img
+            src={`/api/v1/travels/photos/media/${photos[lightboxIndex].media_id}`}
+            alt={photos[lightboxIndex].caption || "Trip photo"}
+          />
+          {photos[lightboxIndex].caption && showCaption && (
+            <p className="lightbox-caption">
+              {cleanCaption(photos[lightboxIndex].caption)}
+            </p>
+          )}
+        </div>
+        <button
+          className="lightbox-nav lightbox-next"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (peekTrip?.direction === "next") {
+              navigate(`/photos/albums/${tripSlug(peekTrip.trip)}?photo=0`);
+            } else if (peekTrip?.direction === "prev") {
+              setPeekTrip(null);
+            } else if (lightboxIndex === photos.length - 1 && nextTrip) {
+              setPeekTrip({ trip: nextTrip, direction: "next" });
+            } else {
+              setLightboxIndex((lightboxIndex + 1) % photos.length);
+            }
+          }}
+        >
+          <BiChevronRight />
+        </button>
+        <div className="lightbox-counter">
+          {peekTrip
+            ? `${peekTrip.direction === "next" ? "\u2192" : "\u2190"} ${peekTrip.trip.destinations.join(", ")}`
+            : `${lightboxIndex + 1} / ${photos.length}`}
+        </div>
+        {peekTrip && (
+          <div
+            className="lightbox-peek"
+            onClick={(e) => {
+              e.stopPropagation();
+              setPeekTrip(null);
+            }}
+          >
+            <button
+              className="lightbox-nav lightbox-prev"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (peekTrip.direction === "prev") {
+                  navigate(
+                    `/photos/albums/${tripSlug(peekTrip.trip)}?photo=last`,
+                  );
+                } else {
+                  setPeekTrip(null);
+                }
+              }}
+            >
+              <BiChevronLeft />
+            </button>
+            <div className="peek-content">
+              <div className="peek-info">
+                <div className="peek-title">
+                  {peekTrip.trip.destinations.join(", ")},{" "}
+                  {new Date(peekTrip.trip.start_date).getFullYear()}
+                </div>
+                <div className="peek-count">
+                  {peekTrip.trip.photo_count} photos
+                </div>
+              </div>
+            </div>
+            <button
+              className="lightbox-nav lightbox-next"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (peekTrip.direction === "next") {
+                  navigate(`/photos/albums/${tripSlug(peekTrip.trip)}?photo=0`);
+                } else {
+                  setPeekTrip(null);
+                }
+              }}
+            >
+              <BiChevronRight />
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -427,7 +707,7 @@ export default function Photos() {
     );
   }
 
-  // Trip detail view
+  // Trip detail view (from albums tab)
   if (tripData) {
     const photos = tripData.photos;
 
@@ -446,7 +726,10 @@ export default function Photos() {
             <div className="photos-trip-nav">
               <button
                 className="photos-back-btn"
-                onClick={() => navigate("/photos")}
+                onClick={() => {
+                  const year = new Date(tripData.start_date).getFullYear();
+                  navigate(`/photos/albums/${year}`);
+                }}
               >
                 <BiArrowBack /> Back
               </button>
@@ -454,7 +737,7 @@ export default function Photos() {
                 <button
                   className="photos-nav-btn"
                   onClick={() =>
-                    prevTrip && navigate(`/photos/${tripSlug(prevTrip)}`)
+                    prevTrip && navigate(`/photos/albums/${tripSlug(prevTrip)}`)
                   }
                   disabled={!prevTrip}
                   title={prevTrip?.destinations.join(", ") || ""}
@@ -464,7 +747,7 @@ export default function Photos() {
                 <button
                   className="photos-nav-btn"
                   onClick={() =>
-                    nextTrip && navigate(`/photos/${tripSlug(nextTrip)}`)
+                    nextTrip && navigate(`/photos/albums/${tripSlug(nextTrip)}`)
                   }
                   disabled={!nextTrip}
                   title={nextTrip?.destinations.join(", ") || ""}
@@ -484,7 +767,10 @@ export default function Photos() {
               <div
                 key={photo.media_id}
                 className="photo-grid-item"
-                onClick={() => setLightboxIndex(index)}
+                onClick={() => {
+                  setLightboxPhotos(photos);
+                  setLightboxIndex(index);
+                }}
               >
                 <img
                   src={`/api/v1/travels/photos/media/${photo.media_id}`}
@@ -502,7 +788,7 @@ export default function Photos() {
                     title={photo.is_cover ? "Current cover" : "Set as cover"}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setCover(photo.media_id);
+                      setCover(photo.media_id, tripData.trip_id);
                     }}
                   >
                     {photo.is_cover ? <BiSolidStar /> : <BiStar />}
@@ -512,154 +798,282 @@ export default function Photos() {
             ))}
           </div>
 
-          {/* Lightbox */}
-          {lightboxIndex !== null && photos[lightboxIndex] && (
-            <div
-              className="photo-lightbox"
-              onClick={() => setLightboxIndex(null)}
-            >
-              <button
-                className="lightbox-close"
-                onClick={() => setLightboxIndex(null)}
-              >
-                <BiX />
-              </button>
-              {photos[lightboxIndex].permalink && (
-                <a
-                  href={photos[lightboxIndex].permalink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="lightbox-ig-link"
-                  onClick={(e) => e.stopPropagation()}
-                  title="View on Instagram"
-                >
-                  <BiLogoInstagram />
-                </a>
-              )}
-              {photos[lightboxIndex].caption && (
-                <button
-                  className="lightbox-caption-toggle"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowCaption(!showCaption);
-                  }}
-                  title={showCaption ? "Hide caption" : "Show caption"}
-                >
-                  {showCaption ? <BiHide /> : <BiShow />}
-                </button>
-              )}
-              <button
-                className="lightbox-nav lightbox-prev"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (peekTrip?.direction === "prev") {
-                    navigate(`/photos/${tripSlug(peekTrip.trip)}?photo=last`);
-                  } else if (peekTrip?.direction === "next") {
-                    setPeekTrip(null);
-                  } else if (lightboxIndex === 0 && prevTrip) {
-                    setPeekTrip({ trip: prevTrip, direction: "prev" });
-                  } else {
-                    setLightboxIndex(
-                      (lightboxIndex - 1 + photos.length) % photos.length,
-                    );
-                  }
-                }}
-              >
-                <BiChevronLeft />
-              </button>
-              <div
-                className="lightbox-content"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <img
-                  src={`/api/v1/travels/photos/media/${photos[lightboxIndex].media_id}`}
-                  alt={photos[lightboxIndex].caption || "Trip photo"}
-                />
-                {photos[lightboxIndex].caption && showCaption && (
-                  <p className="lightbox-caption">
-                    {cleanCaption(photos[lightboxIndex].caption)}
-                  </p>
-                )}
-              </div>
-              <button
-                className="lightbox-nav lightbox-next"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (peekTrip?.direction === "next") {
-                    navigate(`/photos/${tripSlug(peekTrip.trip)}?photo=0`);
-                  } else if (peekTrip?.direction === "prev") {
-                    setPeekTrip(null);
-                  } else if (lightboxIndex === photos.length - 1 && nextTrip) {
-                    setPeekTrip({ trip: nextTrip, direction: "next" });
-                  } else {
-                    setLightboxIndex((lightboxIndex + 1) % photos.length);
-                  }
-                }}
-              >
-                <BiChevronRight />
-              </button>
-              <div className="lightbox-counter">
-                {peekTrip
-                  ? `${peekTrip.direction === "next" ? "→" : "←"} ${peekTrip.trip.destinations.join(", ")}`
-                  : `${lightboxIndex + 1} / ${photos.length}`}
-              </div>
-              {peekTrip && (
-                <div
-                  className="lightbox-peek"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPeekTrip(null);
-                  }}
-                >
-                  <button
-                    className="lightbox-nav lightbox-prev"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (peekTrip.direction === "prev") {
-                        navigate(
-                          `/photos/${tripSlug(peekTrip.trip)}?photo=last`,
-                        );
-                      } else {
-                        setPeekTrip(null);
-                      }
-                    }}
-                  >
-                    <BiChevronLeft />
-                  </button>
-                  <div className="peek-content">
-                    <div className="peek-info">
-                      <div className="peek-title">
-                        {peekTrip.trip.destinations.join(", ")},{" "}
-                        {new Date(peekTrip.trip.start_date).getFullYear()}
-                      </div>
-                      <div className="peek-count">
-                        {peekTrip.trip.photo_count} photos
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    className="lightbox-nav lightbox-next"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (peekTrip.direction === "next") {
-                        navigate(`/photos/${tripSlug(peekTrip.trip)}?photo=0`);
-                      } else {
-                        setPeekTrip(null);
-                      }
-                    }}
-                  >
-                    <BiChevronRight />
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+          {renderLightbox(photos, prevTrip, nextTrip)}
         </div>
       </section>
     );
   }
 
-  // Index view
+  // Country album view (from map tab)
+  if (countryData) {
+    const allCountryPhotos = countryData.trips.flatMap((t) => t.photos);
+
+    return (
+      <section className="photos">
+        <div className="container">
+          <div className="photos-trip-header">
+            <div className="photos-trip-nav">
+              <button
+                className="photos-back-btn"
+                onClick={() => navigate("/photos/map")}
+              >
+                <BiArrowBack /> Back to Map
+              </button>
+            </div>
+            <h2 className="photo-country-header">
+              {countryFlag(countryData.iso_alpha2)} {countryData.country_name}
+            </h2>
+            <p className="photos-trip-dates">
+              {countryData.photo_count} photos from {countryData.trips.length}{" "}
+              trip
+              {countryData.trips.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+
+          {countryData.trips.map((tripGroup) => (
+            <div key={tripGroup.trip_id} className="photo-country-trip-group">
+              {tripGroup.trip_id === 0 ? (
+                <h3 className="photo-country-trip-title no-link">
+                  Other photos
+                  <span className="photo-country-trip-date">
+                    {tripGroup.photos.length} photos
+                  </span>
+                </h3>
+              ) : (
+                <h3
+                  className="photo-country-trip-title"
+                  onClick={() =>
+                    navigate(
+                      `/photos/albums/${tripGroup.trip_id}-${tripGroup.destinations
+                        .join("-and-")
+                        .toLowerCase()
+                        .replace(
+                          /[^a-z0-9]+/g,
+                          "-",
+                        )}-${new Date(tripGroup.start_date).getFullYear()}`,
+                    )
+                  }
+                >
+                  {tripGroup.destinations.join(", ")}
+                  <span className="photo-country-trip-date">
+                    {formatDateRange(tripGroup.start_date, tripGroup.end_date)}
+                  </span>
+                </h3>
+              )}
+              <div className="photo-grid">
+                {tripGroup.photos.map((photo) => {
+                  const globalIndex = allCountryPhotos.findIndex(
+                    (p) => p.media_id === photo.media_id,
+                  );
+                  return (
+                    <div
+                      key={photo.media_id}
+                      className="photo-grid-item"
+                      onClick={() => {
+                        setLightboxPhotos(allCountryPhotos);
+                        setLightboxIndex(globalIndex);
+                      }}
+                    >
+                      <img
+                        src={`/api/v1/travels/photos/media/${photo.media_id}`}
+                        alt={photo.caption || "Photo"}
+                        loading="lazy"
+                      />
+                      {photo.is_aerial && (
+                        <span
+                          className="photo-aerial-badge"
+                          title="Aerial/Drone"
+                        >
+                          <TbDrone />
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          {renderLightbox(allCountryPhotos, null, null)}
+        </div>
+      </section>
+    );
+  }
+
+  // Map view
+  if (isMapTab && mapData) {
+    return (
+      <section className="photos">
+        <div className="container">
+          <div className="section-title">
+            <h2>Photos</h2>
+            <p>
+              {mapData.total_photos} photos from {mapData.countries.length}{" "}
+              countries
+            </p>
+          </div>
+
+          <div className="travel-tabs">
+            <button
+              className="travel-tab"
+              onClick={() => navigate("/photos/albums")}
+            >
+              Albums
+            </button>
+            <button className="travel-tab active">Map</button>
+          </div>
+
+          <div className="photo-map-container">
+            {(() => {
+              // Build lookup: geo region code -> country for highlighting + clicks
+              const regionToCountry = new Map<string, PhotoMapCountry>();
+              for (const c of mapData.countries) {
+                for (const code of c.map_region_codes.split(",")) {
+                  regionToCountry.set(code.trim(), c);
+                }
+              }
+              return (
+                <ComposableMap
+                  projection="geoMercator"
+                  projectionConfig={{ scale: 140 }}
+                >
+                  <defs>
+                    {mapData.countries.map((country) => (
+                      <pattern
+                        key={country.un_country_id}
+                        id={`photo-fill-${country.iso_numeric}`}
+                        patternUnits="objectBoundingBox"
+                        patternContentUnits="objectBoundingBox"
+                        width="1"
+                        height="1"
+                      >
+                        <image
+                          href={`/api/v1/travels/photos/media/${country.thumbnail_media_id}`}
+                          width="1"
+                          height="1"
+                          preserveAspectRatio="xMidYMid slice"
+                        />
+                      </pattern>
+                    ))}
+                  </defs>
+                  <ZoomableGroup center={[20, 20]} zoom={1} maxZoom={3}>
+                    <Geographies geography={geoUrl}>
+                      {({ geographies }) =>
+                        geographies.map((geo) => {
+                          const geoId = String(geo.id);
+                          const country = regionToCountry.get(geoId);
+                          const hasPhotos = !!country;
+                          return (
+                            <Geography
+                              key={geo.rsmKey}
+                              geography={geo}
+                              fill={
+                                hasPhotos
+                                  ? `url(#photo-fill-${geoId})`
+                                  : "#e6e9ec"
+                              }
+                              stroke={hasPhotos ? "#ffffff" : "#ffffff"}
+                              strokeWidth={hasPhotos ? 0.8 : 0.5}
+                              onClick={
+                                hasPhotos
+                                  ? () =>
+                                      navigate(
+                                        `/photos/map/${countrySlug(country)}`,
+                                      )
+                                  : undefined
+                              }
+                              style={{
+                                default: {
+                                  outline: "none",
+                                  cursor: hasPhotos ? "pointer" : "default",
+                                },
+                                hover: {
+                                  outline: "none",
+                                  fill: hasPhotos
+                                    ? `url(#photo-fill-${geoId})`
+                                    : "#d0d4d9",
+                                  stroke: hasPhotos ? "#fbbf24" : "#ffffff",
+                                  strokeWidth: hasPhotos ? 1.5 : 0.5,
+                                  cursor: hasPhotos ? "pointer" : "default",
+                                },
+                                pressed: { outline: "none" },
+                              }}
+                            />
+                          );
+                        })
+                      }
+                    </Geographies>
+                    {mapData.microstates.map((m) => {
+                      const country = regionToCountry.get(m.map_region_code);
+                      const hasPhotos = !!country;
+                      return (
+                        <Marker
+                          key={m.map_region_code}
+                          coordinates={[m.longitude, m.latitude]}
+                          onClick={
+                            hasPhotos
+                              ? () =>
+                                  navigate(
+                                    `/photos/map/${countrySlug(country)}`,
+                                  )
+                              : undefined
+                          }
+                          style={
+                            hasPhotos
+                              ? {
+                                  default: { cursor: "pointer" },
+                                  hover: { cursor: "pointer" },
+                                }
+                              : undefined
+                          }
+                        >
+                          <circle
+                            r={1.5}
+                            fill={
+                              hasPhotos ? "var(--color-primary)" : "#c0c4c8"
+                            }
+                            stroke="#ffffff"
+                            strokeWidth={0.3}
+                          />
+                        </Marker>
+                      );
+                    })}
+                  </ZoomableGroup>
+                </ComposableMap>
+              );
+            })()}
+          </div>
+
+          <div className="photo-map-legend">
+            {mapData.countries
+              .slice()
+              .sort((a, b) => a.country_name.localeCompare(b.country_name))
+              .map((country) => (
+                <button
+                  key={country.un_country_id}
+                  className="photo-map-legend-item"
+                  onClick={() =>
+                    navigate(`/photos/map/${countrySlug(country)}`)
+                  }
+                >
+                  <span className="photo-map-legend-flag">
+                    {countryFlag(country.iso_alpha2)}
+                  </span>
+                  <span className="photo-map-legend-name">
+                    {country.country_name}
+                  </span>
+                  <span className="photo-map-legend-count">
+                    {country.photo_count}
+                  </span>
+                </button>
+              ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Albums index view
   if (!indexData || indexData.years.length === 0) {
     return (
       <section className="photos">
@@ -668,11 +1082,24 @@ export default function Photos() {
             <h2>Photos</h2>
             <p>Trip photographs from around the world</p>
           </div>
+          <div className="travel-tabs">
+            <button className="travel-tab active">Albums</button>
+            <button
+              className="travel-tab"
+              onClick={() => navigate("/photos/map")}
+            >
+              Map
+            </button>
+          </div>
           <p>No photos available yet.</p>
         </div>
       </section>
     );
   }
+
+  const availableYears = indexData.years.map((y) => y.year);
+  const displayYear = selectedYear ?? availableYears[0];
+  const displayYearGroup = indexData.years.find((y) => y.year === displayYear);
 
   return (
     <section className="photos">
@@ -691,56 +1118,79 @@ export default function Photos() {
             )}
           </h2>
           <p>
-            Rescuing 5,000+ photos from Instagram's grid. Classification in
+            Rescuing 5,000+ photos from Instagram&apos;s grid. Classification in
             progress.
           </p>
         </div>
 
-        <div className="photos-years">
-          {indexData.years.map((yearGroup) => (
-            <div key={yearGroup.year} className="photos-year-group">
-              <h3 className="photos-year-title">{yearGroup.year}</h3>
-              <div className="photos-trips-grid">
-                {yearGroup.trips.map((trip) => (
-                  <article
-                    key={trip.trip_id}
-                    className={`trip-photo-card ${trip.is_hidden ? "is-hidden" : ""} ${isTripCurrent(trip.start_date, trip.end_date) ? "is-current" : ""}`}
-                    onClick={() => navigate(`/photos/${tripSlug(trip)}`)}
-                  >
-                    <div className="trip-photo-thumbnail">
-                      <img
-                        src={`/api/v1/travels/photos/media/${trip.thumbnail_media_id}`}
-                        alt={trip.destinations.join(", ")}
-                        loading="lazy"
-                      />
-                      {user?.is_admin && (
-                        <button
-                          className={`trip-hide-btn ${trip.is_hidden ? "active" : ""}`}
-                          title={trip.is_hidden ? "Show trip" : "Hide trip"}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleHidden(trip.trip_id);
-                          }}
-                        >
-                          {trip.is_hidden ? <BiShow /> : <BiHide />}
-                        </button>
-                      )}
-                    </div>
-                    <div className="trip-photo-info">
-                      <h4>{trip.destinations.join(", ")}</h4>
-                      <p className="trip-photo-dates">
-                        {formatDateRange(trip.start_date, trip.end_date)}
-                      </p>
-                      <span className="trip-photo-count">
-                        {trip.photo_count} photos
-                      </span>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </div>
+        <div className="travel-tabs">
+          <button className="travel-tab active">Albums</button>
+          <button
+            className="travel-tab"
+            onClick={() => navigate("/photos/map")}
+          >
+            Map
+          </button>
+        </div>
+
+        <div className="photos-year-selector">
+          {availableYears.map((year) => (
+            <button
+              key={year}
+              className={`photos-year-pill ${year === displayYear ? "active" : ""}`}
+              onClick={() =>
+                navigate(
+                  year === availableYears[0]
+                    ? "/photos/albums"
+                    : `/photos/albums/${year}`,
+                )
+              }
+            >
+              {year}
+            </button>
           ))}
         </div>
+
+        {displayYearGroup && (
+          <div className="photos-trips-grid">
+            {displayYearGroup.trips.map((trip) => (
+              <article
+                key={trip.trip_id}
+                className={`trip-photo-card ${trip.is_hidden ? "is-hidden" : ""} ${isTripCurrent(trip.start_date, trip.end_date) ? "is-current" : ""}`}
+                onClick={() => navigate(`/photos/albums/${tripSlug(trip)}`)}
+              >
+                <div className="trip-photo-thumbnail">
+                  <img
+                    src={`/api/v1/travels/photos/media/${trip.thumbnail_media_id}`}
+                    alt={trip.destinations.join(", ")}
+                    loading="lazy"
+                  />
+                  {user?.is_admin && (
+                    <button
+                      className={`trip-hide-btn ${trip.is_hidden ? "active" : ""}`}
+                      title={trip.is_hidden ? "Show trip" : "Hide trip"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleHidden(trip.trip_id);
+                      }}
+                    >
+                      {trip.is_hidden ? <BiShow /> : <BiHide />}
+                    </button>
+                  )}
+                </div>
+                <div className="trip-photo-info">
+                  <h4>{trip.destinations.join(", ")}</h4>
+                  <p className="trip-photo-dates">
+                    {formatDateRange(trip.start_date, trip.end_date)}
+                  </p>
+                  <span className="trip-photo-count">
+                    {trip.photo_count} photos
+                  </span>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
