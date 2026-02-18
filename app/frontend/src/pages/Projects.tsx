@@ -79,16 +79,16 @@ const projects: Project[] = [
   {
     title: "TextAtAnyCost",
     description:
-      "PHP scripts to read text content from different binary formats: PDF, DOC, PPT, RTF and more. One of my oldest and most popular open source projects.",
+      "One of my oldest and most popular open source projects. A PHP library that pulls plain text out of old document formats — Word files, PDFs, PowerPoint slides, RTF, and more. Born in 2009 and finally given a proper v1.0.0 release in 2026.",
     starred: true,
     features: [
       "Extract text from PDF files",
-      "Read Microsoft Word documents",
-      "Parse PowerPoint presentations",
-      "Handle RTF files",
-      "Simple API for text extraction",
+      "Read old and new Word documents (.doc and .docx)",
+      "Extract text from PowerPoint presentations",
+      "Handle RTF and OpenDocument formats",
+      "No extra software needed — pure PHP",
     ],
-    techStack: ["PHP"],
+    techStack: ["PHP 8.3+"],
     status: "completed",
     links: [
       {
@@ -101,15 +101,15 @@ const projects: Project[] = [
   {
     title: "Miette",
     description:
-      "A lightweight Microsoft Office documents reader for Python. Provides easy access to content in Office file formats.",
+      "A lightweight Python library for reading old-style Word documents (.doc files). Extracts plain text with a simple, familiar interface. Revived in 2026 after more than a decade of quiet — fully rewritten for modern Python.",
     features: [
-      "Read Microsoft Office documents",
-      "Lightweight and fast",
-      "Simple Python API",
-      "No heavy dependencies",
+      "Read legacy Word .doc files",
+      "Extract all plain text content",
+      "Simple file-like API",
+      "Minimal dependencies",
     ],
-    techStack: ["Python"],
-    status: "completed",
+    techStack: ["Python 3.8+"],
+    status: "alpha",
     links: [
       {
         label: "GitHub",
@@ -121,15 +121,15 @@ const projects: Project[] = [
   {
     title: "cfb",
     description:
-      "Python library for reading and writing Microsoft Compound File Binary (CFB) format. The underlying format used by older Office documents.",
+      "A Python library for reading the internal structure of old-style Microsoft Office files. The .doc, .xls, and .ppt formats are actually containers full of streams and folders — this library lets you open them and navigate what's inside. The foundation that Miette is built on.",
     features: [
-      "Read CFB files",
-      "Write CFB files",
-      "Python file-like IO interface",
-      "Low-level access to compound file structures",
+      "Open and inspect old Office file containers",
+      "Navigate internal folders and data streams",
+      "File-like reading interface",
+      "Handles malformed or unusual files gracefully",
     ],
-    techStack: ["Python"],
-    status: "completed",
+    techStack: ["Python 3.8+"],
+    status: "alpha",
     links: [
       {
         label: "GitHub",
