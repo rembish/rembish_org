@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.27.2 (2026-02-18)
+
+### Projects Page
+- Updated `fit` entry: refreshed description, expanded feature list, corrected tech stack to Python 3.9+, status changed from completed to active
+
 ## 0.27.1 (2026-02-18)
 
 ### Calendar Improvements
