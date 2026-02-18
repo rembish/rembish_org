@@ -1,16 +1,19 @@
 """Public travel statistics endpoints."""
 
+import re
 from collections import defaultdict
 from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from ..auth import get_current_user_optional
 from ..database import get_db
-from ..models import TCCDestination, Trip, TripDestination, User, Visit
+from ..models import Airport, Flight, TCCDestination, Trip, TripDestination, User, Visit
+from .models import FlightStatsResponse, RankedItem, YearFlightCount
 
 router = APIRouter()
 
@@ -272,6 +275,28 @@ def get_travel_stats(
     )
     years_stats.append(birthday_year)
 
+    # Flight aggregates (per project pitfall: use Python set union, not .union().subquery())
+    total_flights = (
+        db.query(func.count(Flight.id)).filter(Flight.flight_date <= today).scalar() or 0
+    )
+    planned_flights = (
+        db.query(func.count(Flight.id)).filter(Flight.flight_date > today).scalar() or 0
+    )
+    dep_set = {
+        r[0]
+        for r in db.query(Flight.departure_airport_id).filter(Flight.flight_date <= today).all()
+    }
+    arr_set = {
+        r[0] for r in db.query(Flight.arrival_airport_id).filter(Flight.flight_date <= today).all()
+    }
+    total_airports = len(dep_set | arr_set)
+    total_airlines = (
+        db.query(func.count(func.distinct(Flight.airline_name)))
+        .filter(Flight.flight_date <= today, Flight.airline_name.isnot(None))
+        .scalar()
+        or 0
+    )
+
     # Calculate totals
     totals = {
         "trips": len(trips),
@@ -279,9 +304,179 @@ def get_travel_stats(
         "days": sum(get_trip_days(t, cap_date) for t in trips),
         "countries": len(all_visited_ever),
         "years": len(year_data),
+        "total_flights": total_flights,
+        "planned_flights": planned_flights,
+        "total_airports": total_airports,
+        "total_airlines": total_airlines,
     }
 
     return TravelStatsResponse(
         years=sorted(years_stats, key=lambda y: y.year, reverse=True),
         totals=totals,
+    )
+
+
+def _aircraft_family(aircraft_type: str) -> str:
+    """Group aircraft type into family. E.g. 'Airbus A321neo' -> 'Airbus A320 family'."""
+    t = aircraft_type.strip()
+    low = t.lower()
+
+    # Airbus A3xx family grouping
+    if low.startswith("airbus a3"):
+        # A318/A319/A320/A321 -> A320 family
+        m = re.match(r"airbus\s+a3(1[89]|2[01])", low)
+        if m:
+            return "Airbus A320 family"
+        # A330/A340 -> A330/A340
+        m = re.match(r"airbus\s+a3([34])\d", low)
+        if m:
+            base = "A3" + m.group(1) + "0"
+            return f"Airbus {base}"
+        # A350, A380 etc.
+        m = re.match(r"airbus\s+(a\d{3})", low)
+        if m:
+            return f"Airbus {m.group(1).upper()}"
+
+    # Boeing 7x7 grouping
+    if low.startswith("boeing"):
+        m = re.match(r"boeing\s+(\d{3})", low)
+        if m:
+            return f"Boeing {m.group(1)}"
+
+    # ATR family
+    if low.startswith("atr"):
+        m = re.match(r"atr\s*(\d{2})", low)
+        if m:
+            return f"ATR {m.group(1)}"
+        return "ATR"
+
+    # Embraer
+    if low.startswith("embraer") or low.startswith("erj"):
+        m = re.match(r"(?:embraer|erj)\s*[-\s]?(\d{3})", low)
+        if m:
+            model = int(m.group(1))
+            if 170 <= model <= 195:
+                return "Embraer E-Jet"
+            return f"Embraer {m.group(1)}"
+        return "Embraer"
+
+    # Bombardier / CRJ / Dash
+    if "crj" in low or "canadair" in low:
+        return "Bombardier CRJ"
+    if "dash" in low or "dhc" in low or "de havilland" in low:
+        return "De Havilland Dash"
+
+    # Fallback: return as-is
+    return t
+
+
+@router.get("/flight-stats", response_model=FlightStatsResponse)
+def get_flight_stats(db: Session = Depends(get_db)) -> FlightStatsResponse:
+    """Get detailed flight statistics: top airlines, airports, routes, aircraft types."""
+
+    today = date.today()
+
+    flights = db.query(Flight).filter(Flight.flight_date <= today).all()
+
+    # Build airport lookup (id -> Airport)
+    airport_ids = set()
+    for f in flights:
+        airport_ids.add(f.departure_airport_id)
+        airport_ids.add(f.arrival_airport_id)
+
+    airports_by_id: dict[int, Airport] = {}
+    if airport_ids:
+        for a in db.query(Airport).filter(Airport.id.in_(airport_ids)).all():
+            airports_by_id[a.id] = a
+
+    # Single pass aggregation
+    airline_counts: dict[str, int] = {}
+    airport_counts: dict[int, int] = {}
+    route_counts: dict[tuple[int, int], int] = {}
+    aircraft_counts: dict[str, int] = {}  # family -> total count
+    aircraft_variants: dict[str, dict[str, int]] = {}  # family -> {variant -> count}
+    year_counts: dict[int, int] = {}
+
+    for f in flights:
+        # Airlines
+        if f.airline_name:
+            airline_counts[f.airline_name] = airline_counts.get(f.airline_name, 0) + 1
+
+        # Airports (departures + arrivals)
+        airport_counts[f.departure_airport_id] = airport_counts.get(f.departure_airport_id, 0) + 1
+        airport_counts[f.arrival_airport_id] = airport_counts.get(f.arrival_airport_id, 0) + 1
+
+        # Routes (normalize: smaller ID first)
+        route_key = (
+            min(f.departure_airport_id, f.arrival_airport_id),
+            max(f.departure_airport_id, f.arrival_airport_id),
+        )
+        route_counts[route_key] = route_counts.get(route_key, 0) + 1
+
+        # Aircraft types (grouped by family)
+        if f.aircraft_type:
+            family = _aircraft_family(f.aircraft_type)
+            aircraft_counts[family] = aircraft_counts.get(family, 0) + 1
+            variants = aircraft_variants.setdefault(family, {})
+            variants[f.aircraft_type] = variants.get(f.aircraft_type, 0) + 1
+
+        # Flights by year
+        year = f.flight_date.year
+        year_counts[year] = year_counts.get(year, 0) + 1
+
+    # Build top lists
+    top_airlines = sorted(airline_counts.items(), key=lambda x: x[1], reverse=True)[:15]
+    top_airports_raw = sorted(airport_counts.items(), key=lambda x: x[1], reverse=True)[:15]
+    top_routes_raw = sorted(route_counts.items(), key=lambda x: x[1], reverse=True)[:15]
+    aircraft_sorted = sorted(aircraft_counts.items(), key=lambda x: x[1], reverse=True)
+
+    # Unique counts
+    unique_airport_ids = set()
+    for f in flights:
+        unique_airport_ids.add(f.departure_airport_id)
+        unique_airport_ids.add(f.arrival_airport_id)
+
+    unique_airlines = {f.airline_name for f in flights if f.airline_name}
+    unique_aircraft = {f.aircraft_type for f in flights if f.aircraft_type}
+
+    # Format airports (name=IATA, extra=country_code|full_name for flag+tooltip)
+    top_airports: list[RankedItem] = []
+    for aid, count in top_airports_raw:
+        ap = airports_by_id.get(aid)
+        if ap:
+            extra = f"{ap.country_code or ''}|{ap.name or ''}"
+            top_airports.append(RankedItem(name=ap.iata_code, count=count, extra=extra))
+
+    # Format routes
+    top_routes: list[RankedItem] = []
+    for (a_id, b_id), count in top_routes_raw:
+        ap_a = airports_by_id.get(a_id)
+        ap_b = airports_by_id.get(b_id)
+        if ap_a and ap_b:
+            label = f"{ap_a.iata_code} — {ap_b.iata_code}"
+            top_routes.append(RankedItem(name=label, count=count))
+
+    return FlightStatsResponse(
+        total_flights=len(flights),
+        total_airports=len(unique_airport_ids),
+        total_airlines=len(unique_airlines),
+        total_aircraft_types=len(unique_aircraft),
+        top_airlines=[RankedItem(name=name, count=count) for name, count in top_airlines],
+        top_airports=top_airports,
+        top_routes=top_routes,
+        aircraft_types=[
+            RankedItem(
+                name=name,
+                count=count,
+                extra=", ".join(
+                    f"{v} ({c})" for v, c in sorted(aircraft_variants.get(name, {}).items())
+                )
+                if len(aircraft_variants.get(name, {})) > 1
+                else None,
+            )
+            for name, count in aircraft_sorted
+        ],
+        flights_by_year=[
+            YearFlightCount(year=y, count=c) for y, c in sorted(year_counts.items(), reverse=True)
+        ],
     )

@@ -228,6 +228,7 @@ class FlightMapAirport(BaseModel):
     name: str | None
     lat: float
     lng: float
+    flights_count: int = 0
 
 
 class FlightMapRoute(BaseModel):
@@ -412,3 +413,26 @@ class FlightCreateRequest(BaseModel):
 
 class FlightsResponse(BaseModel):
     flights: list[FlightData]
+
+
+class RankedItem(BaseModel):
+    name: str
+    count: int
+    extra: str | None = None
+
+
+class YearFlightCount(BaseModel):
+    year: int
+    count: int
+
+
+class FlightStatsResponse(BaseModel):
+    total_flights: int
+    total_airports: int
+    total_airlines: int
+    total_aircraft_types: int
+    top_airlines: list[RankedItem]
+    top_airports: list[RankedItem]
+    top_routes: list[RankedItem]
+    aircraft_types: list[RankedItem]
+    flights_by_year: list[YearFlightCount]

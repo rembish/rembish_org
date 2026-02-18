@@ -594,6 +594,12 @@ def get_map_flights(db: Session = Depends(get_db)) -> FlightMapData:
     arr_ids = {r[1] for r in past_flights}
     all_ids = dep_ids | arr_ids
 
+    # Count flights per airport (departures + arrivals)
+    airport_flight_counts: dict[int, int] = {}
+    for dep_id, arr_id in past_flights:
+        airport_flight_counts[dep_id] = airport_flight_counts.get(dep_id, 0) + 1
+        airport_flight_counts[arr_id] = airport_flight_counts.get(arr_id, 0) + 1
+
     airports = (
         db.query(Airport)
         .filter(Airport.id.in_(all_ids))
@@ -607,6 +613,7 @@ def get_map_flights(db: Session = Depends(get_db)) -> FlightMapData:
             name=a.name,
             lat=a.latitude,  # type: ignore[arg-type]  # filtered above
             lng=a.longitude,  # type: ignore[arg-type]  # filtered above
+            flights_count=airport_flight_counts.get(a.id, 0),
         )
         for a in airports
     ]

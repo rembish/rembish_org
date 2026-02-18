@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.27.3 (2026-02-18)
+
+### Flight Statistics
+- New "Flights" tab on Travels page with detailed analytics:
+  - Flights by year (recent first)
+  - Top airlines, airports (with flags), routes, and aircraft types
+  - Aircraft grouped into families (A320 family, Boeing 737 family, etc.) with variant tooltips
+  - Horizontal bar charts with per-section color coding
+  - Outlier bars use color-to-hot gradient for dominant entries
+- 6th stat card in carousel: total flights, airports, and airlines count
+  - Future flights shown as "+X planned"
+- Stat cards grid changed from 5 to 3 columns (cleaner 3×2 layout)
+
+### Flights Map
+- Airport markers scaled by flight frequency (1–15+ flights)
+- Country fill changed from orange to sky blue → deep navy gradient
+- Tooltip shows flight count per airport
+
+### Data
+- Imported 2019–2020 historical flights (11 flights across 4 trips)
+- Added 3 new airlines to Flighty importer: Air Malta, Cyprus Airways, Middle East Airlines
+
 ## 0.27.2 (2026-02-18)
 
 ### Projects Page

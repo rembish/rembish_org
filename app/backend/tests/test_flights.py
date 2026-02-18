@@ -400,3 +400,135 @@ def test_map_flights_no_coords(client: TestClient, db_session: Session) -> None:
     data = res.json()
     assert data["airports"] == []
     assert data["routes"] == []
+
+
+def test_stats_includes_flight_totals(client: TestClient, db_session: Session) -> None:
+    """GET /stats totals include total_flights, total_airports, total_airlines."""
+    trip = _create_trip(db_session)
+    prg = _create_airport(db_session, "PRG")
+    ist = _create_airport(db_session, "IST")
+    fra = _create_airport(db_session, "FRA")
+
+    for fn, dep, arr, airline in [
+        ("TK1", prg, ist, "Turkish Airlines"),
+        ("TK2", ist, prg, "Turkish Airlines"),
+        ("LH1", fra, prg, "Lufthansa"),
+    ]:
+        db_session.add(
+            Flight(
+                trip_id=trip.id,
+                flight_date=date(2026, 1, 10),
+                flight_number=fn,
+                departure_airport_id=dep.id,
+                arrival_airport_id=arr.id,
+                airline_name=airline,
+            )
+        )
+    db_session.commit()
+
+    res = client.get("/api/v1/travels/stats")
+    assert res.status_code == 200
+    totals = res.json()["totals"]
+    assert totals["total_flights"] == 3
+    assert totals["total_airports"] == 3  # PRG, IST, FRA
+    assert totals["total_airlines"] == 2  # Turkish, Lufthansa
+
+
+def test_map_flights_has_flights_count(client: TestClient, db_session: Session) -> None:
+    """Airport entries in map-flights include flights_count."""
+    trip = _create_trip(db_session)
+    prg = _create_airport(db_session, "PRG", "Prague", "CZ", 50.1, 14.26)
+    ist = _create_airport(db_session, "IST", "Istanbul", "TR", 40.98, 28.82)
+
+    # 2 flights PRG→IST: PRG gets 2 departures, IST gets 2 arrivals
+    for fn in ("TK1", "TK2"):
+        db_session.add(
+            Flight(
+                trip_id=trip.id,
+                flight_date=date(2026, 1, 10),
+                flight_number=fn,
+                departure_airport_id=prg.id,
+                arrival_airport_id=ist.id,
+            )
+        )
+    db_session.commit()
+
+    res = client.get("/api/v1/travels/map-flights")
+    assert res.status_code == 200
+    airports = {a["iata_code"]: a for a in res.json()["airports"]}
+    assert airports["PRG"]["flights_count"] == 2
+    assert airports["IST"]["flights_count"] == 2
+
+
+def test_flight_stats_endpoint(client: TestClient, db_session: Session) -> None:
+    """GET /flight-stats returns aggregated flight statistics."""
+    trip = _create_trip(db_session)
+    prg = _create_airport(db_session, "PRG", "Prague")
+    ist = _create_airport(db_session, "IST", "Istanbul")
+    fra = _create_airport(db_session, "FRA", "Frankfurt")
+
+    flights_data = [
+        ("TK1", prg, ist, "Turkish Airlines", "Airbus A321", date(2025, 6, 15)),
+        ("TK2", ist, prg, "Turkish Airlines", "Airbus A321", date(2025, 6, 20)),
+        ("LH1", fra, prg, "Lufthansa", "Boeing 737", date(2026, 1, 10)),
+    ]
+    for fn, dep, arr, airline, aircraft, fdate in flights_data:
+        db_session.add(
+            Flight(
+                trip_id=trip.id,
+                flight_date=fdate,
+                flight_number=fn,
+                departure_airport_id=dep.id,
+                arrival_airport_id=arr.id,
+                airline_name=airline,
+                aircraft_type=aircraft,
+            )
+        )
+    db_session.commit()
+
+    res = client.get("/api/v1/travels/flight-stats")
+    assert res.status_code == 200
+    data = res.json()
+
+    assert data["total_flights"] == 3
+    assert data["total_airports"] == 3
+    assert data["total_airlines"] == 2
+    assert data["total_aircraft_types"] == 2
+
+    # Top airlines: Turkish (2) > Lufthansa (1)
+    assert len(data["top_airlines"]) == 2
+    assert data["top_airlines"][0]["name"] == "Turkish Airlines"
+    assert data["top_airlines"][0]["count"] == 2
+
+    # Top airports: name is IATA code, extra has "country_code|full_name"
+    assert len(data["top_airports"]) == 3
+    # All airports appear (PRG: 3 flights, IST: 2, FRA: 1)
+    airport_names = [a["name"] for a in data["top_airports"]]
+    assert airport_names[0] == "PRG"
+    assert data["top_airports"][0]["count"] == 3
+    assert "|Prague" in data["top_airports"][0]["extra"]
+
+    # Flights by year (recent first)
+    assert data["flights_by_year"][0]["year"] == 2026
+    assert data["flights_by_year"][0]["count"] == 1
+    assert data["flights_by_year"][1]["year"] == 2025
+    assert data["flights_by_year"][1]["count"] == 2
+
+    # Top routes: PRG-IST (2) > FRA-PRG (1)
+    assert len(data["top_routes"]) == 2
+    assert data["top_routes"][0]["count"] == 2
+
+    # Aircraft types (grouped by family)
+    type_names = [t["name"] for t in data["aircraft_types"]]
+    assert "Airbus A320 family" in type_names
+    assert "Boeing 737" in type_names
+
+
+def test_flight_stats_empty(client: TestClient) -> None:
+    """GET /flight-stats with no flights returns zeros."""
+    res = client.get("/api/v1/travels/flight-stats")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total_flights"] == 0
+    assert data["top_airlines"] == []
+    assert data["flights_by_year"] == []

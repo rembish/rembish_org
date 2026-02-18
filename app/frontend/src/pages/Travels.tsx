@@ -15,6 +15,7 @@ import {
   BiX,
   BiTrip,
   BiBuildings,
+  BiSolidPlaneAlt,
 } from "react-icons/bi";
 import { FaCar } from "react-icons/fa";
 import { TbDrone } from "react-icons/tb";
@@ -88,6 +89,7 @@ interface FlightMapAirport {
   name: string | null;
   lat: number;
   lng: number;
+  flights_count: number;
 }
 
 interface FlightMapRoute {
@@ -100,6 +102,29 @@ interface FlightMapData {
   airports: FlightMapAirport[];
   routes: FlightMapRoute[];
   country_regions: Record<string, number>;
+}
+
+interface RankedItem {
+  name: string;
+  count: number;
+  extra?: string;
+}
+
+interface YearFlightCount {
+  year: number;
+  count: number;
+}
+
+interface FlightStatsData {
+  total_flights: number;
+  total_airports: number;
+  total_airlines: number;
+  total_aircraft_types: number;
+  top_airlines: RankedItem[];
+  top_airports: RankedItem[];
+  top_routes: RankedItem[];
+  aircraft_types: RankedItem[];
+  flights_by_year: YearFlightCount[];
 }
 
 // Calculate color based on visit count (hue) and visit date (lightness)
@@ -228,10 +253,14 @@ interface TravelStatsData {
     days: number;
     countries: number;
     years: number;
+    total_flights: number;
+    planned_flights: number;
+    total_airports: number;
+    total_airlines: number;
   };
 }
 
-type TabType = "map" | "un" | "tcc" | "stats";
+type TabType = "map" | "un" | "tcc" | "stats" | "flights";
 
 export default function Travels() {
   const { user } = useAuth();
@@ -295,11 +324,13 @@ export default function Travels() {
   const [flightMapData, setFlightMapData] = useState<FlightMapData | null>(
     null,
   );
+  const [flightStatsData, setFlightStatsData] =
+    useState<FlightStatsData | null>(null);
   const [statCarouselIndex, setStatCarouselIndex] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
 
   const handleCarouselSwipe = (direction: "left" | "right") => {
-    const totalItems = 5;
+    const totalItems = 6;
     if (direction === "left") {
       setStatCarouselIndex((prev) => (prev + 1) % totalItems);
     } else {
@@ -327,7 +358,7 @@ export default function Travels() {
     if (!isMobile) return;
 
     const interval = setInterval(() => {
-      setStatCarouselIndex((prev) => (prev + 1) % 5);
+      setStatCarouselIndex((prev) => (prev + 1) % 6);
     }, 5000);
 
     return () => clearInterval(interval);
@@ -354,14 +385,15 @@ export default function Travels() {
       setMapData(mapDataResult);
       setMapLoading(false);
 
-      // Fetch UN, TCC, stats, city, and flight data in parallel
-      const [unRes, tccRes, statsRes, citiesRes, flightsRes] =
+      // Fetch UN, TCC, stats, city, flight, and flight-stats data in parallel
+      const [unRes, tccRes, statsRes, citiesRes, flightsRes, flightStatsRes] =
         await Promise.all([
           fetch("/api/v1/travels/un-countries"),
           fetch("/api/v1/travels/tcc-destinations"),
           fetch("/api/v1/travels/stats"),
           fetch("/api/v1/travels/map-cities"),
           fetch("/api/v1/travels/map-flights"),
+          fetch("/api/v1/travels/flight-stats"),
         ]);
 
       if (unRes.ok) {
@@ -390,6 +422,11 @@ export default function Travels() {
       if (flightsRes.ok) {
         const flightsResult: FlightMapData = await flightsRes.json();
         setFlightMapData(flightsResult);
+      }
+
+      if (flightStatsRes.ok) {
+        const flightStatsResult: FlightStatsData = await flightStatsRes.json();
+        setFlightStatsData(flightStatsResult);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -511,15 +548,14 @@ export default function Travels() {
     } else if (mapViewMode === "drone") {
       return unCountry?.drone_flown ? "#9b59b6" : "#e6e9ec";
     } else {
-      // flights — intensity based on airport count
+      // flights — intensity based on airport count (muted blue-gray to not clash with orange routes)
       const airportCount = flightMapData?.country_regions[geoId];
       if (!airportCount) return "#e6e9ec";
-      // Scale: 1 airport = lightest, 5+ = darkest
-      const t = Math.min((airportCount - 1) / 4, 1);
-      // Interpolate from light peach to warm orange
-      const r = Math.round(253 - t * 30);
-      const g = Math.round(232 - t * 100);
-      const b = Math.round(208 - t * 140);
+      // Scale: 1 airport = light sky blue, 15+ = deep navy
+      const t = Math.min((airportCount - 1) / 14, 1);
+      const r = Math.round(190 - t * 160);
+      const g = Math.round(215 - t * 145);
+      const b = Math.round(240 - t * 80);
       return `rgb(${r}, ${g}, ${b})`;
     }
   };
@@ -569,10 +605,10 @@ export default function Travels() {
               className="map-legend-gradient"
               style={{
                 background:
-                  "linear-gradient(to right, rgb(253,232,208), rgb(223,132,68))",
+                  "linear-gradient(to right, rgb(190,215,240), rgb(30,70,160))",
               }}
             />
-            <span className="map-legend-label">5+</span>
+            <span className="map-legend-label">15+</span>
           </div>
         </div>
       );
@@ -770,6 +806,10 @@ export default function Travels() {
                   ...flightMapData.routes.map((r) => r.count),
                   1,
                 );
+                const maxFlights = Math.max(
+                  ...flightMapData.airports.map((a) => a.flights_count),
+                  1,
+                );
                 return (
                   <>
                     {flightMapData.routes.map((route) => {
@@ -790,30 +830,35 @@ export default function Travels() {
                         />
                       );
                     })}
-                    {flightMapData.airports.map((airport) => (
-                      <Marker
-                        key={airport.iata_code}
-                        coordinates={[airport.lng, airport.lat]}
-                      >
-                        <circle
-                          r={1.5}
-                          fill="#e67e22"
-                          stroke="#ffffff"
-                          strokeWidth={0.3}
-                          style={{ cursor: "pointer" }}
-                          onMouseEnter={(e) => {
-                            setTooltip({
-                              name: airport.name
-                                ? `${airport.iata_code} — ${airport.name}`
-                                : airport.iata_code,
-                              x: e.clientX,
-                              y: e.clientY,
-                            });
-                          }}
-                          onMouseLeave={() => setTooltip(null)}
-                        />
-                      </Marker>
-                    ))}
+                    {flightMapData.airports.map((airport) => {
+                      const r =
+                        1.5 + (airport.flights_count / maxFlights) * 2.5;
+                      return (
+                        <Marker
+                          key={airport.iata_code}
+                          coordinates={[airport.lng, airport.lat]}
+                        >
+                          <circle
+                            r={r}
+                            fill="#e67e22"
+                            stroke="#ffffff"
+                            strokeWidth={0.3}
+                            style={{ cursor: "pointer" }}
+                            onMouseEnter={(e) => {
+                              setTooltip({
+                                name: airport.name
+                                  ? `${airport.iata_code} — ${airport.name}`
+                                  : airport.iata_code,
+                                visitCount: airport.flights_count,
+                                x: e.clientX,
+                                y: e.clientY,
+                              });
+                            }}
+                            onMouseLeave={() => setTooltip(null)}
+                          />
+                        </Marker>
+                      );
+                    })}
                   </>
                 );
               })()}
@@ -906,7 +951,14 @@ export default function Travels() {
               <span className="tooltip-visits">
                 {" "}
                 ({tooltip.visitCount}{" "}
-                {tooltip.visitCount === 1 ? "trip" : "trips"})
+                {mapViewMode === "flights"
+                  ? tooltip.visitCount === 1
+                    ? "flight"
+                    : "flights"
+                  : tooltip.visitCount === 1
+                    ? "trip"
+                    : "trips"}
+                )
               </span>
             )}
           </div>
@@ -1338,6 +1390,142 @@ export default function Travels() {
     "Dec",
   ];
 
+  const renderFlightStatsSection = (
+    title: string,
+    items: RankedItem[],
+    maxCount: number,
+    color: string,
+    renderLabel?: (item: RankedItem) => React.ReactNode,
+  ) => {
+    if (items.length === 0) return null;
+
+    // Detect outlier: top value > 2x second value → broken bar for #1, scale rest to #2
+    const secondMax =
+      items.length > 1
+        ? Math.max(...items.slice(1).map((i) => i.count), 1)
+        : maxCount;
+    const hasOutlier = items.length > 1 && items[0].count > secondMax * 1.5;
+    const scaleMax = hasOutlier ? secondMax * 1.4 : maxCount;
+
+    return (
+      <div className="flight-stats-section">
+        <h3 className="flight-stats-title">{title}</h3>
+        {items.map((item, idx) => {
+          const isOutlier = hasOutlier && idx === 0;
+          return (
+            <div
+              key={idx}
+              className="flight-stats-bar-row"
+              title={!renderLabel && item.extra ? item.extra : undefined}
+            >
+              <span className="flight-stats-label">
+                {renderLabel ? renderLabel(item) : item.name}
+              </span>
+              {isOutlier ? (
+                <div
+                  className="flight-stats-bar flight-stats-bar-outlier"
+                  style={{
+                    background: `linear-gradient(to right, ${color}, #e74c3c 50%, #e67e22)`,
+                  }}
+                >
+                  <span className="flight-stats-bar-value">{item.count}</span>
+                </div>
+              ) : (
+                <div
+                  className="flight-stats-bar"
+                  style={{
+                    width: `${Math.max((item.count / scaleMax) * 100, 2)}%`,
+                    background: color,
+                  }}
+                >
+                  <span className="flight-stats-bar-value">{item.count}</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderAirportLabel = (item: RankedItem) => {
+    // extra = "country_code|full_name"
+    const [cc, fullName] = (item.extra || "|").split("|", 2);
+    return (
+      <span
+        className="flight-stats-airport-label"
+        title={fullName || item.name}
+      >
+        {cc && <Flag code={cc.toLowerCase()} size={16} title={fullName} />}
+        {item.name}
+      </span>
+    );
+  };
+
+  const renderFlightStats = () => {
+    if (!flightStatsData) return null;
+
+    const yearMax = Math.max(
+      ...flightStatsData.flights_by_year.map((y) => y.count),
+      1,
+    );
+    const airlineMax = Math.max(
+      ...flightStatsData.top_airlines.map((a) => a.count),
+      1,
+    );
+    const airportMax = Math.max(
+      ...flightStatsData.top_airports.map((a) => a.count),
+      1,
+    );
+    const routeMax = Math.max(
+      ...flightStatsData.top_routes.map((r) => r.count),
+      1,
+    );
+    const aircraftMax = Math.max(
+      ...flightStatsData.aircraft_types.map((a) => a.count),
+      1,
+    );
+
+    return (
+      <>
+        {renderFlightStatsSection(
+          "Flights by Year",
+          flightStatsData.flights_by_year.map((y) => ({
+            name: String(y.year),
+            count: y.count,
+          })),
+          yearMax,
+          "#0563bb",
+        )}
+        {renderFlightStatsSection(
+          "Top Airlines",
+          flightStatsData.top_airlines,
+          airlineMax,
+          "#e67e22",
+        )}
+        {renderFlightStatsSection(
+          "Top Airports",
+          flightStatsData.top_airports,
+          airportMax,
+          "#27ae60",
+          renderAirportLabel,
+        )}
+        {renderFlightStatsSection(
+          "Top Routes",
+          flightStatsData.top_routes,
+          routeMax,
+          "#8e44ad",
+        )}
+        {renderFlightStatsSection(
+          "Aircraft Types",
+          flightStatsData.aircraft_types,
+          aircraftMax,
+          "#2c3e50",
+        )}
+      </>
+    );
+  };
+
   const renderStats = () => {
     if (!statsData) return null;
 
@@ -1589,9 +1777,31 @@ export default function Travels() {
               </span>
             </div>
           </div>
+          {/* Flights */}
+          <div
+            className={`stat-card stat-carousel-item ${statCarouselIndex === 5 ? "active" : ""}`}
+            data-index={5}
+          >
+            <BiSolidPlaneAlt className="stat-icon" />
+            <div className="stat-content">
+              <span className="stat-number">
+                {statsData?.totals.total_flights ?? "..."}
+                {(statsData?.totals.planned_flights ?? 0) > 0 && (
+                  <span className="stat-planned" title="Planned">
+                    +{statsData?.totals.planned_flights}
+                  </span>
+                )}
+                <span className="stat-total"> flights</span>
+              </span>
+              <span className="stat-label">
+                {statsData?.totals.total_airports ?? "..."} airports,{" "}
+                {statsData?.totals.total_airlines ?? "..."} airlines
+              </span>
+            </div>
+          </div>
           {/* Carousel dots for mobile */}
           <div className="stat-carousel-dots">
-            {[0, 1, 2, 3, 4].map((i) => (
+            {[0, 1, 2, 3, 4, 5].map((i) => (
               <button
                 key={i}
                 className={`stat-carousel-dot ${statCarouselIndex === i ? "active" : ""}`}
@@ -1627,6 +1837,12 @@ export default function Travels() {
           >
             TCC Destinations
           </button>
+          <button
+            className={`travel-tab ${activeTab === "flights" ? "active" : ""}`}
+            onClick={() => setActiveTab("flights")}
+          >
+            Flights
+          </button>
         </div>
 
         <div className="travel-tab-content">
@@ -1637,6 +1853,9 @@ export default function Travels() {
             (unLoading ? <p>Loading UN countries...</p> : renderUNList())}
           {activeTab === "tcc" &&
             (tccLoading ? <p>Loading TCC destinations...</p> : renderTCCList())}
+          {activeTab === "flights" && (
+            <div className="travel-stats-page">{renderFlightStats()}</div>
+          )}
         </div>
       </div>
       {renderActivityModal()}
