@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.27.1 (2026-02-18)
+
+### Calendar Improvements
+- Country flag emojis on calendar days with flights (shows arrival countries)
+- Plane icon for CZ-only return flight days
+- Fixed plane icon invisible on half-day arrival cells (moved to bottom-left corner)
+
+### Flights Map
+- Country fill intensity scales with airport count (light peach → warm orange)
+- Map shows only past flights (excludes future)
+- Simplified legend to gradient only
+
+### Travels Page
+- Map view mode (visits/driving/drone/flights) persists in URL via `?view=` parameter
+
 ## 0.27.0 (2026-02-17)
 
 ### Flight Tracking

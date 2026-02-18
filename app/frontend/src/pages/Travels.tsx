@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ComposableMap,
   Geographies,
@@ -237,7 +237,24 @@ export default function Travels() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { tab } = useParams<{ tab?: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const activeTab: TabType = (tab as TabType) || "map";
+
+  type MapViewMode = "visits" | "driving" | "drone" | "flights";
+  const viewParam = searchParams.get("view") as MapViewMode | null;
+  const mapViewMode: MapViewMode =
+    viewParam && ["visits", "driving", "drone", "flights"].includes(viewParam)
+      ? viewParam
+      : "visits";
+
+  const setMapViewMode = (mode: MapViewMode) => {
+    if (mode === "visits") {
+      searchParams.delete("view");
+    } else {
+      searchParams.set("view", mode);
+    }
+    setSearchParams(searchParams, { replace: true });
+  };
 
   const setActiveTab = (newTab: TabType) => {
     navigate(`/travels/${newTab}`);
@@ -275,9 +292,6 @@ export default function Travels() {
     null,
   );
   const [activitySaving, setActivitySaving] = useState(false);
-  const [mapViewMode, setMapViewMode] = useState<
-    "visits" | "driving" | "drone" | "flights"
-  >("visits");
   const [flightMapData, setFlightMapData] = useState<FlightMapData | null>(
     null,
   );

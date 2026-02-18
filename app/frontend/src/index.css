@@ -3976,6 +3976,12 @@ a {
   bottom: 1px;
   right: 1px;
   font-size: 0.75rem;
+
+  .vac-half-end &,
+  .vac-light-end & {
+    right: auto;
+    left: 1px;
+  }
 }
 
 .event-emoji {

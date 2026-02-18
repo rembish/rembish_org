@@ -264,17 +264,25 @@ def get_flight_dates(
     year: int = Query(...),
     admin: Annotated[User, Depends(get_admin_user)] = ...,  # type: ignore[assignment]
     db: Session = Depends(get_db),
-) -> dict[str, list[str]]:
-    """Return all flight dates for a given year, keyed by ISO date string."""
+) -> dict[str, dict[str, list[str]]]:
+    """Return flight dates with unique arrival countries for a given year."""
     start = date(year, 1, 1)
     end = date(year, 12, 31)
     rows = (
-        db.query(Flight.flight_date)
+        db.query(Flight.flight_date, Airport.country_code)
+        .join(Airport, Flight.arrival_airport_id == Airport.id)
         .filter(Flight.flight_date >= start, Flight.flight_date <= end)
-        .distinct()
+        .filter(Airport.country_code.isnot(None))
         .all()
     )
-    return {"dates": [r[0].isoformat() for r in rows]}
+    dates: dict[str, list[str]] = {}
+    for flight_date, country_code in rows:
+        key = flight_date.isoformat()
+        if key not in dates:
+            dates[key] = []
+        if country_code not in dates[key]:
+            dates[key].append(country_code)
+    return {"dates": dates}
 
 
 @router.post("/trips/{trip_id}/flights", response_model=FlightData)

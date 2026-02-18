@@ -1506,6 +1506,14 @@ function InstagramTab({
 }
 
 // Check if trip overlaps with a given year (for NY trips spanning Dec-Jan)
+function countryFlag(iso: string): string {
+  return iso
+    .toUpperCase()
+    .split("")
+    .map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
+    .join("");
+}
+
 function tripOverlapsYear(trip: Trip, year: number): boolean {
   const startYear = new Date(trip.start_date).getFullYear();
   const endYear = trip.end_date
@@ -1676,7 +1684,7 @@ interface YearCalendarViewProps {
   czechHolidays: Holiday[];
   birthdays: UserBirthday[];
   events: PersonalEvent[];
-  flightDates: Set<string>;
+  flightDates: Map<string, string[]>;
   onDateClick: (date: string, trip?: Trip, event?: PersonalEvent) => void;
   tccOptions: TCCDestinationOption[];
 }
@@ -1916,6 +1924,11 @@ function YearCalendarView({
         classes.push("weekend");
       }
 
+      const foreignCountries =
+        trip && flightDates.has(dateStr)
+          ? flightDates.get(dateStr)!.filter((cc) => cc !== "CZ")
+          : null;
+
       days.push(
         <div
           key={day}
@@ -1935,9 +1948,13 @@ function YearCalendarView({
           )}
           {hasTripOnBirthday && <BiCake className="day-icon day-icon-left" />}
           {hasTripOnHoliday && <BiParty className="day-icon day-icon-right" />}
-          {trip && flightDates.has(dateStr) && (
+          {foreignCountries && foreignCountries.length > 0 ? (
+            <span className="day-icon day-icon-bottom">
+              {foreignCountries.map((cc) => countryFlag(cc)).join("")}
+            </span>
+          ) : trip && flightDates.has(dateStr) ? (
             <BiPaperPlane className="day-icon day-icon-bottom" />
-          )}
+          ) : null}
         </div>,
       );
     }
@@ -2201,11 +2218,13 @@ function TripsTab({
   }, [selectedYear]);
 
   // Flight dates for calendar icons
-  const [flightDates, setFlightDates] = useState<Set<string>>(new Set());
+  const [flightDates, setFlightDates] = useState<Map<string, string[]>>(
+    new Map(),
+  );
 
   useEffect(() => {
     if (!selectedYear) {
-      setFlightDates(new Set());
+      setFlightDates(new Map());
       return;
     }
 
@@ -2213,8 +2232,12 @@ function TripsTab({
       credentials: "include",
     })
       .then((res) => res.json())
-      .then((data) => setFlightDates(new Set(data.dates || [])))
-      .catch(() => setFlightDates(new Set()));
+      .then((data) =>
+        setFlightDates(
+          new Map(Object.entries(data.dates || {}) as [string, string[]][]),
+        ),
+      )
+      .catch(() => setFlightDates(new Map()));
   }, [selectedYear]);
 
   if (loading) {

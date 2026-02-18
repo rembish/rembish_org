@@ -293,12 +293,12 @@ def test_flights_count_self_heal(admin_client: TestClient, db_session: Session) 
 
 
 def test_flight_dates_endpoint(admin_client: TestClient, db_session: Session) -> None:
-    """GET /flights/dates returns distinct flight dates for a year."""
+    """GET /flights/dates returns flight dates with arrival country codes."""
     trip = _create_trip(db_session)
-    dep = _create_airport(db_session, "PRG")
-    arr = _create_airport(db_session, "IST")
+    dep = _create_airport(db_session, "PRG", country_code="CZ")
+    arr = _create_airport(db_session, "IST", country_code="TR")
 
-    for d in (date(2026, 3, 10), date(2026, 3, 10), date(2026, 3, 15)):
+    for d in (date(2026, 1, 10), date(2026, 1, 10), date(2026, 1, 15)):
         db_session.add(
             Flight(
                 trip_id=trip.id,
@@ -313,11 +313,11 @@ def test_flight_dates_endpoint(admin_client: TestClient, db_session: Session) ->
     res = admin_client.get("/api/v1/travels/flights/dates", params={"year": 2026})
     assert res.status_code == 200
     dates = res.json()["dates"]
-    assert sorted(dates) == ["2026-03-10", "2026-03-15"]
+    assert dates == {"2026-01-10": ["TR"], "2026-01-15": ["TR"]}
 
     # Wrong year returns empty
     res2 = admin_client.get("/api/v1/travels/flights/dates", params={"year": 2025})
-    assert res2.json()["dates"] == []
+    assert res2.json()["dates"] == {}
 
 
 def test_map_flights_endpoint(client: TestClient, db_session: Session) -> None:
