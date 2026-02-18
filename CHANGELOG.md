@@ -4,6 +4,9 @@
 
 ### Projects Page
 - Updated `fit` entry: refreshed description, expanded feature list, corrected tech stack to Python 3.9+, status changed from completed to active
+- Updated `cfb` entry: rewrote description to explain CFB containers, expanded features, corrected tech stack to Python 3.8+, status changed from completed to alpha
+- Updated `Miette` entry: rewrote description to clarify .doc reading focus, expanded features, corrected tech stack to Python 3.8+, status changed from completed to alpha
+- Updated `TextAtAnyCost` entry: rewrote description with proper backstory, expanded features to list supported formats explicitly, corrected tech stack to PHP 8.3+
 
 ## 0.27.1 (2026-02-18)
 
