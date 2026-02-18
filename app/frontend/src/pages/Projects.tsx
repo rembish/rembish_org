@@ -141,15 +141,16 @@ const projects: Project[] = [
   {
     title: "fit",
     description:
-      "Python SDK for working with FIT (Flexible and Interoperable Data Transfer) files. FIT is used by fitness devices like Garmin for activity data.",
+      "A Python library for reading and writing Garmin FIT files — the binary format used by fitness devices to record activities, workouts, and health data. Fully ported to modern Python and given a proper new release in 2026.",
     features: [
-      "Parse FIT files",
-      "Access workout and activity data",
-      "Support for various FIT message types",
-      "Pythonic API",
+      "Read and write .fit activity files",
+      "Supports all standard FIT message types",
+      "Dynamic and composite bit-packed fields",
+      "Plugin system for custom message and file types",
+      "Context-manager API with stream support",
     ],
-    techStack: ["Python"],
-    status: "completed",
+    techStack: ["Python 3.9+"],
+    status: "active",
     links: [
       {
         label: "GitHub",
