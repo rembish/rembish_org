@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.29.1 (2026-02-19)
+
+### Bug Fix
+- Fixed vault file signed URLs failing on Cloud Run (500 error) — compute engine credentials can't sign locally, now uses IAM signBlob API
+
 ## 0.29.0 (2026-02-19)
 
 ### Travel Documents & File Storage

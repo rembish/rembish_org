@@ -73,12 +73,32 @@ class LocalVaultStorage(VaultStorageBackend):
 
 
 class GCSVaultStorage(VaultStorageBackend):
-    """Google Cloud Storage backend (private bucket with signed URLs)."""
+    """Google Cloud Storage backend (private bucket with signed URLs).
+
+    On Cloud Run, credentials are metadata-server tokens without a private key.
+    We pass service_account_email + access_token to generate_signed_url(),
+    which uses the IAM signBlob API instead of local signing.
+    Requires roles/iam.serviceAccountTokenCreator on the SA.
+    """
 
     def __init__(self, bucket_name: str):
+        import google.auth
+        from google.auth import compute_engine
+        from google.auth.transport import requests as google_requests
         from google.cloud import storage
 
-        self.client = storage.Client()
+        self._credentials, project = google.auth.default()
+        self._auth_request = google_requests.Request()
+
+        # Detect Cloud Run (compute engine credentials without private key)
+        if isinstance(self._credentials, compute_engine.Credentials):
+            # Refresh to populate service_account_email (is "default" before refresh)
+            self._credentials.refresh(self._auth_request)
+            self._sa_email: str | None = self._credentials.service_account_email
+        else:
+            self._sa_email = None
+
+        self.client = storage.Client(credentials=self._credentials, project=project)
         self.bucket = self.client.bucket(bucket_name)
         self.bucket_name = bucket_name
 
@@ -92,13 +112,28 @@ class GCSVaultStorage(VaultStorageBackend):
         import datetime
 
         blob = self.bucket.blob(key)
-        return str(
-            blob.generate_signed_url(
-                version="v4",
-                expiration=datetime.timedelta(minutes=expires_minutes),
-                method="GET",
+
+        if self._sa_email:
+            # Cloud Run: use IAM signBlob API via access_token
+            self._credentials.refresh(self._auth_request)
+            return str(
+                blob.generate_signed_url(
+                    version="v4",
+                    expiration=datetime.timedelta(minutes=expires_minutes),
+                    method="GET",
+                    service_account_email=self._sa_email,
+                    access_token=self._credentials.token,
+                )
             )
-        )
+        else:
+            # Local with service account key file
+            return str(
+                blob.generate_signed_url(
+                    version="v4",
+                    expiration=datetime.timedelta(minutes=expires_minutes),
+                    method="GET",
+                )
+            )
 
     def delete(self, key: str) -> bool:
         blob = self.bucket.blob(key)
