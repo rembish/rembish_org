@@ -1,6 +1,7 @@
 .venv/
 __pycache__/
 data/
+!app/backend/src/data/
 dist/
 node_modules/
 ssl/

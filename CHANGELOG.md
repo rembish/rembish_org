@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.28.2 (2026-02-19)
+
+### Bug Fix
+- Fixed health requirements data missing from production — `data/` gitignore pattern was excluding `src/data/health_requirements.json` from commits
+
 ## 0.28.1 (2026-02-19)
 
 ### Bug Fix
