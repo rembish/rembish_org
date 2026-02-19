@@ -30,6 +30,7 @@ import {
   BiStar,
 } from "react-icons/bi";
 import { TbDrone } from "react-icons/tb";
+import Flag from "../components/Flag";
 import { useAuth } from "../hooks/useAuth";
 import UserFormModal, { UserFormData } from "../components/UserFormModal";
 
@@ -672,11 +673,7 @@ function VaultTab() {
                 <div className="vault-card-header">
                   <div className="vault-card-label">
                     {doc.issuing_country && (
-                      <img
-                        src={`https://flagcdn.com/w20/${doc.issuing_country.toLowerCase()}.png`}
-                        alt={doc.issuing_country}
-                        className="vault-flag"
-                      />
+                      <Flag code={doc.issuing_country} size={16} />
                     )}
                     {doc.label}
                   </div>

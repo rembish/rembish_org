@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.28.1 (2026-02-19)
+
+### Bug Fix
+- Fixed CSP violation for passport flag images in vault (replaced external flagcdn.com with local SVG flags)
+
 ## 0.28.0 (2026-02-19)
 
 ### Vault — Secure Document Storage
