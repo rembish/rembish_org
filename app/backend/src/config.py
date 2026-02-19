@@ -33,11 +33,17 @@ class Settings(BaseSettings):
     # AeroDataBox (optional — empty = flight lookup disabled)
     aerodatabox_api_key: str = ""
 
+    # Anthropic API (for PDF metadata extraction, empty = disabled)
+    anthropic_api_key: str = ""
+
     # GCS Storage (empty = use local storage for dev)
     gcs_bucket: str = ""
 
     # Vault encryption (base64-encoded 32-byte key)
     vault_encryption_key: str = ""
+
+    # Vault document storage (private bucket, empty = local filesystem)
+    vault_gcs_bucket: str = ""
 
 
 settings = Settings()

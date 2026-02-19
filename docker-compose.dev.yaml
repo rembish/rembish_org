@@ -27,6 +27,7 @@ services:
       - ./tcc-visits.csv:/app/tcc-visits.csv:ro
       - ./nm_regions.xlsx:/app/nm_regions.xlsx:ro
       - ../rembish_org_ops/data/instagram:/app/data/instagram
+      - ../rembish_org_ops/data/vault-docs:/app/data/vault-docs
       - ../rembish_org_ops/scripts:/ops/scripts:ro
     env_file:
       - ./app/backend/.env.dev

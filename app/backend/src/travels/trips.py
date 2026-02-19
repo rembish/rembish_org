@@ -24,7 +24,7 @@ from ..models import (
     User,
     Visit,
 )
-from ..models.vault import VaultVaccination
+from ..models.vault import TripPassport, TripTravelDoc, VaultTravelDoc, VaultVaccination
 from .models import (
     CitySearchResponse,
     CitySearchResult,
@@ -49,6 +49,7 @@ from .models import (
     TripDestinationInput,
     TripParticipantData,
     TripsResponse,
+    TripTravelDocInfo,
     TripUpdateRequest,
     UserOption,
     UserOptionsResponse,
@@ -1416,6 +1417,64 @@ def get_trip_country_info(
     for (name,) in vax_records:
         user_vax_names.add(name)
 
+    # Query travel documents: assigned to this trip OR matching by country_code
+    trip_travel_docs: dict[str, list[VaultTravelDoc]] = {}
+    seen_doc_ids: set[int] = set()
+
+    # Get the trip's assigned passport (to filter visa-passport linkage)
+    trip_passport = db.query(TripPassport).filter(TripPassport.trip_id == trip_id).first()
+    trip_passport_id = trip_passport.document_id if trip_passport else None
+
+    # 1. Explicitly assigned to this trip
+    ttd_rows = (
+        db.query(VaultTravelDoc)
+        .join(TripTravelDoc, TripTravelDoc.travel_doc_id == VaultTravelDoc.id)
+        .filter(TripTravelDoc.trip_id == trip_id)
+        .all()
+    )
+    for vtd in ttd_rows:
+        cc = (vtd.country_code or "").upper()
+        if cc:
+            trip_travel_docs.setdefault(cc, []).append(vtd)
+            seen_doc_ids.add(vtd.id)
+
+    # 2. Auto-match: valid docs for trip's destination countries
+    today = date.today()
+
+    # Single-entry visas assigned to a completed trip are considered used
+    used_single_ids: set[int] = {
+        row[0]
+        for row in db.query(VaultTravelDoc.id)
+        .join(TripTravelDoc, TripTravelDoc.travel_doc_id == VaultTravelDoc.id)
+        .join(Trip, Trip.id == TripTravelDoc.trip_id)
+        .filter(
+            VaultTravelDoc.entry_type == "single",
+            Trip.end_date.isnot(None),
+            Trip.end_date < today,
+        )
+        .all()
+    }
+
+    country_docs = (
+        db.query(VaultTravelDoc)
+        .filter(
+            VaultTravelDoc.country_code.isnot(None),
+            (VaultTravelDoc.valid_until.is_(None)) | (VaultTravelDoc.valid_until >= today),
+        )
+        .all()
+    )
+    for vtd in country_docs:
+        if vtd.id in seen_doc_ids:
+            continue
+        if vtd.id in used_single_ids:
+            continue
+        # Skip visas linked to a different passport than the trip's passport
+        if vtd.document_id and trip_passport_id and vtd.document_id != trip_passport_id:
+            continue
+        cc = (vtd.country_code or "").upper()
+        if cc:
+            trip_travel_docs.setdefault(cc, []).append(vtd)
+
     # Group TCC destinations by UN country
     # Key: un_country_id (or negative tcc_id for orphans)
     grouped: dict[int, tuple[UNCountry | None, list[tuple[str, bool]]]] = {}
@@ -1509,6 +1568,21 @@ def get_trip_country_info(
                     adapter_needed=_needs_adapter(un_country.socket_types),
                     sunrise_sunset=sunrise_sunset,
                     health=_get_health_requirements(iso, user_vax_names),
+                    travel_docs=[
+                        TripTravelDocInfo(
+                            id=vtd.id,
+                            doc_type=vtd.doc_type,
+                            label=vtd.label,
+                            valid_until=vtd.valid_until.isoformat() if vtd.valid_until else None,
+                            entry_type=vtd.entry_type,
+                            passport_label=vtd.passport.label if vtd.passport else None,
+                            expires_before_trip=bool(
+                                vtd.valid_until and vtd.valid_until < trip_end
+                            ),
+                            has_files=len(vtd.files) > 0 if vtd.files else False,
+                        )
+                        for vtd in trip_travel_docs.get(iso, [])
+                    ],
                 )
             )
         else:

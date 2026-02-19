@@ -1,11 +1,12 @@
 [project]
 name = "rembish-org-backend"
-version = "0.28.2"
+version = "0.29.0"
 description = "rembish.org API backend"
 requires-python = ">=3.12"
 dependencies = [
     "aiomysql>=0.2.0",
     "alembic>=1.13.0",
+    "anthropic>=0.45.0",
     "authlib>=1.3.0",
     "cryptography>=42.0.0",
     "email-validator>=2.0.0",

@@ -195,6 +195,12 @@ class Trip(Base):
     flights: Mapped[list["Flight"]] = relationship(
         back_populates="trip", cascade="all, delete-orphan"
     )
+    travel_docs: Mapped[list["TripTravelDoc"]] = relationship(
+        back_populates="trip", cascade="all, delete-orphan"
+    )
+    passports: Mapped[list["TripPassport"]] = relationship(
+        back_populates="trip", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Trip #{self.id}: {self.start_date}>"
@@ -347,5 +353,6 @@ class Flight(Base):
         return f"<Flight #{self.id}: {self.flight_number} on {self.flight_date}>"
 
 
-# Import to complete relationship
+# Import to complete relationships
 from .user import User  # noqa: E402, F401
+from .vault import TripPassport, TripTravelDoc  # noqa: E402, F401

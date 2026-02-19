@@ -21,7 +21,7 @@ log = get_logger(__name__)
 
 app = FastAPI(
     title="rembish.org API",
-    version="0.28.2",
+    version="0.29.0",
     docs_url="/docs" if settings.debug else None,
     redoc_url="/redoc" if settings.debug else None,
     openapi_url="/openapi.json" if settings.debug else None,
@@ -63,6 +63,19 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(auth_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
 app.include_router(travels_router, prefix="/api")
+
+# Local static mount for vault files (when not using GCS)
+if not settings.vault_gcs_bucket:
+    from pathlib import Path
+
+    _vault_path = Path("/app/data/vault-docs")
+    try:
+        _vault_path.mkdir(parents=True, exist_ok=True)
+        from starlette.staticfiles import StaticFiles
+
+        app.mount("/vault-files", StaticFiles(directory=str(_vault_path)), name="vault-files")
+    except OSError:
+        pass  # Not in Docker — vault files served via GCS in prod
 
 # Spam protection settings
 MIN_SUBMISSION_TIME_MS = 3000  # Reject forms submitted faster than 3 seconds
@@ -106,7 +119,7 @@ def health() -> dict[str, str]:
 def info() -> dict[str, str]:
     return {
         "name": "rembish.org",
-        "version": "0.28.2",
+        "version": "0.29.0",
     }
 
 

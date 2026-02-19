@@ -132,6 +132,17 @@ interface HealthRequirements {
   other_risks: string[];
 }
 
+interface TripTravelDocInfo {
+  id: number;
+  doc_type: string;
+  label: string;
+  valid_until: string | null;
+  entry_type: string | null;
+  passport_label: string | null;
+  expires_before_trip: boolean;
+  has_files: boolean;
+}
+
 interface CountryInfoData {
   country_name: string;
   iso_alpha2: string;
@@ -154,6 +165,7 @@ interface CountryInfoData {
   adapter_needed: boolean | null;
   sunrise_sunset: SunriseSunset | null;
   health: HealthRequirements | null;
+  travel_docs: TripTravelDocInfo[];
 }
 
 // Flight types
@@ -1818,6 +1830,61 @@ export default function TripFormPage() {
                 )}
               </div>
             )}
+            {country.travel_docs && country.travel_docs.length > 0 && (
+              <div className="country-info-travel-docs">
+                <span className="info-label">Travel Documents</span>
+                <div className="travel-doc-badges">
+                  {country.travel_docs.map((td) => (
+                    <span
+                      key={td.id}
+                      className={`travel-doc-badge${td.expires_before_trip ? " travel-doc-expiring" : ""}`}
+                    >
+                      {td.label}
+                      {td.entry_type && (
+                        <span className="travel-doc-entry-type">
+                          {td.entry_type}
+                        </span>
+                      )}
+                      {td.passport_label && (
+                        <span className="travel-doc-passport">
+                          {td.passport_label}
+                        </span>
+                      )}
+                      {td.valid_until && (
+                        <span className="travel-doc-validity">
+                          until {td.valid_until}
+                        </span>
+                      )}
+                      {td.expires_before_trip && (
+                        <span className="travel-doc-warning">expires!</span>
+                      )}
+                      {td.has_files && (
+                        <span className="travel-doc-file">📎</span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {country.travel_docs &&
+              country.travel_docs.length === 0 &&
+              country.visa_free_days === 0 && (
+                <div className="travel-doc-suggest-banner">
+                  No visa/travel document assigned for this country
+                  {country.iso_alpha2 && (
+                    <button
+                      className="travel-doc-add-btn"
+                      onClick={() =>
+                        navigate(
+                          `/admin/vault?newTravelDoc=${country.iso_alpha2}`,
+                        )
+                      }
+                    >
+                      + Add
+                    </button>
+                  )}
+                </div>
+              )}
           </div>
         ))}
       </div>

@@ -299,6 +299,17 @@ class HealthRequirements(BaseModel):
     other_risks: list[str] = []
 
 
+class TripTravelDocInfo(BaseModel):
+    id: int
+    doc_type: str
+    label: str
+    valid_until: str | None
+    entry_type: str | None
+    passport_label: str | None = None
+    expires_before_trip: bool = False
+    has_files: bool = False
+
+
 class CountryInfoData(BaseModel):
     country_name: str
     iso_alpha2: str
@@ -321,6 +332,7 @@ class CountryInfoData(BaseModel):
     adapter_needed: bool | None  # computed: True if country sockets differ from CZ
     sunrise_sunset: SunriseSunset | None
     health: HealthRequirements | None = None
+    travel_docs: list[TripTravelDocInfo] = []
 
 
 class TripCountryInfoResponse(BaseModel):

@@ -17,7 +17,15 @@ from .travel import (
     Visit,
 )
 from .user import User
-from .vault import VaultDocument, VaultLoyaltyProgram, VaultVaccination
+from .vault import (
+    TripPassport,
+    TripTravelDoc,
+    VaultDocument,
+    VaultFile,
+    VaultLoyaltyProgram,
+    VaultTravelDoc,
+    VaultVaccination,
+)
 
 __all__ = [
     "Airport",
@@ -34,11 +42,15 @@ __all__ = [
     "TripCity",
     "TripDestination",
     "TripParticipant",
+    "TripPassport",
+    "TripTravelDoc",
     "UNCountry",
     "User",
     "UserLastLocation",
     "VaultDocument",
+    "VaultFile",
     "VaultLoyaltyProgram",
+    "VaultTravelDoc",
     "VaultVaccination",
     "Visit",
 ]

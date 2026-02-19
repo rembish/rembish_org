@@ -6823,6 +6823,22 @@ a {
   }
 }
 
+.vault-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vault-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: #888;
+  cursor: pointer;
+  user-select: none;
+}
+
 .vault-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -6939,6 +6955,12 @@ a {
   &:hover {
     background: #fef3e6;
   }
+}
+
+.vault-card-passport {
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: 0.15rem;
 }
 
 .vault-card-dates {
@@ -7153,5 +7175,223 @@ a {
 
   & > .form-group {
     flex: 1;
+  }
+}
+
+/* Travel document dropzone */
+.travel-doc-dropzone {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+  margin-bottom: 1rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+
+  & label {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    color: #666;
+  }
+}
+
+.travel-doc-dropzone.dragover {
+  border-color: var(--color-primary);
+  background: rgba(5, 99, 187, 0.04);
+}
+
+.btn-extract {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+
+  &:hover {
+    background: var(--color-primary-hover);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+/* Vault card entry type badge */
+.vault-card-entry-type {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  background: #e8f4fd;
+  color: #1a6bb5;
+}
+
+/* Vault file attachment styles */
+.vault-card-file-info {
+  margin-top: 0.4rem;
+}
+
+.vault-file-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  background: #f0f0f0;
+  color: #555;
+  border: 1px solid transparent;
+  cursor: pointer;
+
+  &:hover {
+    background: #e4e4e4;
+  }
+}
+
+.vault-file-badge-add {
+  border: 1px dashed #ccc;
+  background: transparent;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+}
+
+.vault-card-files {
+  margin-top: 0.4rem;
+  border-top: 1px solid #eee;
+  padding-top: 0.4rem;
+}
+
+.vault-file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.2rem 0;
+  font-size: 0.8rem;
+  color: #555;
+
+  & > span {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  & > div {
+    display: flex;
+    gap: 0.15rem;
+  }
+}
+
+.vault-file-add {
+  cursor: pointer;
+  color: var(--color-primary);
+  border: none;
+  background: none;
+  font-size: 0.8rem;
+  justify-content: flex-start;
+  gap: 0.3rem;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+/* Trip info tab: travel docs section */
+.country-info-travel-docs {
+  border-top: 1px solid #eee;
+  padding-top: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.travel-doc-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+
+.travel-doc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  background: #e8f4fd;
+  color: #1a6bb5;
+  border: 1px solid #bdd8ef;
+}
+
+.travel-doc-badge.travel-doc-expiring {
+  border-color: #f0ad4e;
+  background: #fef3cd;
+  color: #856404;
+}
+
+.travel-doc-entry-type {
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+.travel-doc-passport {
+  font-size: 0.7rem;
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.travel-doc-validity {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.travel-doc-warning {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #d9534f;
+}
+
+.travel-doc-file {
+  font-size: 0.75rem;
+}
+
+.travel-doc-suggest-banner {
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffc107;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.travel-doc-add-btn {
+  background: none;
+  border: 1px solid #856404;
+  border-radius: 3px;
+  color: #856404;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    background: #856404;
+    color: #fff;
   }
 }

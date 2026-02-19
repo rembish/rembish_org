@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.29.0 (2026-02-19)
+
+### Travel Documents & File Storage
+- New "Travel Documents" section in vault: store e-visas, ETAs, ESTAs, LOIs, entry permits, travel insurance, vaccination certificates
+- Private file storage: upload PDFs and images, served via short-lived signed URLs (no public access)
+- AI-powered metadata extraction: upload a visa PDF and Claude Haiku auto-fills document type, country, validity dates, entry type, and notes
+- Passport linkage: link each travel document to the passport it was issued against
+  - AI extraction auto-detects passport number and matches it to stored passports
+  - "Linked Passport" dropdown when creating/editing travel documents
+- File attachments on existing vault cards: attach passport scans, ID card photos, yellow book pages to documents and vaccinations
+
+### Trip Integration
+- Travel documents shown on trip info tab per country: type badge, entry type, passport label, validity dates
+- Expiry warning if document expires before or during trip
+- Auto-suggest: valid travel documents for each destination country automatically appear on trip info
+- Single-entry visa lifecycle: used visas from completed trips are skipped
+- Passport filtering: when a passport is assigned to a trip, only visas linked to that passport are shown
+- "No visa/travel document" banner with `+ Add` button — navigates directly to vault with country pre-filled
+
+### Vault UX
+- "Show expired" toggle on travel documents (hidden by default)
+- Travel documents sorted by expiry date (earliest first, no-expiry at end)
+
+### Database
+- Migration 042: vault_travel_docs, vault_files, trip_travel_docs, trip_passports tables
+- Migration 043: passport linkage (document_id FK) and used flag on travel docs
+
 ## 0.28.2 (2026-02-19)
 
 ### Bug Fix

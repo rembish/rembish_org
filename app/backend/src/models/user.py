@@ -33,6 +33,9 @@ class User(Base):
     vault_vaccinations: Mapped[list["VaultVaccination"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    vault_travel_docs: Mapped[list["VaultTravelDoc"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<User #{self.id}: {self.email}>"
@@ -41,4 +44,9 @@ class User(Base):
 # Import here to avoid circular imports
 from .location import UserLastLocation  # noqa: E402, F401
 from .travel import TripParticipant  # noqa: E402, F401
-from .vault import VaultDocument, VaultLoyaltyProgram, VaultVaccination  # noqa: E402, F401
+from .vault import (  # noqa: E402, F401
+    VaultDocument,
+    VaultLoyaltyProgram,
+    VaultTravelDoc,
+    VaultVaccination,
+)

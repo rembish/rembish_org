@@ -16,6 +16,10 @@ export default defineConfig({
         target: 'http://backend:8000',
         changeOrigin: true,
       },
+      '/vault-files': {
+        target: 'http://backend:8000',
+        changeOrigin: true,
+      },
     },
   },
 })

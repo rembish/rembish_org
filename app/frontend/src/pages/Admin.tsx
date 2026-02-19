@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import {
+  Navigate,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import {
   BiBriefcase,
   BiCake,
@@ -28,6 +33,11 @@ import {
   BiRefresh,
   BiSearch,
   BiStar,
+  BiFile,
+  BiCloudUpload,
+  BiPaperclip,
+  BiWorld,
+  BiNote,
 } from "react-icons/bi";
 import { TbDrone } from "react-icons/tb";
 import Flag from "../components/Flag";
@@ -173,6 +183,14 @@ interface TripOption {
 
 // --- Vault types ---
 
+interface VaultFile {
+  id: number;
+  label: string | null;
+  mime_type: string;
+  file_size: number;
+  sort_order: number;
+}
+
 interface VaultDocument {
   id: number;
   user_id: number;
@@ -187,6 +205,7 @@ interface VaultDocument {
   notes_masked: string | null;
   notes_decrypted: string | null;
   is_archived: boolean;
+  files: VaultFile[];
 }
 
 interface VaultLoyaltyProgram {
@@ -234,6 +253,36 @@ interface VaultVaccination {
   batch_number_decrypted: string | null;
   notes_masked: string | null;
   notes_decrypted: string | null;
+  files: VaultFile[];
+}
+
+interface VaultTravelDoc {
+  id: number;
+  user_id: number;
+  doc_type: string;
+  label: string;
+  document_id: number | null;
+  passport_label: string | null;
+  country_code: string | null;
+  valid_from: string | null;
+  valid_until: string | null;
+  entry_type: string | null;
+  notes_masked: string | null;
+  notes_decrypted: string | null;
+  files: VaultFile[];
+  trip_ids: number[];
+}
+
+interface ExtractedDocMetadata {
+  doc_type: string | null;
+  label: string | null;
+  country_code: string | null;
+  valid_from: string | null;
+  valid_until: string | null;
+  entry_type: string | null;
+  notes: string | null;
+  document_id: number | null;
+  error: string | null;
 }
 
 const fmtDate = (iso: string) => {
@@ -245,6 +294,30 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   passport: "Passport",
   id_card: "ID Card",
   drivers_license: "Driver's License",
+};
+
+const TRAVEL_DOC_TYPE_LABELS: Record<string, string> = {
+  e_visa: "e-Visa",
+  eta: "ETA",
+  esta: "ESTA",
+  etias: "ETIAS",
+  loi: "LOI",
+  entry_permit: "Entry Permit",
+  travel_insurance: "Travel Insurance",
+  vaccination_cert: "Vaccination Cert",
+  other: "Other",
+};
+
+const ENTRY_TYPE_LABELS: Record<string, string> = {
+  single: "Single entry",
+  double: "Double entry",
+  multiple: "Multiple entry",
+};
+
+const fmtFileSize = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
 const ALLIANCE_LABELS: Record<string, string> = {
@@ -291,13 +364,21 @@ function VaultTab() {
   const [vaccinations, setVaccinations] = useState<VaultVaccination[]>([]);
   const [vaxModalOpen, setVaxModalOpen] = useState(false);
   const [editingVax, setEditingVax] = useState<VaultVaccination | null>(null);
+  const [travelDocs, setTravelDocs] = useState<VaultTravelDoc[]>([]);
+  const [travelDocModalOpen, setTravelDocModalOpen] = useState(false);
+  const [editingTravelDoc, setEditingTravelDoc] =
+    useState<VaultTravelDoc | null>(null);
+  const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState<string | null>(null);
   const [expandedAlliances, setExpandedAlliances] = useState<Set<string>>(
     new Set(),
   );
   const [myUserId, setMyUserId] = useState<number | null>(null);
   const [airlineSearch, setAirlineSearch] = useState("");
+  const [showExpiredTravelDocs, setShowExpiredTravelDocs] = useState(false);
   const lockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const newTravelDocCountry = searchParams.get("newTravelDoc");
 
   const checkStatus = useCallback(() => {
     fetch("/api/auth/vault/status", { credentials: "include" })
@@ -323,12 +404,15 @@ function VaultTab() {
 
   const fetchData = useCallback(async () => {
     const params = selectedUserId ? `?user_id=${selectedUserId}` : "";
-    const [docsRes, progsRes, optionsRes, vaxRes] = await Promise.all([
-      vaultFetch(`/api/v1/admin/vault/documents${params}`),
-      vaultFetch(`/api/v1/admin/vault/programs${params}`),
-      vaultFetch("/api/v1/admin/vault/program-options"),
-      vaultFetch(`/api/v1/admin/vault/vaccinations${params}`),
-    ]);
+    const [docsRes, progsRes, optionsRes, vaxRes, tdocsRes] = await Promise.all(
+      [
+        vaultFetch(`/api/v1/admin/vault/documents${params}`),
+        vaultFetch(`/api/v1/admin/vault/programs${params}`),
+        vaultFetch("/api/v1/admin/vault/program-options"),
+        vaultFetch(`/api/v1/admin/vault/vaccinations${params}`),
+        vaultFetch(`/api/v1/admin/vault/travel-docs${params}`),
+      ],
+    );
     if (docsRes?.ok) {
       const data = await docsRes.json();
       setDocuments(data.documents);
@@ -344,6 +428,10 @@ function VaultTab() {
     if (vaxRes?.ok) {
       const data = await vaxRes.json();
       setVaccinations(data.vaccinations);
+    }
+    if (tdocsRes?.ok) {
+      const data = await tdocsRes.json();
+      setTravelDocs(data.travel_docs);
     }
   }, [vaultFetch, selectedUserId]);
 
@@ -397,6 +485,17 @@ function VaultTab() {
     };
   }, [unlocked, fetchData]);
 
+  // Auto-open travel doc form when navigating from trip info with ?newTravelDoc=XX
+  useEffect(() => {
+    if (newTravelDocCountry && unlocked && users.length > 0) {
+      setEditingTravelDoc(null);
+      setTravelDocModalOpen(true);
+      // Clear the param so it doesn't re-trigger
+      searchParams.delete("newTravelDoc");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [newTravelDocCountry, unlocked, users, searchParams, setSearchParams]);
+
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(id);
@@ -438,6 +537,118 @@ function VaultTab() {
       },
     );
     if (res?.ok) fetchData();
+  };
+
+  const handleDeleteTravelDoc = async (id: number) => {
+    if (!confirm("Delete this travel document?")) return;
+    const res = await vaultFetch(`/api/v1/admin/vault/travel-docs/${id}`, {
+      method: "DELETE",
+    });
+    if (res?.ok) fetchData();
+  };
+
+  const handleMarkUsed = async (id: number) => {
+    if (!confirm("Mark this document as used? This sets the expiry to today."))
+      return;
+    const res = await vaultFetch(
+      `/api/v1/admin/vault/travel-docs/${id}/mark-used`,
+      { method: "POST" },
+    );
+    if (res?.ok) fetchData();
+  };
+
+  const handleSaveTravelDoc = async (formData: {
+    user_id: number;
+    doc_type: string;
+    label: string;
+    document_id: number | null;
+    country_code: string;
+    valid_from: string;
+    valid_until: string;
+    entry_type: string;
+    notes: string;
+    file: File | null;
+  }) => {
+    const body = {
+      user_id: formData.user_id,
+      doc_type: formData.doc_type,
+      label: formData.label,
+      document_id: formData.document_id,
+      country_code: formData.country_code || null,
+      valid_from: formData.valid_from || null,
+      valid_until: formData.valid_until || null,
+      entry_type: formData.entry_type || null,
+      notes: formData.notes || null,
+    };
+    const url = editingTravelDoc
+      ? `/api/v1/admin/vault/travel-docs/${editingTravelDoc.id}`
+      : "/api/v1/admin/vault/travel-docs";
+    const method = editingTravelDoc ? "PUT" : "POST";
+    const res = await vaultFetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res?.ok) {
+      const data = await res?.json().catch(() => null);
+      throw new Error(data?.detail || "Failed to save travel document");
+    }
+    const saved = await res.json();
+    // Upload file if provided (new docs only)
+    if (formData.file && !editingTravelDoc) {
+      const fd = new FormData();
+      fd.append("file", formData.file);
+      fd.append("entity_type", "travel_doc");
+      fd.append("entity_id", String(saved.id));
+      await vaultFetch("/api/v1/admin/vault/files/upload", {
+        method: "POST",
+        body: fd,
+      });
+    }
+    setTravelDocModalOpen(false);
+    setEditingTravelDoc(null);
+    fetchData();
+  };
+
+  const handleFileUpload = async (
+    entityType: string,
+    entityId: number,
+    file: File,
+  ) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("entity_type", entityType);
+    fd.append("entity_id", String(entityId));
+    const res = await vaultFetch("/api/v1/admin/vault/files/upload", {
+      method: "POST",
+      body: fd,
+    });
+    if (res?.ok) fetchData();
+  };
+
+  const handleDeleteFile = async (fileId: number) => {
+    if (!confirm("Delete this file?")) return;
+    const res = await vaultFetch(`/api/v1/admin/vault/files/${fileId}`, {
+      method: "DELETE",
+    });
+    if (res?.ok) fetchData();
+  };
+
+  const handleViewFile = async (fileId: number) => {
+    const res = await vaultFetch(`/api/v1/admin/vault/files/${fileId}/url`);
+    if (res?.ok) {
+      const data = await res.json();
+      window.open(data.url, "_blank");
+    }
+  };
+
+  const toggleFilesExpanded = (key: string) => {
+    setExpandedFiles((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   };
 
   const handleDeleteVax = async (id: number) => {
@@ -759,7 +970,75 @@ function VaultTab() {
                   </div>
                 )}
                 {doc.notes_masked && (
-                  <div className="vault-notes">{doc.notes_masked}</div>
+                  <div className="vault-notes" title="Has notes">
+                    <BiNote />
+                  </div>
+                )}
+                <div className="vault-card-file-info">
+                  {doc.files && doc.files.length > 0 ? (
+                    <button
+                      className="vault-file-badge"
+                      onClick={() => toggleFilesExpanded(`doc-${doc.id}`)}
+                    >
+                      <BiPaperclip /> {doc.files.length} file
+                      {doc.files.length > 1 ? "s" : ""}
+                    </button>
+                  ) : !doc.is_archived ? (
+                    <label className="vault-file-badge vault-file-badge-add">
+                      <BiPaperclip /> Attach
+                      <input
+                        type="file"
+                        accept=".pdf,image/jpeg,image/png,image/webp"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handleFileUpload("document", doc.id, f);
+                        }}
+                      />
+                    </label>
+                  ) : null}
+                </div>
+                {expandedFiles.has(`doc-${doc.id}`) && doc.files && (
+                  <div className="vault-card-files">
+                    {doc.files.map((f) => (
+                      <div key={f.id} className="vault-file-row">
+                        <span>
+                          <BiFile /> {f.label || f.mime_type.split("/")[1]} (
+                          {fmtFileSize(f.file_size)})
+                        </span>
+                        <div>
+                          <button
+                            className="btn-icon"
+                            onClick={() => handleViewFile(f.id)}
+                            title="View"
+                          >
+                            <BiLink />
+                          </button>
+                          <button
+                            className="btn-icon"
+                            onClick={() => handleDeleteFile(f.id)}
+                            title="Delete"
+                          >
+                            <BiTrash />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {!doc.is_archived && (
+                      <label className="vault-file-row vault-file-add">
+                        <BiPlus /> Add file
+                        <input
+                          type="file"
+                          accept=".pdf,image/jpeg,image/png,image/webp"
+                          style={{ display: "none" }}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) handleFileUpload("document", doc.id, f);
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
                 )}
               </div>
             );
@@ -985,8 +1264,8 @@ function VaultTab() {
                               </div>
                             )}
                           {prog.notes_masked && (
-                            <div className="vault-notes">
-                              {prog.notes_masked}
+                            <div className="vault-notes" title="Has notes">
+                              <BiNote />
                             </div>
                           )}
                         </div>
@@ -1121,7 +1400,73 @@ function VaultTab() {
                   )}
                 </div>
                 {vax.notes_masked && (
-                  <div className="vault-notes">{vax.notes_masked}</div>
+                  <div className="vault-notes" title="Has notes">
+                    <BiNote />
+                  </div>
+                )}
+                <div className="vault-card-file-info">
+                  {vax.files && vax.files.length > 0 ? (
+                    <button
+                      className="vault-file-badge"
+                      onClick={() => toggleFilesExpanded(`vax-files-${vax.id}`)}
+                    >
+                      <BiPaperclip /> {vax.files.length} file
+                      {vax.files.length > 1 ? "s" : ""}
+                    </button>
+                  ) : (
+                    <label className="vault-file-badge vault-file-badge-add">
+                      <BiPaperclip /> Attach
+                      <input
+                        type="file"
+                        accept=".pdf,image/jpeg,image/png,image/webp"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handleFileUpload("vaccination", vax.id, f);
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+                {expandedFiles.has(`vax-files-${vax.id}`) && vax.files && (
+                  <div className="vault-card-files">
+                    {vax.files.map((f) => (
+                      <div key={f.id} className="vault-file-row">
+                        <span>
+                          <BiFile /> {f.label || f.mime_type.split("/")[1]} (
+                          {fmtFileSize(f.file_size)})
+                        </span>
+                        <div>
+                          <button
+                            className="btn-icon"
+                            onClick={() => handleViewFile(f.id)}
+                            title="View"
+                          >
+                            <BiLink />
+                          </button>
+                          <button
+                            className="btn-icon"
+                            onClick={() => handleDeleteFile(f.id)}
+                            title="Delete"
+                          >
+                            <BiTrash />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <label className="vault-file-row vault-file-add">
+                      <BiPlus /> Add file
+                      <input
+                        type="file"
+                        accept=".pdf,image/jpeg,image/png,image/webp"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handleFileUpload("vaccination", vax.id, f);
+                        }}
+                      />
+                    </label>
+                  </div>
                 )}
               </div>
             );
@@ -1129,6 +1474,213 @@ function VaultTab() {
           {vaccinations.length === 0 && (
             <p className="vault-empty">No vaccination records yet.</p>
           )}
+        </div>
+      </div>
+
+      <div className="vault-section">
+        <div className="vault-section-header">
+          <h3>
+            <BiWorld /> Travel Documents
+          </h3>
+          <div className="vault-section-actions">
+            <label className="vault-toggle-label">
+              <input
+                type="checkbox"
+                checked={showExpiredTravelDocs}
+                onChange={(e) => setShowExpiredTravelDocs(e.target.checked)}
+              />
+              Show expired
+            </label>
+            <button
+              className="btn-icon"
+              onClick={() => {
+                setEditingTravelDoc(null);
+                setTravelDocModalOpen(true);
+              }}
+              title="Add travel document"
+            >
+              <BiPlus />
+            </button>
+          </div>
+        </div>
+        <div className="vault-cards">
+          {travelDocs
+            .filter((td) => {
+              if (showExpiredTravelDocs) return true;
+              if (!td.valid_until) return true;
+              // Match expiryClass logic: expired if expiry date < now
+              return new Date(td.valid_until + "T00:00:00") >= new Date();
+            })
+            .sort((a, b) => {
+              // No expiry date → end of list
+              if (!a.valid_until && !b.valid_until) return 0;
+              if (!a.valid_until) return 1;
+              if (!b.valid_until) return -1;
+              return a.valid_until.localeCompare(b.valid_until);
+            })
+            .map((td) => {
+              const ec = td.valid_until
+                ? expiryClass(td.valid_until, "id_card")
+                : "";
+              return (
+                <div
+                  key={td.id}
+                  className={`vault-card${ec ? ` vault-card-${ec}` : ""}`}
+                >
+                  {ec === "expiry-warning" && (
+                    <div className="vault-ribbon vault-ribbon-warning">
+                      Expiring soon
+                    </div>
+                  )}
+                  {ec === "expiry-expired" && (
+                    <div className="vault-ribbon vault-ribbon-expired">
+                      Expired
+                    </div>
+                  )}
+                  <div className="vault-card-header">
+                    <div className="vault-card-label">
+                      {td.country_code && (
+                        <Flag code={td.country_code} size={16} />
+                      )}
+                      {td.label}
+                    </div>
+                    <div className="vault-card-actions">
+                      {(!td.valid_until ||
+                        td.valid_until >=
+                          new Date().toISOString().slice(0, 10)) && (
+                        <button
+                          className="btn-icon"
+                          onClick={() => handleMarkUsed(td.id)}
+                          title="Mark as used"
+                        >
+                          <BiCheck />
+                        </button>
+                      )}
+                      <button
+                        className="btn-icon"
+                        onClick={() => {
+                          setEditingTravelDoc(td);
+                          setTravelDocModalOpen(true);
+                        }}
+                        title="Edit"
+                      >
+                        <BiPencil />
+                      </button>
+                      <button
+                        className="btn-icon"
+                        onClick={() => handleDeleteTravelDoc(td.id)}
+                        title="Delete"
+                      >
+                        <BiTrash />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="vault-card-vax-details">
+                    <span className="vault-card-type">
+                      {TRAVEL_DOC_TYPE_LABELS[td.doc_type] || td.doc_type}
+                    </span>
+                    {td.entry_type && (
+                      <span className="vault-card-entry-type">
+                        {ENTRY_TYPE_LABELS[td.entry_type] || td.entry_type}
+                      </span>
+                    )}
+                    {td.notes_masked && (
+                      <span className="vault-card-entry-type" title="Has notes">
+                        <BiNote />
+                      </span>
+                    )}
+                  </div>
+                  {td.passport_label && (
+                    <div className="vault-card-passport">
+                      {td.passport_label}
+                    </div>
+                  )}
+                  {!selectedUserId && (
+                    <div
+                      className="vault-card-avatar"
+                      title={getUserName(td.user_id)}
+                    >
+                      {getUser(td.user_id)?.picture ? (
+                        <img
+                          src={getUser(td.user_id)!.picture!}
+                          alt={getUserName(td.user_id)}
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <span>{getUserName(td.user_id).charAt(0)}</span>
+                      )}
+                    </div>
+                  )}
+                  <div className="vault-card-dates">
+                    {td.valid_from && (
+                      <span>From: {fmtDate(td.valid_from)}</span>
+                    )}
+                    {td.valid_until && (
+                      <span className={ec}>
+                        Until: {fmtDate(td.valid_until)}
+                      </span>
+                    )}
+                  </div>
+                  {td.files.length > 0 && (
+                    <div className="vault-card-file-info">
+                      <button
+                        className="vault-file-badge"
+                        onClick={() => toggleFilesExpanded(`td-${td.id}`)}
+                      >
+                        <BiPaperclip /> {td.files.length} file
+                        {td.files.length > 1 ? "s" : ""}
+                      </button>
+                    </div>
+                  )}
+                  {expandedFiles.has(`td-${td.id}`) && (
+                    <div className="vault-card-files">
+                      {td.files.map((f) => (
+                        <div key={f.id} className="vault-file-row">
+                          <span>
+                            <BiFile /> {f.label || f.mime_type.split("/")[1]} (
+                            {fmtFileSize(f.file_size)})
+                          </span>
+                          <div>
+                            <button
+                              className="btn-icon"
+                              onClick={() => handleViewFile(f.id)}
+                              title="View"
+                            >
+                              <BiLink />
+                            </button>
+                            <button
+                              className="btn-icon"
+                              onClick={() => handleDeleteFile(f.id)}
+                              title="Delete"
+                            >
+                              <BiTrash />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {td.trip_ids.length > 0 && (
+                    <div className="vault-notes">
+                      Assigned to {td.trip_ids.length} trip
+                      {td.trip_ids.length > 1 ? "s" : ""}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          {travelDocs.length === 0 && (
+            <p className="vault-empty">No travel documents yet.</p>
+          )}
+          {travelDocs.length > 0 &&
+            !showExpiredTravelDocs &&
+            travelDocs.every(
+              (td) =>
+                td.valid_until &&
+                new Date(td.valid_until + "T00:00:00") < new Date(),
+            ) && (
+              <p className="vault-empty">All travel documents are expired.</p>
+            )}
         </div>
       </div>
 
@@ -1172,6 +1724,346 @@ function VaultTab() {
           users={users}
         />
       )}
+
+      {travelDocModalOpen && (
+        <TravelDocFormModal
+          isOpen={travelDocModalOpen}
+          onClose={() => {
+            setTravelDocModalOpen(false);
+            setEditingTravelDoc(null);
+          }}
+          onSave={handleSaveTravelDoc}
+          initialData={editingTravelDoc}
+          users={users}
+          documents={documents}
+          vaultFetch={vaultFetch}
+          defaultCountryCode={newTravelDocCountry}
+        />
+      )}
+    </div>
+  );
+}
+
+function TravelDocFormModal({
+  isOpen,
+  onClose,
+  onSave,
+  initialData,
+  users,
+  documents,
+  vaultFetch,
+  defaultCountryCode,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: {
+    user_id: number;
+    doc_type: string;
+    label: string;
+    document_id: number | null;
+    country_code: string;
+    valid_from: string;
+    valid_until: string;
+    entry_type: string;
+    notes: string;
+    file: File | null;
+  }) => Promise<void>;
+  initialData: VaultTravelDoc | null;
+  users: VaultUser[];
+  documents: VaultDocument[];
+  vaultFetch: (url: string, opts?: RequestInit) => Promise<Response | null>;
+  defaultCountryCode?: string | null;
+}) {
+  const [form, setForm] = useState({
+    user_id: initialData?.user_id ?? users[0]?.id ?? 0,
+    doc_type: initialData?.doc_type ?? "e_visa",
+    label: initialData?.label ?? "",
+    document_id: initialData?.document_id ?? (null as number | null),
+    country_code: initialData?.country_code ?? defaultCountryCode ?? "",
+    valid_from: initialData?.valid_from ?? "",
+    valid_until: initialData?.valid_until ?? "",
+    entry_type: initialData?.entry_type ?? "",
+    notes: initialData?.notes_decrypted ?? "",
+  });
+  const [file, setFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setForm({
+        user_id: initialData?.user_id ?? users[0]?.id ?? 0,
+        doc_type: initialData?.doc_type ?? "e_visa",
+        label: initialData?.label ?? "",
+        document_id: initialData?.document_id ?? null,
+        country_code: initialData?.country_code ?? defaultCountryCode ?? "",
+        valid_from: initialData?.valid_from ?? "",
+        valid_until: initialData?.valid_until ?? "",
+        entry_type: initialData?.entry_type ?? "",
+        notes: initialData?.notes_decrypted ?? "",
+      });
+      setFile(null);
+      setError(null);
+    }
+  }, [isOpen, initialData, users, defaultCountryCode]);
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const f = e.dataTransfer.files[0];
+    if (f) setFile(f);
+  };
+
+  const handleExtract = async () => {
+    if (!file) return;
+    setExtracting(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await vaultFetch("/api/v1/admin/vault/travel-docs/extract", {
+        method: "POST",
+        body: fd,
+      });
+      if (res?.ok) {
+        const data: ExtractedDocMetadata = await res.json();
+        if (data.error) {
+          setError(data.error);
+        } else {
+          setForm((prev) => ({
+            ...prev,
+            doc_type: data.doc_type || prev.doc_type,
+            label: data.label || prev.label,
+            document_id: data.document_id ?? prev.document_id,
+            country_code: data.country_code || prev.country_code,
+            valid_from: data.valid_from || prev.valid_from,
+            valid_until: data.valid_until || prev.valid_until,
+            entry_type: data.entry_type || prev.entry_type,
+            notes: data.notes || prev.notes,
+          }));
+        }
+      }
+    } catch {
+      setError("Extraction failed");
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.label.trim()) {
+      setError("Label is required");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave({ ...form, document_id: form.document_id, file });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal-content modal-small"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-header">
+          <h2>
+            {initialData ? "Edit Travel Document" : "Add Travel Document"}
+          </h2>
+          <button className="modal-close" onClick={onClose}>
+            &times;
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="user-form">
+          {error && <div className="form-error">{error}</div>}
+          {!initialData && (
+            <div
+              className={`travel-doc-dropzone${dragOver ? " dragover" : ""}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+            >
+              {file ? (
+                <div className="vault-card-file-info">
+                  <BiFile /> {file.name} ({fmtFileSize(file.size)})
+                  <button
+                    type="button"
+                    className="btn-extract"
+                    onClick={handleExtract}
+                    disabled={extracting}
+                  >
+                    {extracting ? "Extracting..." : "Extract with AI"}
+                  </button>
+                </div>
+              ) : (
+                <label>
+                  <BiCloudUpload size={24} /> Drop PDF/image here or{" "}
+                  <input
+                    type="file"
+                    accept=".pdf,image/jpeg,image/png,image/webp"
+                    style={{ display: "none" }}
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  />
+                  <span className="btn-extract">browse</span>
+                </label>
+              )}
+            </div>
+          )}
+          <div className="form-group">
+            <label>User *</label>
+            <select
+              value={form.user_id}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, user_id: Number(e.target.value) }))
+              }
+            >
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.nickname || u.name || `User #${u.id}`}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Linked Passport</label>
+            <select
+              value={form.document_id ?? ""}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  document_id: e.target.value ? Number(e.target.value) : null,
+                }))
+              }
+            >
+              <option value="">— None —</option>
+              {documents
+                .filter(
+                  (d) =>
+                    d.doc_type === "passport" &&
+                    !d.is_archived &&
+                    d.user_id === form.user_id,
+                )
+                .map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.label}
+                    {d.issuing_country ? ` (${d.issuing_country})` : ""}
+                  </option>
+                ))}
+            </select>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Document Type *</label>
+              <select
+                value={form.doc_type}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, doc_type: e.target.value }))
+                }
+              >
+                {Object.entries(TRAVEL_DOC_TYPE_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Country Code</label>
+              <input
+                type="text"
+                value={form.country_code}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    country_code: e.target.value.toUpperCase().slice(0, 2),
+                  }))
+                }
+                placeholder="e.g. IN, GB"
+                maxLength={2}
+              />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Label *</label>
+            <input
+              type="text"
+              value={form.label}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, label: e.target.value }))
+              }
+              placeholder="e.g. India e-Visa, UK ETA"
+            />
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Valid From</label>
+              <input
+                type="date"
+                value={form.valid_from}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, valid_from: e.target.value }))
+                }
+              />
+            </div>
+            <div className="form-group">
+              <label>Valid Until</label>
+              <input
+                type="date"
+                value={form.valid_until}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, valid_until: e.target.value }))
+                }
+              />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Entry Type</label>
+            <select
+              value={form.entry_type}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, entry_type: e.target.value }))
+              }
+            >
+              <option value="">—</option>
+              <option value="single">Single entry</option>
+              <option value="double">Double entry</option>
+              <option value="multiple">Multiple entry</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Notes</label>
+            <textarea
+              value={form.notes}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, notes: e.target.value }))
+              }
+              rows={2}
+              placeholder="Visa number, conditions, etc."
+            />
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn-cancel" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="btn-save" disabled={saving}>
+              {saving ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
