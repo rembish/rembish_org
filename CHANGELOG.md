@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.29.2 (2026-02-19)
+
+### Bug Fix
+- Fixed 413 error when uploading large visa PDFs — nginx default 1MB body limit raised to 10MB
+
 ## 0.29.1 (2026-02-19)
 
 ### Bug Fix
