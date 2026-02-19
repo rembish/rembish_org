@@ -109,6 +109,29 @@ interface SunriseSunset {
   day_length_hours: number;
 }
 
+interface HealthVaccination {
+  vaccine: string;
+  priority: string;
+  notes: string | null;
+  covered: boolean;
+}
+
+interface MalariaInfo {
+  risk: boolean;
+  areas: string | null;
+  species: string | null;
+  prophylaxis: string[];
+  drug_resistance: string[];
+}
+
+interface HealthRequirements {
+  vaccinations_required: HealthVaccination[];
+  vaccinations_recommended: HealthVaccination[];
+  vaccinations_routine: string[];
+  malaria: MalariaInfo | null;
+  other_risks: string[];
+}
+
 interface CountryInfoData {
   country_name: string;
   iso_alpha2: string;
@@ -130,6 +153,7 @@ interface CountryInfoData {
   eu_roaming: boolean | null;
   adapter_needed: boolean | null;
   sunrise_sunset: SunriseSunset | null;
+  health: HealthRequirements | null;
 }
 
 // Flight types
@@ -1714,6 +1738,84 @@ export default function TripFormPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {country.health && (
+              <div className="country-info-health">
+                {country.health.vaccinations_required.length > 0 && (
+                  <div className="health-section">
+                    <span className="info-label">Required Vaccinations</span>
+                    <div className="health-vaccines">
+                      {country.health.vaccinations_required.map((v) => (
+                        <span
+                          key={v.vaccine}
+                          className={`health-vaccine ${v.covered ? "health-vaccine-covered" : "health-vaccine-required"}`}
+                          title={v.notes || ""}
+                        >
+                          {v.covered && "✓ "}
+                          {v.vaccine}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {country.health.vaccinations_recommended.length > 0 && (
+                  <div className="health-section">
+                    <span className="info-label">Recommended Vaccinations</span>
+                    <div className="health-vaccines">
+                      {country.health.vaccinations_recommended.map((v) => (
+                        <span
+                          key={v.vaccine}
+                          className={`health-vaccine ${v.covered ? "health-vaccine-covered" : v.priority === "consider" ? "health-vaccine-consider" : "health-vaccine-recommended"}`}
+                          title={v.notes || ""}
+                        >
+                          {v.covered && "✓ "}
+                          {v.vaccine}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {country.health.malaria && country.health.malaria.risk && (
+                  <div className="health-section health-malaria">
+                    <span className="info-label">Malaria Risk</span>
+                    <div className="health-malaria-details">
+                      {country.health.malaria.areas && (
+                        <span className="health-malaria-areas">
+                          {country.health.malaria.areas}
+                        </span>
+                      )}
+                      {country.health.malaria.prophylaxis.length > 0 && (
+                        <span className="health-malaria-prophylaxis">
+                          Prophylaxis:{" "}
+                          {country.health.malaria.prophylaxis.join(", ")}
+                        </span>
+                      )}
+                      {country.health.malaria.drug_resistance.length > 0 && (
+                        <span className="health-malaria-resistance">
+                          Resistance:{" "}
+                          {country.health.malaria.drug_resistance.join(", ")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {country.health.other_risks.length > 0 && (
+                  <div className="health-section">
+                    <span className="info-label">Other Risks</span>
+                    <div className="health-risks">
+                      {country.health.other_risks.map((r) => (
+                        <span key={r} className="health-risk-tag">
+                          {r}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

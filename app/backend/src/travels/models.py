@@ -276,6 +276,29 @@ class SunriseSunset(BaseModel):
     day_length_hours: float  # 11.5
 
 
+class HealthVaccination(BaseModel):
+    vaccine: str
+    priority: str  # "required", "recommended", "consider", "cdc_recommended"
+    notes: str | None = None
+    covered: bool = False  # True if user has this vaccination
+
+
+class MalariaInfo(BaseModel):
+    risk: bool = False
+    areas: str | None = None
+    species: str | None = None
+    prophylaxis: list[str] = []
+    drug_resistance: list[str] = []
+
+
+class HealthRequirements(BaseModel):
+    vaccinations_required: list[HealthVaccination] = []
+    vaccinations_recommended: list[HealthVaccination] = []
+    vaccinations_routine: list[str] = []
+    malaria: MalariaInfo | None = None
+    other_risks: list[str] = []
+
+
 class CountryInfoData(BaseModel):
     country_name: str
     iso_alpha2: str
@@ -297,6 +320,7 @@ class CountryInfoData(BaseModel):
     eu_roaming: bool | None
     adapter_needed: bool | None  # computed: True if country sockets differ from CZ
     sunrise_sunset: SunriseSunset | None
+    health: HealthRequirements | None = None
 
 
 class TripCountryInfoResponse(BaseModel):

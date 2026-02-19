@@ -2861,6 +2861,88 @@ a {
   flex: 1;
 }
 
+/* Health requirements section */
+.country-info-health {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.health-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.health-vaccines,
+.health-risks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.health-vaccine {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 10px;
+  cursor: default;
+}
+
+.health-vaccine-required {
+  background: #e74c3c;
+  color: #fff;
+}
+
+.health-vaccine-recommended {
+  background: #f39c12;
+  color: #fff;
+}
+
+.health-vaccine-consider {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.health-vaccine-covered {
+  background: #27ae60;
+  color: #fff;
+}
+
+.health-risk-tag {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 10px;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+}
+
+.health-malaria {
+  background: rgba(231, 76, 60, 0.08);
+  border-radius: 6px;
+  padding: 0.5rem;
+}
+
+.health-malaria-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.health-malaria-areas {
+  color: var(--color-text);
+}
+
+.health-malaria-prophylaxis,
+.health-malaria-resistance {
+  font-size: 0.75rem;
+}
+
 .trip-form-back-btn {
   display: flex;
   align-items: center;
@@ -3656,12 +3738,13 @@ a {
     margin-bottom: 0.25rem;
   }
 
-  & input {
+  & :is(input, select, textarea) {
     width: 100%;
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--color-border);
     border-radius: 6px;
     font-size: 0.9375rem;
+    font-family: inherit;
     background: var(--color-bg);
     color: var(--color-text);
     transition: border-color var(--transition-fast);
@@ -3670,6 +3753,11 @@ a {
       outline: none;
       border-color: var(--color-primary);
     }
+  }
+
+  & textarea {
+    resize: vertical;
+    min-height: 60px;
   }
 }
 
@@ -6632,4 +6720,438 @@ a {
   align-items: center;
   gap: 0.375rem;
   cursor: help;
+}
+
+/* ===== Vault ===== */
+
+.vault-locked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 4rem 1rem;
+  text-align: center;
+  color: #666;
+
+  & h2 {
+    margin: 0;
+    color: #333;
+  }
+
+  & p {
+    margin: 0;
+    max-width: 320px;
+  }
+
+  & .btn-save {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+}
+
+.vault-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.vault-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.vault-filter {
+  & select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-family: inherit;
+    background: var(--color-bg);
+    color: var(--color-text);
+    min-width: 200px;
+
+    &:focus {
+      outline: none;
+      border-color: var(--color-primary);
+    }
+  }
+}
+
+.btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 1.125rem;
+  transition: all var(--transition-fast);
+
+  &:hover {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+  }
+}
+
+.vault-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.vault-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  & h3 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.125rem;
+  }
+}
+
+.vault-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+
+  @media (width <= 600px) {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
+.vault-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  gap: 0.5rem;
+  background: #fff;
+}
+
+.vault-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.vault-card-type {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary, #f5f5f5);
+  padding: 0.125rem 0.5rem;
+  border-radius: 10px;
+  align-self: flex-start;
+}
+
+.vault-card-actions {
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.vault-card:hover .vault-card-actions {
+  opacity: 1;
+}
+
+.vault-card-label {
+  font-weight: 600;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vault-flag {
+  width: 20px;
+  height: auto;
+  border-radius: 2px;
+}
+
+.vault-card-avatar {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.625rem;
+  color: #666;
+}
+
+.vault-card-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vault-card-tier {
+  font-size: 0.875rem;
+  color: #555;
+  font-style: italic;
+}
+
+.vault-masked-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vault-masked {
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 0.9375rem;
+  letter-spacing: 0.05em;
+  color: #333;
+}
+
+.vault-copy-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #e67e22;
+  padding: 0.125rem;
+  display: flex;
+  align-items: center;
+  font-size: 1rem;
+  border-radius: 4px;
+
+  &:hover {
+    background: #fef3e6;
+  }
+}
+
+.vault-card-dates {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8125rem;
+  color: #666;
+}
+
+.expiry-warning {
+  color: #e67e22;
+  font-weight: 600;
+}
+
+.vault-card-expiry-warning {
+  border-color: #e67e22;
+  background: #fef5ec;
+  box-shadow: 0 0 0 1px #e67e2240;
+}
+
+.expiry-expired {
+  color: #e74c3c;
+  font-weight: 600;
+}
+
+.vault-card-expiry-expired {
+  border-color: #e74c3c;
+  background: #fdf0ef;
+  box-shadow: 0 0 0 1px #e74c3c40;
+}
+
+.vault-ribbon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0 8px 0 6px;
+}
+
+.vault-ribbon-warning {
+  background: #e67e22;
+  color: #fff;
+}
+
+.vault-ribbon-expired {
+  background: #e74c3c;
+  color: #fff;
+}
+
+.vault-notes {
+  font-size: 0.8125rem;
+  color: #888;
+  font-style: italic;
+}
+
+.vault-card-archived {
+  opacity: 0.5;
+  border-style: dashed;
+}
+
+.vault-card-proper-name {
+  font-size: 0.8125rem;
+  color: #666;
+  margin-top: 0.125rem;
+}
+
+.vault-card-vax-details {
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.vault-lifetime {
+  color: #27ae60;
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+
+.vault-empty {
+  color: #999;
+  font-style: italic;
+  grid-column: 1 / -1;
+}
+
+.alliance-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.alliance-none {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.vault-prog-airlines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+}
+
+.vault-prog-airline-tag {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary, #f5f5f5);
+  padding: 0.125rem 0.5rem;
+  border-radius: 10px;
+
+  & small {
+    opacity: 0.7;
+  }
+}
+
+.vault-airline-search {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-left: auto;
+  margin-right: 1rem;
+  color: var(--color-text-secondary);
+}
+
+.vault-airline-search input {
+  width: 160px;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+}
+
+.vault-search-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.vault-search-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vault-alliances-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.vault-alliance-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.vault-alliance-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.vault-expand-btn {
+  font-size: 0.75rem !important;
+  padding: 0.125rem 0.375rem !important;
+  color: var(--color-text-secondary) !important;
+}
+
+.vault-alliance-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.vault-card-favorite {
+  border-color: #daa520;
+  box-shadow: 0 0 0 1px #daa52040;
+}
+
+.favorite-active {
+  color: #daa520 !important;
+}
+
+.alliance-star_alliance {
+  background: #fef3cd;
+  color: #856404;
+}
+
+.alliance-oneworld {
+  background: #f8d7da;
+  color: #842029;
+}
+
+.alliance-skyteam {
+  background: #cfe2ff;
+  color: #084298;
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+
+  & > .form-group {
+    flex: 1;
+  }
 }

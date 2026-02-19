@@ -11,6 +11,9 @@ from ..models import User
 SESSION_COOKIE_NAME = "auth"
 SESSION_MAX_AGE = 60 * 60 * 24 * 7  # 7 days
 
+VAULT_COOKIE_NAME = "vault_auth"
+VAULT_MAX_AGE = 600  # 10 minutes
+
 serializer = URLSafeTimedSerializer(settings.secret_key)
 
 
@@ -63,5 +66,40 @@ def get_admin_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
+        )
+    return user
+
+
+def create_vault_token(user_id: int) -> str:
+    """Create a signed vault session token."""
+    return serializer.dumps({"user_id": user_id, "vault": True})
+
+
+def verify_vault_token(token: str) -> dict[str, Any] | None:
+    """Verify a vault token. Returns None if invalid or expired."""
+    try:
+        data = cast(dict[str, Any], serializer.loads(token, max_age=VAULT_MAX_AGE))
+        if not data.get("vault"):
+            return None
+        return data
+    except BadSignature:
+        return None
+
+
+def get_vault_user(
+    user: Annotated[User, Depends(get_admin_user)],
+    vault_auth: Annotated[str | None, Cookie(alias=VAULT_COOKIE_NAME)] = None,
+) -> User:
+    """Get admin user with valid vault session. Raises 401 if vault is locked."""
+    if not vault_auth:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="vault_locked",
+        )
+    data = verify_vault_token(vault_auth)
+    if not data or data.get("user_id") != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="vault_locked",
         )
     return user

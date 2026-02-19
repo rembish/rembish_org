@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.28.0 (2026-02-19)
+
+### Vault — Secure Document Storage
+- New admin section for storing sensitive travel documents with AES-256-GCM encryption
+- Requires Google re-authentication with 10-minute auto-lock for access
+- **Documents**: Passports, ID cards, driver's licenses with masked numbers, expiry warnings, soft-delete
+- **Loyalty Programs**: Airline/hotel programs grouped by alliance (Star Alliance, Oneworld, SkyTeam)
+- **Vaccinations**: Personal vaccination records with expiry tracking and "Lifetime" badge
+- Copy-to-clipboard for sensitive fields (document numbers, membership numbers, batch numbers)
+- Per-user records (admin + family members)
+
+### Health Requirements on Trip Info
+- Country health data from CDC Travelers' Health (244 countries) shown on trip info tab
+- Required vaccinations (red), recommended (orange), consider (gray)
+- Your vaccination records cross-referenced — covered vaccines shown in green with checkmark
+- Handles combined vaccines (e.g., "Hepatitis A+B" covers both A and B requirements)
+- Malaria risk areas with prophylaxis and drug resistance info
+- Other disease risk tags per country
+
 ## 0.27.3 (2026-02-18)
 
 ### Flight Statistics

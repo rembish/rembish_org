@@ -9,10 +9,14 @@ import {
   BiChevronRight,
   BiChevronUp,
   BiChevronDown,
+  BiCreditCard,
+  BiLock,
+  BiLockOpen,
   BiPaperPlane,
   BiParty,
   BiPlus,
   BiPencil,
+  BiShield,
   BiTable,
   BiTrash,
   BiCheck,
@@ -22,6 +26,8 @@ import {
   BiLink,
   BiCopy,
   BiRefresh,
+  BiSearch,
+  BiStar,
 } from "react-icons/bi";
 import { TbDrone } from "react-icons/tb";
 import { useAuth } from "../hooks/useAuth";
@@ -102,7 +108,7 @@ interface PersonalEvent {
   category_emoji: string;
 }
 
-type AdminTab = "trips" | "close-ones" | "instagram";
+type AdminTab = "trips" | "close-ones" | "instagram" | "vault";
 
 // Instagram labeling types
 interface InstagramMedia {
@@ -164,6 +170,1423 @@ interface TripOption {
   destinations: string[];
 }
 
+// --- Vault types ---
+
+interface VaultDocument {
+  id: number;
+  user_id: number;
+  doc_type: "passport" | "id_card" | "drivers_license";
+  label: string;
+  proper_name: string | null;
+  issuing_country: string | null;
+  issue_date: string | null;
+  expiry_date: string | null;
+  number_masked: string | null;
+  number_decrypted: string | null;
+  notes_masked: string | null;
+  notes_decrypted: string | null;
+  is_archived: boolean;
+}
+
+interface VaultLoyaltyProgram {
+  id: number;
+  user_id: number;
+  program_name: string;
+  alliance: "star_alliance" | "oneworld" | "skyteam" | "none";
+  tier: string | null;
+  membership_number_masked: string | null;
+  membership_number_decrypted: string | null;
+  notes_masked: string | null;
+  notes_decrypted: string | null;
+  is_favorite: boolean;
+}
+
+interface ProgramOptionAirline {
+  name: string;
+  flights_count: number;
+}
+
+interface ProgramOption {
+  program_name: string;
+  alliance: string;
+  airlines: ProgramOptionAirline[];
+  total_flights: number;
+}
+
+interface VaultUser {
+  id: number;
+  email: string;
+  name: string | null;
+  nickname: string | null;
+  picture: string | null;
+}
+
+interface VaultVaccination {
+  id: number;
+  user_id: number;
+  vaccine_name: string;
+  brand_name: string | null;
+  dose_type: string | null;
+  date_administered: string | null;
+  expiry_date: string | null;
+  batch_number_masked: string | null;
+  batch_number_decrypted: string | null;
+  notes_masked: string | null;
+  notes_decrypted: string | null;
+}
+
+const fmtDate = (iso: string) => {
+  const [y, m, d] = iso.split("-");
+  return `${d}.${m}.${y}`;
+};
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  passport: "Passport",
+  id_card: "ID Card",
+  drivers_license: "Driver's License",
+};
+
+const ALLIANCE_LABELS: Record<string, string> = {
+  star_alliance: "Star Alliance",
+  oneworld: "Oneworld",
+  skyteam: "SkyTeam",
+  none: "Independent",
+};
+
+function expiryClass(expiry: string | null, docType: string): string {
+  if (!expiry) return "";
+  const exp = new Date(expiry + "T00:00:00");
+  const now = new Date();
+  if (exp < now) return "expiry-expired";
+  const warn = new Date();
+  if (docType === "passport") {
+    warn.setMonth(warn.getMonth() + 7);
+  } else if (docType === "vaccination") {
+    // Vaccinations: warn 3 months before expiry
+    warn.setMonth(warn.getMonth() + 3);
+  } else {
+    const d = warn.getDate();
+    warn.setMonth(warn.getMonth() + 1);
+    warn.setDate(d + 15);
+  }
+  if (exp < warn) return "expiry-warning";
+  return "";
+}
+
+function VaultTab() {
+  const [unlocked, setUnlocked] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [documents, setDocuments] = useState<VaultDocument[]>([]);
+  const [programs, setPrograms] = useState<VaultLoyaltyProgram[]>([]);
+  const [programOptions, setProgramOptions] = useState<ProgramOption[]>([]);
+  const [users, setUsers] = useState<VaultUser[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [docModalOpen, setDocModalOpen] = useState(false);
+  const [progModalOpen, setProgModalOpen] = useState(false);
+  const [editingDoc, setEditingDoc] = useState<VaultDocument | null>(null);
+  const [editingProg, setEditingProg] = useState<VaultLoyaltyProgram | null>(
+    null,
+  );
+  const [vaccinations, setVaccinations] = useState<VaultVaccination[]>([]);
+  const [vaxModalOpen, setVaxModalOpen] = useState(false);
+  const [editingVax, setEditingVax] = useState<VaultVaccination | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [expandedAlliances, setExpandedAlliances] = useState<Set<string>>(
+    new Set(),
+  );
+  const [myUserId, setMyUserId] = useState<number | null>(null);
+  const [airlineSearch, setAirlineSearch] = useState("");
+  const lockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const checkStatus = useCallback(() => {
+    fetch("/api/auth/vault/status", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        setUnlocked(data.unlocked);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const vaultFetch = useCallback(async (url: string, opts?: RequestInit) => {
+    const res = await fetch(url, { credentials: "include", ...opts });
+    if (res.status === 401) {
+      const data = await res.json().catch(() => null);
+      if (data?.detail === "vault_locked") {
+        setUnlocked(false);
+        return null;
+      }
+    }
+    return res;
+  }, []);
+
+  const fetchData = useCallback(async () => {
+    const params = selectedUserId ? `?user_id=${selectedUserId}` : "";
+    const [docsRes, progsRes, optionsRes, vaxRes] = await Promise.all([
+      vaultFetch(`/api/v1/admin/vault/documents${params}`),
+      vaultFetch(`/api/v1/admin/vault/programs${params}`),
+      vaultFetch("/api/v1/admin/vault/program-options"),
+      vaultFetch(`/api/v1/admin/vault/vaccinations${params}`),
+    ]);
+    if (docsRes?.ok) {
+      const data = await docsRes.json();
+      setDocuments(data.documents);
+    }
+    if (progsRes?.ok) {
+      const data = await progsRes.json();
+      setPrograms(data.programs);
+    }
+    if (optionsRes?.ok) {
+      const data = await optionsRes.json();
+      setProgramOptions(data.programs);
+    }
+    if (vaxRes?.ok) {
+      const data = await vaxRes.json();
+      setVaccinations(data.vaccinations);
+    }
+  }, [vaultFetch, selectedUserId]);
+
+  const fetchUsers = useCallback(() => {
+    // Fetch other users + current admin (the users endpoint excludes self)
+    Promise.all([
+      fetch("/api/v1/admin/users/", { credentials: "include" }).then((r) =>
+        r.json(),
+      ),
+      fetch("/api/auth/me", { credentials: "include" }).then((r) => r.json()),
+    ])
+      .then(([usersData, me]) => {
+        const others: VaultUser[] = (usersData.users || []).map(
+          (u: VaultUser) => ({
+            id: u.id,
+            email: u.email,
+            name: u.name,
+            nickname: u.nickname,
+            picture: u.picture,
+          }),
+        );
+        if (me) {
+          setMyUserId(me.id);
+          others.unshift({
+            id: me.id,
+            email: me.email,
+            name: me.name,
+            nickname: me.nickname,
+            picture: me.picture,
+          });
+        }
+        setUsers(others);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    checkStatus();
+    fetchUsers();
+  }, [checkStatus, fetchUsers]);
+
+  useEffect(() => {
+    if (unlocked) {
+      fetchData();
+      // Auto-lock timer: 10 min
+      if (lockTimerRef.current) clearTimeout(lockTimerRef.current);
+      lockTimerRef.current = setTimeout(() => setUnlocked(false), 600_000);
+    }
+    return () => {
+      if (lockTimerRef.current) clearTimeout(lockTimerRef.current);
+    };
+  }, [unlocked, fetchData]);
+
+  const handleCopy = (text: string, id: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(id);
+      setTimeout(() => setCopied(null), 1500);
+    });
+  };
+
+  const handleDeleteDoc = async (id: number) => {
+    if (!confirm("Archive this document?")) return;
+    const res = await vaultFetch(`/api/v1/admin/vault/documents/${id}`, {
+      method: "DELETE",
+    });
+    if (res?.ok) fetchData();
+  };
+
+  const handleRestoreDoc = async (id: number) => {
+    const res = await vaultFetch(
+      `/api/v1/admin/vault/documents/${id}/restore`,
+      {
+        method: "POST",
+      },
+    );
+    if (res?.ok) fetchData();
+  };
+
+  const handleDeleteProg = async (id: number) => {
+    if (!confirm("Delete this loyalty program?")) return;
+    const res = await vaultFetch(`/api/v1/admin/vault/programs/${id}`, {
+      method: "DELETE",
+    });
+    if (res?.ok) fetchData();
+  };
+
+  const handleToggleFavorite = async (id: number) => {
+    const res = await vaultFetch(
+      `/api/v1/admin/vault/programs/${id}/favorite`,
+      {
+        method: "POST",
+      },
+    );
+    if (res?.ok) fetchData();
+  };
+
+  const handleDeleteVax = async (id: number) => {
+    if (!confirm("Delete this vaccination record?")) return;
+    const res = await vaultFetch(`/api/v1/admin/vault/vaccinations/${id}`, {
+      method: "DELETE",
+    });
+    if (res?.ok) fetchData();
+  };
+
+  const handleSaveVax = async (formData: {
+    user_id: number;
+    vaccine_name: string;
+    brand_name: string;
+    dose_type: string;
+    date_administered: string;
+    expiry_date: string;
+    batch_number: string;
+    notes: string;
+  }) => {
+    const body = {
+      user_id: formData.user_id,
+      vaccine_name: formData.vaccine_name,
+      brand_name: formData.brand_name || null,
+      dose_type: formData.dose_type || null,
+      date_administered: formData.date_administered || null,
+      expiry_date: formData.expiry_date || null,
+      batch_number: formData.batch_number || null,
+      notes: formData.notes || null,
+    };
+    const url = editingVax
+      ? `/api/v1/admin/vault/vaccinations/${editingVax.id}`
+      : "/api/v1/admin/vault/vaccinations";
+    const method = editingVax ? "PUT" : "POST";
+    const res = await vaultFetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res?.ok) {
+      const data = await res?.json().catch(() => null);
+      throw new Error(data?.detail || "Failed to save vaccination");
+    }
+    setVaxModalOpen(false);
+    setEditingVax(null);
+    fetchData();
+  };
+
+  const handleSaveDoc = async (formData: {
+    user_id: number;
+    doc_type: string;
+    label: string;
+    proper_name: string;
+    issuing_country: string;
+    issue_date: string;
+    expiry_date: string;
+    number: string;
+    notes: string;
+  }) => {
+    const body = {
+      user_id: formData.user_id,
+      doc_type: formData.doc_type,
+      label: formData.label,
+      proper_name: formData.proper_name || null,
+      issuing_country: formData.issuing_country || null,
+      issue_date: formData.issue_date || null,
+      expiry_date: formData.expiry_date || null,
+      number: formData.number || null,
+      notes: formData.notes || null,
+    };
+    const url = editingDoc
+      ? `/api/v1/admin/vault/documents/${editingDoc.id}`
+      : "/api/v1/admin/vault/documents";
+    const method = editingDoc ? "PUT" : "POST";
+    const res = await vaultFetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res?.ok) {
+      const data = await res?.json().catch(() => null);
+      throw new Error(data?.detail || "Failed to save document");
+    }
+    setDocModalOpen(false);
+    setEditingDoc(null);
+    fetchData();
+  };
+
+  const handleSaveProg = async (formData: {
+    user_id: number;
+    program_name: string;
+    alliance: string;
+    membership_number: string;
+    notes: string;
+  }) => {
+    const body = {
+      user_id: formData.user_id,
+      program_name: formData.program_name,
+      alliance: formData.alliance,
+      membership_number: formData.membership_number || null,
+      notes: formData.notes || null,
+    };
+    const isNew = !editingProg || editingProg.id === 0;
+    const url = isNew
+      ? "/api/v1/admin/vault/programs"
+      : `/api/v1/admin/vault/programs/${editingProg!.id}`;
+    const method = isNew ? "POST" : "PUT";
+    const res = await vaultFetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res?.ok) {
+      const data = await res?.json().catch(() => null);
+      throw new Error(data?.detail || "Failed to save program");
+    }
+    setProgModalOpen(false);
+    setEditingProg(null);
+    fetchData();
+  };
+
+  if (loading) return <p>Loading...</p>;
+
+  if (!unlocked) {
+    return (
+      <div className="vault-locked">
+        <BiLock size={48} />
+        <h2>Vault is Locked</h2>
+        <p>Re-authenticate with Google to access sensitive data.</p>
+        <button
+          className="btn-save"
+          onClick={() => {
+            window.location.href = "/api/auth/vault/login";
+          }}
+        >
+          <BiLockOpen /> Authenticate
+        </button>
+      </div>
+    );
+  }
+
+  const getUser = (userId: number) => users.find((u) => u.id === userId);
+
+  const getUserName = (userId: number) => {
+    if (userId === myUserId) return "Me";
+    const u = getUser(userId);
+    return u?.nickname || u?.name || `User #${userId}`;
+  };
+
+  const handleLock = async () => {
+    await fetch("/api/auth/vault/lock", {
+      method: "POST",
+      credentials: "include",
+    });
+    setUnlocked(false);
+    if (lockTimerRef.current) clearTimeout(lockTimerRef.current);
+  };
+
+  const searchQuery = airlineSearch.toLowerCase().trim();
+  const matchedAlliances = searchQuery
+    ? new Set(
+        programOptions
+          .filter(
+            (o) =>
+              o.alliance !== "none" &&
+              o.airlines.some((a) =>
+                a.name.toLowerCase().includes(searchQuery),
+              ),
+          )
+          .map((o) => o.alliance),
+      )
+    : null;
+
+  return (
+    <div className="vault-content">
+      <div className="vault-toolbar">
+        <div className="vault-filter">
+          <select
+            value={selectedUserId ?? ""}
+            onChange={(e) =>
+              setSelectedUserId(e.target.value ? Number(e.target.value) : null)
+            }
+          >
+            <option value="">All users</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.nickname || u.name || u.email}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button className="btn-icon" onClick={handleLock} title="Lock vault">
+          <BiLock />
+        </button>
+      </div>
+
+      <div className="vault-section">
+        <div className="vault-section-header">
+          <h3>
+            <BiShield /> Documents
+          </h3>
+          <button
+            className="btn-icon"
+            onClick={() => {
+              setEditingDoc(null);
+              setDocModalOpen(true);
+            }}
+            title="Add document"
+          >
+            <BiPlus />
+          </button>
+        </div>
+        <div className="vault-cards">
+          {documents.map((doc) => {
+            const ec = doc.is_archived
+              ? ""
+              : expiryClass(doc.expiry_date, doc.doc_type);
+            return (
+              <div
+                key={doc.id}
+                className={`vault-card${ec ? ` vault-card-${ec}` : ""}${doc.is_archived ? " vault-card-archived" : ""}`}
+              >
+                {ec === "expiry-warning" && (
+                  <div className="vault-ribbon vault-ribbon-warning">
+                    Expiring soon
+                  </div>
+                )}
+                {ec === "expiry-expired" && (
+                  <div className="vault-ribbon vault-ribbon-expired">
+                    Expired
+                  </div>
+                )}
+                <div className="vault-card-header">
+                  <div className="vault-card-label">
+                    {doc.issuing_country && (
+                      <img
+                        src={`https://flagcdn.com/w20/${doc.issuing_country.toLowerCase()}.png`}
+                        alt={doc.issuing_country}
+                        className="vault-flag"
+                      />
+                    )}
+                    {doc.label}
+                  </div>
+                  <div className="vault-card-actions">
+                    {!doc.is_archived && (
+                      <button
+                        className="btn-icon"
+                        onClick={() => {
+                          setEditingDoc(doc);
+                          setDocModalOpen(true);
+                        }}
+                        title="Edit"
+                      >
+                        <BiPencil />
+                      </button>
+                    )}
+                    {doc.is_archived ? (
+                      <button
+                        className="btn-icon"
+                        onClick={() => handleRestoreDoc(doc.id)}
+                        title="Restore"
+                      >
+                        <BiRefresh />
+                      </button>
+                    ) : (
+                      <button
+                        className="btn-icon"
+                        onClick={() => handleDeleteDoc(doc.id)}
+                        title="Archive"
+                      >
+                        <BiTrash />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <span className="vault-card-type">
+                  {DOC_TYPE_LABELS[doc.doc_type] || doc.doc_type}
+                </span>
+                {doc.proper_name && (
+                  <div className="vault-card-proper-name">
+                    {doc.proper_name}
+                  </div>
+                )}
+                {!selectedUserId && (
+                  <div
+                    className="vault-card-avatar"
+                    title={getUserName(doc.user_id)}
+                  >
+                    {getUser(doc.user_id)?.picture ? (
+                      <img
+                        src={getUser(doc.user_id)!.picture!}
+                        alt={getUserName(doc.user_id)}
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <span>{getUserName(doc.user_id).charAt(0)}</span>
+                    )}
+                  </div>
+                )}
+                {doc.number_masked && (
+                  <div className="vault-masked-row">
+                    <span className="vault-masked">{doc.number_masked}</span>
+                    {doc.number_decrypted && (
+                      <button
+                        className="vault-copy-btn"
+                        onClick={() =>
+                          handleCopy(doc.number_decrypted!, `doc-${doc.id}`)
+                        }
+                        title="Copy number"
+                      >
+                        {copied === `doc-${doc.id}` ? <BiCheck /> : <BiCopy />}
+                      </button>
+                    )}
+                  </div>
+                )}
+                {doc.expiry_date && (
+                  <div className="vault-card-dates">
+                    <span
+                      className={expiryClass(doc.expiry_date, doc.doc_type)}
+                    >
+                      Expires: {fmtDate(doc.expiry_date)}
+                    </span>
+                  </div>
+                )}
+                {doc.notes_masked && (
+                  <div className="vault-notes">{doc.notes_masked}</div>
+                )}
+              </div>
+            );
+          })}
+          {documents.length === 0 && (
+            <p className="vault-empty">No documents yet.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="vault-section">
+        <div className="vault-section-header">
+          <h3>
+            <BiCreditCard /> Loyalty Programs
+          </h3>
+          <div className="vault-airline-search">
+            <BiSearch />
+            <input
+              type="text"
+              placeholder="Search airline..."
+              value={airlineSearch}
+              onChange={(e) => setAirlineSearch(e.target.value)}
+            />
+          </div>
+          <button
+            className="btn-icon"
+            onClick={() => {
+              setEditingProg(null);
+              setProgModalOpen(true);
+            }}
+            title="Add program"
+          >
+            <BiPlus />
+          </button>
+        </div>
+        {matchedAlliances && matchedAlliances.size > 0 && (
+          <div className="vault-search-hints">
+            {[...matchedAlliances].map((al) => {
+              const matched = programOptions
+                .filter(
+                  (o) =>
+                    o.alliance === al &&
+                    o.airlines.some((a) =>
+                      a.name.toLowerCase().includes(searchQuery),
+                    ),
+                )
+                .flatMap((o) =>
+                  o.airlines.filter((a) =>
+                    a.name.toLowerCase().includes(searchQuery),
+                  ),
+                );
+              return (
+                <div key={al} className="vault-search-hint">
+                  <span className={`alliance-badge alliance-${al}`}>
+                    {ALLIANCE_LABELS[al]}
+                  </span>{" "}
+                  {matched.map((a) => a.name).join(", ")}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div className="vault-alliances-row">
+          {(["star_alliance", "oneworld", "skyteam"] as const).map(
+            (alliance) => {
+              const group = programs
+                .filter(
+                  (p) =>
+                    p.alliance === alliance &&
+                    (!matchedAlliances || matchedAlliances.has(alliance)),
+                )
+                .sort((a, b) => {
+                  const aMe = a.user_id === myUserId && a.is_favorite ? 1 : 0;
+                  const bMe = b.user_id === myUserId && b.is_favorite ? 1 : 0;
+                  if (aMe !== bMe) return bMe - aMe;
+                  if (a.is_favorite !== b.is_favorite)
+                    return a.is_favorite ? -1 : 1;
+                  return 0;
+                });
+              if (group.length === 0) return null;
+              const isExpanded = expandedAlliances.has(alliance);
+              const usersWithFavorite = new Set(
+                group.filter((p) => p.is_favorite).map((p) => p.user_id),
+              );
+              const collapsed = group.filter(
+                (p) => p.is_favorite || !usersWithFavorite.has(p.user_id),
+              );
+              const canCollapse = collapsed.length < group.length;
+              const visible = isExpanded ? group : collapsed;
+              const hiddenCount = group.length - collapsed.length;
+              return (
+                <div key={alliance} className="vault-alliance-group">
+                  <div className="vault-alliance-header">
+                    <span className={`alliance-badge alliance-${alliance}`}>
+                      {ALLIANCE_LABELS[alliance]}
+                    </span>
+                    {canCollapse && (
+                      <button
+                        className="btn-icon vault-expand-btn"
+                        onClick={() =>
+                          setExpandedAlliances((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(alliance)) next.delete(alliance);
+                            else next.add(alliance);
+                            return next;
+                          })
+                        }
+                        title={
+                          isExpanded
+                            ? "Show only favorite"
+                            : `Show ${hiddenCount} more`
+                        }
+                      >
+                        {isExpanded ? "−" : `+${hiddenCount}`}
+                      </button>
+                    )}
+                  </div>
+                  <div className="vault-alliance-cards">
+                    {visible.map((prog) => {
+                      const option = programOptions.find(
+                        (o) => o.program_name === prog.program_name,
+                      );
+                      return (
+                        <div
+                          key={prog.id}
+                          className={`vault-card${prog.is_favorite ? " vault-card-favorite" : ""}`}
+                        >
+                          <div className="vault-card-header">
+                            <div className="vault-card-label">
+                              {prog.program_name}
+                            </div>
+                            <div className="vault-card-actions">
+                              <button
+                                className={`btn-icon${prog.is_favorite ? " favorite-active" : ""}`}
+                                onClick={() => handleToggleFavorite(prog.id)}
+                                title={
+                                  prog.is_favorite
+                                    ? "Remove favorite"
+                                    : "Set as favorite for this alliance"
+                                }
+                              >
+                                <BiStar />
+                              </button>
+                              <button
+                                className="btn-icon"
+                                onClick={() => {
+                                  setEditingProg(prog);
+                                  setProgModalOpen(true);
+                                }}
+                                title="Edit"
+                              >
+                                <BiPencil />
+                              </button>
+                              <button
+                                className="btn-icon"
+                                onClick={() => handleDeleteProg(prog.id)}
+                                title="Delete"
+                              >
+                                <BiTrash />
+                              </button>
+                            </div>
+                          </div>
+                          {!selectedUserId && (
+                            <div
+                              className="vault-card-avatar"
+                              title={getUserName(prog.user_id)}
+                            >
+                              {getUser(prog.user_id)?.picture ? (
+                                <img
+                                  src={getUser(prog.user_id)!.picture!}
+                                  alt={getUserName(prog.user_id)}
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <span>
+                                  {getUserName(prog.user_id).charAt(0)}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {prog.membership_number_masked && (
+                            <div className="vault-masked-row">
+                              <span className="vault-masked">
+                                {prog.membership_number_masked}
+                              </span>
+                              {prog.membership_number_decrypted && (
+                                <button
+                                  className="vault-copy-btn"
+                                  onClick={() =>
+                                    handleCopy(
+                                      prog.membership_number_decrypted!,
+                                      `prog-${prog.id}`,
+                                    )
+                                  }
+                                  title="Copy number"
+                                >
+                                  {copied === `prog-${prog.id}` ? (
+                                    <BiCheck />
+                                  ) : (
+                                    <BiCopy />
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          )}
+                          {option &&
+                            prog.user_id === myUserId &&
+                            option.airlines.some(
+                              (a) => a.flights_count > 0,
+                            ) && (
+                              <div className="vault-prog-airlines">
+                                {option.airlines
+                                  .filter((a) => a.flights_count > 0)
+                                  .map((a) => (
+                                    <span
+                                      key={a.name}
+                                      className="vault-prog-airline-tag own"
+                                    >
+                                      {a.name}{" "}
+                                      <small>({a.flights_count})</small>
+                                    </span>
+                                  ))}
+                              </div>
+                            )}
+                          {prog.notes_masked && (
+                            <div className="vault-notes">
+                              {prog.notes_masked}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            },
+          )}
+        </div>
+        {programs.length === 0 && (
+          <p className="vault-empty">No loyalty programs yet.</p>
+        )}
+      </div>
+
+      <div className="vault-section">
+        <div className="vault-section-header">
+          <h3>
+            <BiTargetLock /> Vaccinations
+          </h3>
+          <button
+            className="btn-icon"
+            onClick={() => {
+              setEditingVax(null);
+              setVaxModalOpen(true);
+            }}
+            title="Add vaccination"
+          >
+            <BiPlus />
+          </button>
+        </div>
+        <div className="vault-cards">
+          {vaccinations.map((vax) => {
+            const ec = vax.expiry_date
+              ? expiryClass(vax.expiry_date, "vaccination")
+              : "";
+            return (
+              <div
+                key={vax.id}
+                className={`vault-card${ec ? ` vault-card-${ec}` : ""}`}
+              >
+                {ec === "expiry-warning" && (
+                  <div className="vault-ribbon vault-ribbon-warning">
+                    Expiring soon
+                  </div>
+                )}
+                {ec === "expiry-expired" && (
+                  <div className="vault-ribbon vault-ribbon-expired">
+                    Expired
+                  </div>
+                )}
+                <div className="vault-card-header">
+                  <div className="vault-card-label">{vax.vaccine_name}</div>
+                  <div className="vault-card-actions">
+                    <button
+                      className="btn-icon"
+                      onClick={() => {
+                        setEditingVax(vax);
+                        setVaxModalOpen(true);
+                      }}
+                      title="Edit"
+                    >
+                      <BiPencil />
+                    </button>
+                    <button
+                      className="btn-icon"
+                      onClick={() => handleDeleteVax(vax.id)}
+                      title="Delete"
+                    >
+                      <BiTrash />
+                    </button>
+                  </div>
+                </div>
+                {(vax.brand_name || vax.dose_type) && (
+                  <div className="vault-card-vax-details">
+                    {vax.brand_name && (
+                      <span className="vault-card-type">{vax.brand_name}</span>
+                    )}
+                    {vax.dose_type && (
+                      <span className="vault-card-type">{vax.dose_type}</span>
+                    )}
+                  </div>
+                )}
+                {!selectedUserId && (
+                  <div
+                    className="vault-card-avatar"
+                    title={getUserName(vax.user_id)}
+                  >
+                    {getUser(vax.user_id)?.picture ? (
+                      <img
+                        src={getUser(vax.user_id)!.picture!}
+                        alt={getUserName(vax.user_id)}
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <span>{getUserName(vax.user_id).charAt(0)}</span>
+                    )}
+                  </div>
+                )}
+                {vax.batch_number_masked && (
+                  <div className="vault-masked-row">
+                    <span className="vault-masked">
+                      {vax.batch_number_masked}
+                    </span>
+                    {vax.batch_number_decrypted && (
+                      <button
+                        className="vault-copy-btn"
+                        onClick={() =>
+                          handleCopy(
+                            vax.batch_number_decrypted!,
+                            `vax-${vax.id}`,
+                          )
+                        }
+                        title="Copy batch number"
+                      >
+                        {copied === `vax-${vax.id}` ? <BiCheck /> : <BiCopy />}
+                      </button>
+                    )}
+                  </div>
+                )}
+                <div className="vault-card-dates">
+                  {vax.date_administered && (
+                    <span>Given: {fmtDate(vax.date_administered)}</span>
+                  )}
+                  {vax.expiry_date ? (
+                    <span className={ec}>
+                      Expires: {fmtDate(vax.expiry_date)}
+                    </span>
+                  ) : (
+                    <span className="vault-lifetime">Lifetime</span>
+                  )}
+                </div>
+                {vax.notes_masked && (
+                  <div className="vault-notes">{vax.notes_masked}</div>
+                )}
+              </div>
+            );
+          })}
+          {vaccinations.length === 0 && (
+            <p className="vault-empty">No vaccination records yet.</p>
+          )}
+        </div>
+      </div>
+
+      {docModalOpen && (
+        <DocumentFormModal
+          isOpen={docModalOpen}
+          onClose={() => {
+            setDocModalOpen(false);
+            setEditingDoc(null);
+          }}
+          onSave={handleSaveDoc}
+          initialData={editingDoc}
+          users={users}
+        />
+      )}
+
+      {progModalOpen && (
+        <ProgramFormModal
+          isOpen={progModalOpen}
+          onClose={() => {
+            setProgModalOpen(false);
+            setEditingProg(null);
+          }}
+          onSave={handleSaveProg}
+          initialData={editingProg}
+          users={users}
+          programOptions={programOptions}
+          existingPrograms={programs}
+        />
+      )}
+
+      {vaxModalOpen && (
+        <VaccinationFormModal
+          isOpen={vaxModalOpen}
+          onClose={() => {
+            setVaxModalOpen(false);
+            setEditingVax(null);
+          }}
+          onSave={handleSaveVax}
+          initialData={editingVax}
+          users={users}
+        />
+      )}
+    </div>
+  );
+}
+
+function DocumentFormModal({
+  isOpen,
+  onClose,
+  onSave,
+  initialData,
+  users,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: {
+    user_id: number;
+    doc_type: string;
+    label: string;
+    proper_name: string;
+    issuing_country: string;
+    issue_date: string;
+    expiry_date: string;
+    number: string;
+    notes: string;
+  }) => Promise<void>;
+  initialData: VaultDocument | null;
+  users: VaultUser[];
+}) {
+  const [form, setForm] = useState({
+    user_id: initialData?.user_id ?? users[0]?.id ?? 0,
+    doc_type: initialData?.doc_type ?? "passport",
+    label: initialData?.label ?? "",
+    proper_name: initialData?.proper_name ?? "",
+    issuing_country: initialData?.issuing_country ?? "",
+    issue_date: initialData?.issue_date ?? "",
+    expiry_date: initialData?.expiry_date ?? "",
+    number: initialData?.number_decrypted ?? "",
+    notes: initialData?.notes_decrypted ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setForm({
+        user_id: initialData?.user_id ?? users[0]?.id ?? 0,
+        doc_type: initialData?.doc_type ?? "passport",
+        label: initialData?.label ?? "",
+        proper_name: initialData?.proper_name ?? "",
+        issuing_country: initialData?.issuing_country ?? "",
+        issue_date: initialData?.issue_date ?? "",
+        expiry_date: initialData?.expiry_date ?? "",
+        number: initialData?.number_decrypted ?? "",
+        notes: initialData?.notes_decrypted ?? "",
+      });
+      setError(null);
+    }
+  }, [isOpen, initialData, users]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.label.trim()) {
+      setError("Label is required");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave(form);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal-content modal-small"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-header">
+          <h2>{initialData ? "Edit Document" : "Add Document"}</h2>
+          <button className="modal-close" onClick={onClose}>
+            &times;
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="user-form">
+          {error && <div className="form-error">{error}</div>}
+          <div className="form-group">
+            <label>User *</label>
+            <select
+              value={form.user_id}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, user_id: Number(e.target.value) }))
+              }
+            >
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.nickname || u.name || `User #${u.id}`}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Type *</label>
+            <select
+              value={form.doc_type}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  doc_type: e.target.value as
+                    | "passport"
+                    | "id_card"
+                    | "drivers_license",
+                }))
+              }
+            >
+              <option value="passport">Passport</option>
+              <option value="id_card">ID Card</option>
+              <option value="drivers_license">Driver&apos;s License</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Label *</label>
+            <input
+              type="text"
+              value={form.label}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, label: e.target.value }))
+              }
+              placeholder="e.g. CZ Passport"
+            />
+          </div>
+          <div className="form-group">
+            <label>Official Name (as on document)</label>
+            <input
+              type="text"
+              value={form.proper_name}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, proper_name: e.target.value }))
+              }
+              placeholder="e.g. ALEX REMBISH"
+            />
+          </div>
+          <div className="form-group">
+            <label>Issuing Country (ISO alpha-2)</label>
+            <input
+              type="text"
+              value={form.issuing_country}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  issuing_country: e.target.value.toUpperCase(),
+                }))
+              }
+              placeholder="CZ"
+              maxLength={2}
+            />
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Issue Date</label>
+              <input
+                type="date"
+                value={form.issue_date}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, issue_date: e.target.value }))
+                }
+              />
+            </div>
+            <div className="form-group">
+              <label>Expiry Date</label>
+              <input
+                type="date"
+                value={form.expiry_date}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, expiry_date: e.target.value }))
+                }
+              />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Number</label>
+            <input
+              type="text"
+              value={form.number}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, number: e.target.value }))
+              }
+              placeholder="Document number"
+            />
+          </div>
+          <div className="form-group">
+            <label>Notes</label>
+            <textarea
+              value={form.notes}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, notes: e.target.value }))
+              }
+              rows={2}
+            />
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn-cancel" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="btn-save" disabled={saving}>
+              {saving ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ProgramFormModal({
+  isOpen,
+  onClose,
+  onSave,
+  initialData,
+  users,
+  programOptions,
+  existingPrograms,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: {
+    user_id: number;
+    program_name: string;
+    alliance: string;
+    membership_number: string;
+    notes: string;
+  }) => Promise<void>;
+  initialData: VaultLoyaltyProgram | null;
+  users: VaultUser[];
+  programOptions: ProgramOption[];
+  existingPrograms: VaultLoyaltyProgram[];
+}) {
+  const [form, setForm] = useState({
+    user_id: initialData?.user_id ?? users[0]?.id ?? 0,
+    program_name: initialData?.program_name ?? "",
+    alliance: initialData?.alliance ?? ("none" as string),
+    membership_number: initialData?.membership_number_decrypted ?? "",
+    notes: initialData?.notes_decrypted ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setForm({
+        user_id: initialData?.user_id ?? users[0]?.id ?? 0,
+        program_name: initialData?.program_name ?? "",
+        alliance: initialData?.alliance ?? "none",
+        membership_number: initialData?.membership_number_decrypted ?? "",
+        notes: initialData?.notes_decrypted ?? "",
+      });
+      setError(null);
+    }
+  }, [isOpen, initialData, users]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.program_name.trim()) {
+      setError("Program name is required");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave(form);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isEditing = initialData && initialData.id > 0;
+
+  // Filter out programs the selected user already has
+  const usedPrograms = new Set(
+    existingPrograms
+      .filter((p) => p.user_id === form.user_id)
+      .map((p) => p.program_name),
+  );
+  const availableOptions = programOptions.filter(
+    (o) => !usedPrograms.has(o.program_name),
+  );
+
+  const handleProgramSelect = (programName: string) => {
+    const opt = programOptions.find((o) => o.program_name === programName);
+    setForm((p) => ({
+      ...p,
+      program_name: programName,
+      alliance: opt?.alliance ?? "none",
+    }));
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal-content modal-small"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-header">
+          <h2>
+            {isEditing ? `Edit ${form.program_name}` : "Add Loyalty Program"}
+          </h2>
+          <button className="modal-close" onClick={onClose}>
+            &times;
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="user-form">
+          {error && <div className="form-error">{error}</div>}
+          <div className="form-group">
+            <label>User *</label>
+            <select
+              value={form.user_id}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  user_id: Number(e.target.value),
+                  ...(!isEditing ? { program_name: "", alliance: "none" } : {}),
+                }))
+              }
+            >
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.nickname || u.name || `User #${u.id}`}
+                </option>
+              ))}
+            </select>
+          </div>
+          {!isEditing && (
+            <div className="form-group">
+              <label>Program *</label>
+              <select
+                value={form.program_name}
+                onChange={(e) => handleProgramSelect(e.target.value)}
+              >
+                <option value="">Select a program...</option>
+                {(["star_alliance", "oneworld", "skyteam"] as const).map(
+                  (alliance) => {
+                    const group = availableOptions.filter(
+                      (o) => o.alliance === alliance,
+                    );
+                    if (group.length === 0) return null;
+                    return (
+                      <optgroup
+                        key={alliance}
+                        label={ALLIANCE_LABELS[alliance] || alliance}
+                      >
+                        {group.map((opt) => (
+                          <option
+                            key={opt.program_name}
+                            value={opt.program_name}
+                          >
+                            {opt.program_name} —{" "}
+                            {opt.airlines.map((a) => a.name).join(", ")}
+                          </option>
+                        ))}
+                      </optgroup>
+                    );
+                  },
+                )}
+              </select>
+            </div>
+          )}
+          <div className="form-group">
+            <label>Membership Number</label>
+            <input
+              type="text"
+              value={form.membership_number}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  membership_number: e.target.value,
+                }))
+              }
+              placeholder="Membership number"
+              autoFocus
+            />
+          </div>
+          <div className="form-group">
+            <label>Notes</label>
+            <textarea
+              value={form.notes}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, notes: e.target.value }))
+              }
+              rows={2}
+            />
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn-cancel" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="btn-save" disabled={saving}>
+              {saving ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 interface CloseOneUser {
   id: number;
   email: string;
@@ -174,6 +1597,196 @@ interface CloseOneUser {
   is_admin: boolean;
   is_active: boolean;
   trips_count: number;
+}
+
+function VaccinationFormModal({
+  isOpen,
+  onClose,
+  onSave,
+  initialData,
+  users,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: {
+    user_id: number;
+    vaccine_name: string;
+    brand_name: string;
+    dose_type: string;
+    date_administered: string;
+    expiry_date: string;
+    batch_number: string;
+    notes: string;
+  }) => Promise<void>;
+  initialData: VaultVaccination | null;
+  users: VaultUser[];
+}) {
+  const [form, setForm] = useState({
+    user_id: initialData?.user_id ?? users[0]?.id ?? 0,
+    vaccine_name: initialData?.vaccine_name ?? "",
+    brand_name: initialData?.brand_name ?? "",
+    dose_type: initialData?.dose_type ?? "",
+    date_administered: initialData?.date_administered ?? "",
+    expiry_date: initialData?.expiry_date ?? "",
+    batch_number: initialData?.batch_number_decrypted ?? "",
+    notes: initialData?.notes_decrypted ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setForm({
+        user_id: initialData?.user_id ?? users[0]?.id ?? 0,
+        vaccine_name: initialData?.vaccine_name ?? "",
+        brand_name: initialData?.brand_name ?? "",
+        dose_type: initialData?.dose_type ?? "",
+        date_administered: initialData?.date_administered ?? "",
+        expiry_date: initialData?.expiry_date ?? "",
+        batch_number: initialData?.batch_number_decrypted ?? "",
+        notes: initialData?.notes_decrypted ?? "",
+      });
+      setError(null);
+    }
+  }, [isOpen, initialData, users]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.vaccine_name.trim()) {
+      setError("Vaccine name is required");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave(form);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal-content modal-small"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-header">
+          <h2>{initialData ? "Edit Vaccination" : "Add Vaccination"}</h2>
+          <button className="modal-close" onClick={onClose}>
+            &times;
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="user-form">
+          {error && <div className="form-error">{error}</div>}
+          <div className="form-group">
+            <label>User *</label>
+            <select
+              value={form.user_id}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, user_id: Number(e.target.value) }))
+              }
+            >
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.nickname || u.name || `User #${u.id}`}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label>Vaccine Name *</label>
+            <input
+              type="text"
+              value={form.vaccine_name}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, vaccine_name: e.target.value }))
+              }
+              placeholder="e.g. Hepatitis A + B"
+            />
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Brand Name</label>
+              <input
+                type="text"
+                value={form.brand_name}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, brand_name: e.target.value }))
+                }
+                placeholder="e.g. Twinrix"
+              />
+            </div>
+            <div className="form-group">
+              <label>Dose Type</label>
+              <input
+                type="text"
+                value={form.dose_type}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, dose_type: e.target.value }))
+                }
+                placeholder="e.g. Booster, 3-dose series"
+              />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Date Administered</label>
+              <input
+                type="date"
+                value={form.date_administered}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, date_administered: e.target.value }))
+                }
+              />
+            </div>
+            <div className="form-group">
+              <label>Expiry Date (blank = lifetime)</label>
+              <input
+                type="date"
+                value={form.expiry_date}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, expiry_date: e.target.value }))
+                }
+              />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Batch / Certificate Number</label>
+            <input
+              type="text"
+              value={form.batch_number}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, batch_number: e.target.value }))
+              }
+              placeholder="Lot/batch number"
+            />
+          </div>
+          <div className="form-group">
+            <label>Notes</label>
+            <textarea
+              value={form.notes}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, notes: e.target.value }))
+              }
+              rows={2}
+            />
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn-cancel" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="btn-save" disabled={saving}>
+              {saving ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 function CloseOnesTab() {
@@ -2708,9 +4321,12 @@ export default function Admin() {
     return <Navigate to="/" replace />;
   }
 
-  // Remove year from URL for close-ones tab
+  // Remove year from URL for close-ones and vault tabs
   if (activeTab === "close-ones" && year) {
     return <Navigate to="/admin/close-ones" replace />;
+  }
+  if (activeTab === "vault" && year) {
+    return <Navigate to="/admin/vault" replace />;
   }
 
   if (authLoading) {
@@ -2749,6 +4365,12 @@ export default function Admin() {
           >
             Close Ones
           </button>
+          <button
+            className={`admin-tab ${activeTab === "vault" ? "active" : ""}`}
+            onClick={() => setActiveTab("vault")}
+          >
+            Vault
+          </button>
         </div>
 
         <div className="admin-content">
@@ -2766,6 +4388,7 @@ export default function Admin() {
               onIgIdChange={setInstagramIgId}
             />
           )}
+          {activeTab === "vault" && <VaultTab />}
         </div>
       </div>
     </section>

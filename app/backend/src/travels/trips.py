@@ -1,7 +1,9 @@
 import calendar
+import json
 import logging
 import time
 from datetime import UTC, date, datetime, timedelta, timezone
+from pathlib import Path
 from typing import Annotated
 from zoneinfo import ZoneInfo
 
@@ -22,6 +24,7 @@ from ..models import (
     User,
     Visit,
 )
+from ..models.vault import VaultVaccination
 from .models import (
     CitySearchResponse,
     CitySearchResult,
@@ -29,7 +32,10 @@ from .models import (
     CountryInfoData,
     CountryInfoTCCDestination,
     CurrencyInfo,
+    HealthRequirements,
+    HealthVaccination,
     HolidaysResponse,
+    MalariaInfo,
     PublicHoliday,
     SunriseSunset,
     TCCDestinationOption,
@@ -70,6 +76,15 @@ _WEATHER_CACHE_TTL = 86400  # 24 hours
 # Sunrise/sunset cache: {(lat, lng, date_str): (data, timestamp)}
 _sunrise_cache: dict[tuple[float, float, str], tuple[SunriseSunset | None, float]] = {}
 _SUNRISE_CACHE_TTL = 86400  # 24 hours
+
+# Health requirements data: loaded once from static JSON
+_health_data: dict[str, dict] = {}
+_health_data_path = Path(__file__).parent.parent / "data" / "health_requirements.json"
+if _health_data_path.exists():
+    with open(_health_data_path) as _f:
+        _raw = json.load(_f)
+        for _c in _raw.get("countries", []):
+            _health_data[_c["country_code"]] = _c
 
 # Czech socket types for adapter comparison
 _CZ_SOCKETS = {"C", "E"}
@@ -1289,6 +1304,90 @@ def _compute_timezone_offset(tz_name: str, ref_date: date) -> float | None:
         return None
 
 
+def _vaccine_matches(cdc_name: str, user_names: set[str]) -> bool:
+    """Check if a CDC vaccine name matches any user vaccination (fuzzy).
+
+    Handles combined vaccines: user's "Hepatitis A+B" covers both
+    CDC's "Hepatitis A" and "Hepatitis B".
+    """
+    cdc_lower = cdc_name.lower()
+    # Strip parenthetical suffixes: "Polio (booster)" → "polio"
+    base = cdc_lower.split("(")[0].strip()
+    for uname in user_names:
+        u = uname.lower()
+        if u == cdc_lower or u == base or cdc_lower.startswith(u) or u.startswith(base):
+            return True
+        # Combined vaccines: split on +/& and check each part
+        # e.g. "hepatitis a+b" → ["hepatitis a", "hepatitis b"]
+        for sep in ("+", "&", " and "):
+            if sep in u:
+                parts = [p.strip() for p in u.split(sep)]
+                # Expand shorthand: ["hepatitis a", "b"] → ["hepatitis a", "hepatitis b"]
+                prefix = ""
+                expanded = []
+                for part in parts:
+                    if " " in part:
+                        prefix = part.rsplit(" ", 1)[0]
+                        expanded.append(part)
+                    elif prefix:
+                        expanded.append(f"{prefix} {part}")
+                    else:
+                        expanded.append(part)
+                if base in expanded or cdc_lower in expanded:
+                    return True
+    return False
+
+
+def _get_health_requirements(
+    iso_alpha2: str, user_vaccine_names: set[str] | None = None
+) -> HealthRequirements | None:
+    """Look up health requirements for a country by ISO alpha-2 code."""
+    entry = _health_data.get(iso_alpha2)
+    if not entry:
+        return None
+
+    names = user_vaccine_names or set()
+    vax = entry.get("vaccinations", {})
+    required = [
+        HealthVaccination(
+            vaccine=v["vaccine"],
+            priority=v.get("priority", "required"),
+            notes=v.get("notes"),
+            covered=_vaccine_matches(v["vaccine"], names),
+        )
+        for v in vax.get("required", [])
+    ]
+    recommended = [
+        HealthVaccination(
+            vaccine=v["vaccine"],
+            priority=v.get("priority", "recommended"),
+            notes=v.get("notes"),
+            covered=_vaccine_matches(v["vaccine"], names),
+        )
+        for v in vax.get("recommended", [])
+    ]
+    routine = vax.get("routine", [])
+
+    malaria = None
+    mal_data = entry.get("malaria")
+    if mal_data:
+        malaria = MalariaInfo(
+            risk=mal_data.get("risk", False),
+            areas=mal_data.get("areas"),
+            species=mal_data.get("species"),
+            prophylaxis=mal_data.get("prophylaxis") or [],
+            drug_resistance=mal_data.get("drug_resistance") or [],
+        )
+
+    return HealthRequirements(
+        vaccinations_required=required,
+        vaccinations_recommended=recommended,
+        vaccinations_routine=routine,
+        malaria=malaria,
+        other_risks=entry.get("other_risks", []),
+    )
+
+
 @router.get("/trips/{trip_id}/country-info", response_model=TripCountryInfoResponse)
 def get_trip_country_info(
     trip_id: int,
@@ -1308,6 +1407,14 @@ def get_trip_country_info(
     )
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
+
+    # Get admin's vaccination records for coverage matching
+    user_vax_names: set[str] = set()
+    vax_records = (
+        db.query(VaultVaccination.vaccine_name).filter(VaultVaccination.user_id == admin.id).all()
+    )
+    for (name,) in vax_records:
+        user_vax_names.add(name)
 
     # Group TCC destinations by UN country
     # Key: un_country_id (or negative tcc_id for orphans)
@@ -1401,6 +1508,7 @@ def get_trip_country_info(
                     eu_roaming=un_country.eu_roaming,
                     adapter_needed=_needs_adapter(un_country.socket_types),
                     sunrise_sunset=sunrise_sunset,
+                    health=_get_health_requirements(iso, user_vax_names),
                 )
             )
         else:

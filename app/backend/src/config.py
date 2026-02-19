@@ -36,5 +36,8 @@ class Settings(BaseSettings):
     # GCS Storage (empty = use local storage for dev)
     gcs_bucket: str = ""
 
+    # Vault encryption (base64-encoded 32-byte key)
+    vault_encryption_key: str = ""
+
 
 settings = Settings()
