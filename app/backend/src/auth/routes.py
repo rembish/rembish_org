@@ -71,6 +71,15 @@ def _validate_redirect(redirect: str | None) -> str:
     """Validate redirect path to prevent open redirect attacks."""
     if not redirect or not redirect.startswith("/") or redirect.startswith("//"):
         return "/"
+    # Block backslash (browser normalization), CR/LF (header injection)
+    if "\\" in redirect or "\n" in redirect or "\r" in redirect:
+        return "/"
+    # Reject anything with scheme or netloc (e.g. encoded bypasses)
+    from urllib.parse import urlparse
+
+    parsed = urlparse(redirect)
+    if parsed.scheme or parsed.netloc:
+        return "/"
     return redirect
 
 
@@ -200,20 +209,12 @@ async def callback(request: Request, db: Session = Depends(get_db)) -> RedirectR
 
 
 @router.post("/logout")
-def logout(redirect: str | None = None) -> RedirectResponse:
+def logout() -> JSONResponse:
     """Log out by clearing the session cookie."""
     log.debug("User logged out")
-    redirect_path = _validate_redirect(redirect)
-    redirect_url = f"{settings.frontend_url}{redirect_path}"
-    response = RedirectResponse(url=redirect_url, status_code=302)
+    response = JSONResponse(content={"logged_out": True})
     response.delete_cookie(SESSION_COOKIE_NAME, path="/")
     return response
-
-
-@router.get("/logout")
-def logout_get(redirect: str | None = None) -> RedirectResponse:
-    """Log out (GET version for simple links)."""
-    return logout(redirect)
 
 
 # --- Vault re-authentication ---

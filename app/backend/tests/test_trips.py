@@ -469,9 +469,7 @@ def test_vacation_weekday_trip() -> None:
     from src.travels.vacation import count_vacation_days
 
     # Mon 2026-03-02 to Fri 2026-03-06
-    result = count_vacation_days(
-        date(2026, 3, 2), date(2026, 3, 6), set()
-    )
+    result = count_vacation_days(date(2026, 3, 2), date(2026, 3, 6), set())
     assert result == 5.0
 
 
@@ -480,9 +478,7 @@ def test_vacation_weekend_exclusion() -> None:
     from src.travels.vacation import count_vacation_days
 
     # Thu 2026-03-05 to Tue 2026-03-10 = Thu,Fri,(Sat,Sun),Mon,Tue = 4 days
-    result = count_vacation_days(
-        date(2026, 3, 5), date(2026, 3, 10), set()
-    )
+    result = count_vacation_days(date(2026, 3, 5), date(2026, 3, 10), set())
     assert result == 4.0
 
 
@@ -492,9 +488,7 @@ def test_vacation_holiday_exclusion() -> None:
 
     # Mon-Fri, with Wednesday as a holiday
     holidays = {date(2026, 3, 4)}  # Wednesday
-    result = count_vacation_days(
-        date(2026, 3, 2), date(2026, 3, 6), holidays
-    )
+    result = count_vacation_days(date(2026, 3, 2), date(2026, 3, 6), holidays)
     assert result == 4.0
 
 
@@ -504,8 +498,11 @@ def test_vacation_midday_departure() -> None:
 
     # Mon-Wed, midday departure
     result = count_vacation_days(
-        date(2026, 3, 2), date(2026, 3, 4), set(),
-        departure_type="midday", arrival_type="evening",
+        date(2026, 3, 2),
+        date(2026, 3, 4),
+        set(),
+        departure_type="midday",
+        arrival_type="evening",
     )
     # Mon(0.5) + Tue(1.0) + Wed(1.0) = 2.5
     assert result == 2.5
@@ -517,8 +514,11 @@ def test_vacation_midday_arrival() -> None:
 
     # Mon-Wed, midday arrival
     result = count_vacation_days(
-        date(2026, 3, 2), date(2026, 3, 4), set(),
-        departure_type="morning", arrival_type="midday",
+        date(2026, 3, 2),
+        date(2026, 3, 4),
+        set(),
+        departure_type="morning",
+        arrival_type="midday",
     )
     # Mon(1.0) + Tue(1.0) + Wed(0.5) = 2.5
     assert result == 2.5
@@ -530,8 +530,11 @@ def test_vacation_evening_departure() -> None:
 
     # Mon-Tue, evening departure
     result = count_vacation_days(
-        date(2026, 3, 2), date(2026, 3, 3), set(),
-        departure_type="evening", arrival_type="evening",
+        date(2026, 3, 2),
+        date(2026, 3, 3),
+        set(),
+        departure_type="evening",
+        arrival_type="evening",
     )
     # Mon(0.0) + Tue(1.0) = 1.0
     assert result == 1.0
@@ -542,8 +545,11 @@ def test_vacation_single_day_full() -> None:
     from src.travels.vacation import count_vacation_days
 
     result = count_vacation_days(
-        date(2026, 3, 2), date(2026, 3, 2), set(),
-        departure_type="morning", arrival_type="evening",
+        date(2026, 3, 2),
+        date(2026, 3, 2),
+        set(),
+        departure_type="morning",
+        arrival_type="evening",
     )
     assert result == 1.0
 
@@ -553,8 +559,11 @@ def test_vacation_single_day_half() -> None:
     from src.travels.vacation import count_vacation_days
 
     result = count_vacation_days(
-        date(2026, 3, 2), date(2026, 3, 2), set(),
-        departure_type="morning", arrival_type="midday",
+        date(2026, 3, 2),
+        date(2026, 3, 2),
+        set(),
+        departure_type="morning",
+        arrival_type="midday",
     )
     assert result == 0.5
 
@@ -564,9 +573,7 @@ def test_vacation_single_day_weekend() -> None:
     from src.travels.vacation import count_vacation_days
 
     # Sat 2026-03-07
-    result = count_vacation_days(
-        date(2026, 3, 7), date(2026, 3, 7), set()
-    )
+    result = count_vacation_days(date(2026, 3, 7), date(2026, 3, 7), set())
     assert result == 0.0
 
 
@@ -670,7 +677,8 @@ def test_create_trip_with_departure_arrival(
 
 
 def test_update_trip_departure_arrival(
-    admin_client: TestClient, db_session: Session,
+    admin_client: TestClient,
+    db_session: Session,
 ) -> None:
     """Trip update can change departure/arrival types."""
     trip = _create_trip(db_session)

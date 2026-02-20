@@ -14,9 +14,7 @@ def test_list_users_excludes_admin(admin_client: TestClient) -> None:
     assert data["users"] == []
 
 
-def test_list_users_includes_others(
-    admin_client: TestClient, db_session: Session
-) -> None:
+def test_list_users_includes_others(admin_client: TestClient, db_session: Session) -> None:
     """List users should include non-admin users."""
     user = User(email="other@test.com", name="Other", is_admin=False, is_active=True)
     db_session.add(user)
@@ -91,9 +89,7 @@ def test_update_user_not_found(admin_client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def test_self_edit_prevention(
-    admin_client: TestClient, admin_user: User
-) -> None:
+def test_self_edit_prevention(admin_client: TestClient, admin_user: User) -> None:
     """Admin should not be able to edit their own record."""
     response = admin_client.put(
         f"/api/v1/admin/users/{admin_user.id}",
@@ -116,9 +112,7 @@ def test_delete_user(admin_client: TestClient, db_session: Session) -> None:
     assert db_session.query(User).filter(User.id == user.id).first() is None
 
 
-def test_self_delete_prevention(
-    admin_client: TestClient, admin_user: User
-) -> None:
+def test_self_delete_prevention(admin_client: TestClient, admin_user: User) -> None:
     """Admin should not be able to delete themselves."""
     response = admin_client.delete(f"/api/v1/admin/users/{admin_user.id}")
     assert response.status_code == 403

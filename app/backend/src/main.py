@@ -3,15 +3,18 @@ from collections.abc import Callable
 from typing import Any
 
 import httpx
-from fastapi import FastAPI, Form, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import EmailStr
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from .admin import router as admin_router
 from .auth import router as auth_router
 from .config import settings
+from .database import get_db
 from .log_config import get_logger, setup_logging
 from .travels import router as travels_router
 
@@ -111,7 +114,8 @@ def send_telegram_message(text: str) -> bool:
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
+def health(db: Session = Depends(get_db)) -> dict[str, str]:
+    db.execute(text("SELECT 1"))
     return {"status": "ok"}
 
 

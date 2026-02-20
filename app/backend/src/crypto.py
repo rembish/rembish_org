@@ -8,13 +8,24 @@ from .config import settings
 _NONCE_SIZE = 12
 _KEY_SIZE = 32
 
+# Lazy-decoded key — decoded once on first use, re-decoded if settings change
+_cached_key: bytes | None = None
+_cached_raw: str = ""
+
 
 def _get_key() -> bytes:
-    """Decode the base64-encoded 32-byte encryption key from settings."""
-    raw = base64.b64decode(settings.vault_encryption_key)
-    if len(raw) != _KEY_SIZE:
-        raise ValueError(f"VAULT_ENCRYPTION_KEY must be 32 bytes, got {len(raw)}")
-    return raw
+    """Return the base64-decoded 32-byte encryption key (cached after first call)."""
+    global _cached_key, _cached_raw
+    raw = settings.vault_encryption_key
+    if not raw:
+        raise ValueError("VAULT_ENCRYPTION_KEY is not configured")
+    if raw != _cached_raw:
+        _cached_key = base64.b64decode(raw)
+        if len(_cached_key) != _KEY_SIZE:
+            raise ValueError(f"VAULT_ENCRYPTION_KEY must be 32 bytes, got {len(_cached_key)}")
+        _cached_raw = raw
+    assert _cached_key is not None
+    return _cached_key
 
 
 def encrypt(plaintext: str) -> bytes:

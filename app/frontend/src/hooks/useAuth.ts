@@ -33,8 +33,12 @@ export function useAuth() {
   };
 
   const logout = () => {
-    const redirect = encodeURIComponent(window.location.pathname);
-    window.location.href = `/api/auth/logout?redirect=${redirect}`;
+    fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+    }).then(() => {
+      window.location.href = "/";
+    });
   };
 
   return { user, loading, login, logout };

@@ -65,9 +65,7 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
 
 
 @pytest.fixture()
-def admin_client(
-    db_session: Session, admin_user: User
-) -> Generator[TestClient, None, None]:
+def admin_client(db_session: Session, admin_user: User) -> Generator[TestClient, None, None]:
     """Test client with database and admin auth overrides."""
 
     def override_get_db() -> Generator[Session, None, None]:

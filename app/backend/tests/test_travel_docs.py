@@ -253,9 +253,7 @@ def test_upload_file_to_document(
     db_session: Session,
 ) -> None:
     # Create a document first
-    doc = VaultDocument(
-        user_id=admin_user.id, doc_type="passport", label="Test Passport"
-    )
+    doc = VaultDocument(user_id=admin_user.id, doc_type="passport", label="Test Passport")
     db_session.add(doc)
     db_session.commit()
     db_session.refresh(doc)
@@ -283,9 +281,7 @@ def test_upload_file_to_vaccination(
     admin_user: User,
     db_session: Session,
 ) -> None:
-    vax = VaultVaccination(
-        user_id=admin_user.id, vaccine_name="Yellow Fever"
-    )
+    vax = VaultVaccination(user_id=admin_user.id, vaccine_name="Yellow Fever")
     db_session.add(vax)
     db_session.commit()
     db_session.refresh(vax)
@@ -312,9 +308,7 @@ def test_delete_file(
 ) -> None:
     from src.models.vault import VaultFile, VaultTravelDoc
 
-    td = VaultTravelDoc(
-        user_id=admin_user.id, doc_type="e_visa", label="Test"
-    )
+    td = VaultTravelDoc(user_id=admin_user.id, doc_type="e_visa", label="Test")
     db_session.add(td)
     db_session.flush()
     vf = VaultFile(
@@ -344,9 +338,7 @@ def test_multiple_files_sort_order(
     admin_user: User,
     db_session: Session,
 ) -> None:
-    doc = VaultDocument(
-        user_id=admin_user.id, doc_type="passport", label="Multi-file"
-    )
+    doc = VaultDocument(user_id=admin_user.id, doc_type="passport", label="Multi-file")
     db_session.add(doc)
     db_session.commit()
     db_session.refresh(doc)

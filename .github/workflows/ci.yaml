@@ -47,8 +47,14 @@ jobs:
       - name: Backend typecheck (mypy)
         run: cd app/backend && mypy src/
 
+      - name: Backend dependency audit
+        run: pip install pip-audit && pip-audit
+
       - name: Backend tests (pytest)
         run: cd app/backend && pytest tests/ -v
+
+      - name: Frontend dependency audit
+        run: cd app/frontend && npm audit --audit-level=high
 
       - name: Frontend lint (eslint)
         run: cd app/frontend && npm run lint

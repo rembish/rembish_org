@@ -151,9 +151,7 @@ def test_update_event_not_found(admin_client: TestClient) -> None:
     assert res.status_code == 404
 
 
-def test_update_event_invalid_category(
-    admin_client: TestClient, db_session: Session
-) -> None:
+def test_update_event_invalid_category(admin_client: TestClient, db_session: Session) -> None:
     event = _create_event(db_session)
 
     res = admin_client.put(

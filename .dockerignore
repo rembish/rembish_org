@@ -1,0 +1,18 @@
+# Dependencies
+app/frontend/node_modules/
+app/backend/.venv/
+
+# Build output
+app/frontend/dist/
+
+# Git
+.git/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Dev files
+.env.*
+*.md
+!CHANGELOG.md

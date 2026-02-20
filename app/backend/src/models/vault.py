@@ -2,6 +2,7 @@ from datetime import date
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     Enum,
     ForeignKey,
@@ -149,6 +150,12 @@ class VaultTravelDoc(Base):
 
 class VaultFile(Base):
     __tablename__ = "vault_files"
+    __table_args__ = (
+        CheckConstraint(
+            "document_id IS NOT NULL OR vaccination_id IS NOT NULL OR travel_doc_id IS NOT NULL",
+            name="chk_vault_files_parent",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     document_id: Mapped[int | None] = mapped_column(
