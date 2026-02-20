@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.30.0 (2026-02-20)
+
+### Security Hardening
+- CSRF protection on all API mutations — custom header prevents cross-site form attacks
+- POST-only logout — no longer exploitable via `<img src>` tags
+- Stricter redirect URL validation in OAuth flow
+- Backend health check now verifies database connectivity
+- Production Docker image runs as non-root user
+- All deploy secrets explicitly declared
+
+### Improved Error Handling
+- App-wide error boundary catches uncaught errors with recovery UI instead of white screen
+
+### Under the Hood
+- Shared API helper reduces boilerplate across all frontend API calls
+- Auth state shared via React Context (single fetch instead of per-component)
+- Hand-rolled caches replaced with TTLCache for reliability
+- Removed unused `requests` dependency (migrated to `httpx`)
+- Added dependency vulnerability scanning to CI pipeline
+- Reproducible backend builds via lockfile
+- Dependabot configured for all package ecosystems
+
+### Database
+- Added missing uniqueness constraint on trip destinations
+- Added audit timestamps to all vault tables
+
 ## 0.29.2 (2026-02-19)
 
 ### Bug Fix
