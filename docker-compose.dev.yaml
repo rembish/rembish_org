@@ -22,6 +22,7 @@ services:
       - "8000:8000"
     volumes:
       - ./app/backend/src:/app/src:ro
+      - ./app/backend/tests:/app/tests:ro
       - ./app/backend/alembic:/app/alembic:ro
       - ./app/backend/scripts:/app/scripts:ro
       - ./tcc-visits.csv:/app/tcc-visits.csv:ro

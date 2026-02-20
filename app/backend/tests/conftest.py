@@ -1,7 +1,23 @@
 """Test fixtures for the backend test suite.
 
 Uses SQLite in-memory database for fast, isolated tests.
+Environment variables are forced before app import to ensure
+deterministic behavior regardless of local .env files.
 """
+
+import os
+
+# Force deterministic settings before any app imports (env vars override .env file)
+os.environ["GOOGLE_CLIENT_ID"] = ""
+os.environ["GOOGLE_CLIENT_SECRET"] = ""
+os.environ["TELEGRAM_TOKEN"] = ""
+os.environ["TELEGRAM_CHAT_ID"] = ""
+os.environ["TURNSTILE_SECRET"] = ""
+os.environ["INSTAGRAM_ACCOUNT_ID"] = ""
+os.environ["INSTAGRAM_PAGE_TOKEN"] = ""
+os.environ["AERODATABOX_API_KEY"] = ""
+os.environ["ANTHROPIC_API_KEY"] = ""
+os.environ["VAULT_ENCRYPTION_KEY"] = ""
 
 from collections.abc import Generator
 

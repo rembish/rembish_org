@@ -426,11 +426,10 @@ def check_in_location(
 
 @router.get("/location/current")
 def get_current_location(
-    user: Annotated[User, Depends(get_current_user)],
+    user: Annotated[User, Depends(get_admin_user)],
     db: Session = Depends(get_db),
 ) -> CurrentLocationResponse | None:
-    """Get site owner's last recorded location. Requires login."""
-    # Find the admin user's location (site owner) - shown to all logged-in users
+    """Get site owner's last recorded location. Admin only."""
     location = (
         db.query(UserLastLocation)
         .join(User)

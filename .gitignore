@@ -15,6 +15,9 @@ app/frontend/public/CHANGELOG.md
 *.egg-info/
 *.db
 .ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.coverage
 
 # Environment files (keep .env.example)
 .env
