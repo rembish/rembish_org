@@ -221,7 +221,7 @@ class TripTravelDoc(Base):
 
 class TripPassport(Base):
     __tablename__ = "trip_passports"
-    __table_args__ = (UniqueConstraint("trip_id", "document_id"),)
+    __table_args__ = (UniqueConstraint("trip_id"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     trip_id: Mapped[int] = mapped_column(

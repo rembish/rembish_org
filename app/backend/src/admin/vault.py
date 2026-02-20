@@ -12,6 +12,7 @@ from ..database import get_db
 from ..log_config import get_logger
 from ..models import (
     Flight,
+    Trip,
     TripTravelDoc,
     User,
     VaultDocument,
@@ -1300,6 +1301,8 @@ def assign_doc_to_trip(
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """Assign a travel document to a trip (idempotent)."""
+    if not db.query(Trip).filter(Trip.id == trip_id).first():
+        raise HTTPException(status_code=404, detail="Trip not found")
     td = db.query(VaultTravelDoc).filter(VaultTravelDoc.id == doc_id).first()
     if not td:
         raise HTTPException(status_code=404, detail="Travel document not found")
@@ -1385,9 +1388,13 @@ def assign_passport(
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """Assign a passport to a trip (replaces existing if any)."""
+    if not db.query(Trip).filter(Trip.id == trip_id).first():
+        raise HTTPException(status_code=404, detail="Trip not found")
     doc = db.query(VaultDocument).filter(VaultDocument.id == doc_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
+    if doc.doc_type != "passport":
+        raise HTTPException(status_code=422, detail="Document is not a passport")
 
     existing = db.query(TripPassport).filter(TripPassport.trip_id == trip_id).first()
     if existing:

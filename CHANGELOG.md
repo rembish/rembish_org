@@ -18,13 +18,16 @@
 - Auth state shared via React Context (single fetch instead of per-component)
 - Hand-rolled caches replaced with TTLCache for reliability
 - Removed unused `requests` dependency (migrated to `httpx`)
-- Added dependency vulnerability scanning to CI pipeline
+- Added dependency vulnerability scanning to CI pipeline (and to deploy workflow)
 - Reproducible backend builds via lockfile
 - Dependabot configured for all package ecosystems
+- `.env` files excluded from Docker build contexts
 
 ### Database
 - Added missing uniqueness constraint on trip destinations
+- Enforced one-passport-per-trip at database level
 - Added audit timestamps to all vault tables
+- Vault endpoints now validate trip existence and passport document type
 
 ## 0.29.2 (2026-02-19)
 

@@ -13,6 +13,7 @@ __pycache__/
 *.pyc
 
 # Dev files
+.env
 .env.*
 *.md
 !CHANGELOG.md

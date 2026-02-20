@@ -245,6 +245,7 @@ class TripParticipant(Base):
     """Junction table linking trips to user participants."""
 
     __tablename__ = "trip_participants"
+    __table_args__ = (UniqueConstraint("trip_id", "user_id"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     trip_id: Mapped[int] = mapped_column(
