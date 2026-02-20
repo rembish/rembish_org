@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { BiCurrentLocation } from "react-icons/bi";
 import { useAuth } from "../hooks/useAuth";
+import { apiFetch } from "../lib/api";
 import LocationModal from "./LocationModal";
 
 interface CurrentLocation {
@@ -42,9 +43,7 @@ export default function LocationButton() {
     const fetchCurrentLocation = async () => {
       setLoadingLocation(true);
       try {
-        const response = await fetch("/api/v1/travels/location/current", {
-          credentials: "include",
-        });
+        const response = await apiFetch("/api/v1/travels/location/current");
         if (response.ok) {
           const data = await response.json();
           setCurrentLocation(data);

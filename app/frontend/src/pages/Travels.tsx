@@ -21,6 +21,7 @@ import { FaCar } from "react-icons/fa";
 import { TbDrone } from "react-icons/tb";
 import { useAuth } from "../hooks/useAuth";
 import Flag from "../components/Flag";
+import { apiFetch } from "../lib/api";
 
 // World map TopoJSON - Visionscarto version (local) includes disputed territories
 const geoUrl = "/world-110m.json";
@@ -379,7 +380,7 @@ export default function Travels() {
 
     try {
       // Fetch map data first (shows map immediately)
-      const mapRes = await fetch("/api/v1/travels/map-data");
+      const mapRes = await apiFetch("/api/v1/travels/map-data");
       if (!mapRes.ok) throw new Error("Failed to fetch map data");
       const mapDataResult: MapData = await mapRes.json();
       setMapData(mapDataResult);
@@ -388,12 +389,12 @@ export default function Travels() {
       // Fetch UN, TCC, stats, city, flight, and flight-stats data in parallel
       const [unRes, tccRes, statsRes, citiesRes, flightsRes, flightStatsRes] =
         await Promise.all([
-          fetch("/api/v1/travels/un-countries"),
-          fetch("/api/v1/travels/tcc-destinations"),
-          fetch("/api/v1/travels/stats"),
-          fetch("/api/v1/travels/map-cities"),
-          fetch("/api/v1/travels/map-flights"),
-          fetch("/api/v1/travels/flight-stats"),
+          apiFetch("/api/v1/travels/un-countries"),
+          apiFetch("/api/v1/travels/tcc-destinations"),
+          apiFetch("/api/v1/travels/stats"),
+          apiFetch("/api/v1/travels/map-cities"),
+          apiFetch("/api/v1/travels/map-flights"),
+          apiFetch("/api/v1/travels/flight-stats"),
         ]);
 
       if (unRes.ok) {
@@ -446,10 +447,9 @@ export default function Travels() {
     formData.append("file", file);
 
     try {
-      const res = await fetch("/api/v1/travels/upload-nm", {
+      const res = await apiFetch("/api/v1/travels/upload-nm", {
         method: "POST",
         body: formData,
-        credentials: "include",
       });
       if (!res.ok) {
         const err = await res.json();
@@ -479,7 +479,7 @@ export default function Travels() {
       return;
     }
 
-    fetch("/api/v1/travels/location/current", { credentials: "include" })
+    apiFetch("/api/v1/travels/location/current")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data) {
@@ -975,12 +975,11 @@ export default function Travels() {
   ) => {
     setActivitySaving(true);
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/v1/travels/un-countries/${encodeURIComponent(countryName)}/activities`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           body: JSON.stringify({
             driving_type: drivingType,
             drone_flown: droneFlown,

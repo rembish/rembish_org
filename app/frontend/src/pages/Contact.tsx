@@ -12,6 +12,7 @@ import {
 } from "react-icons/bi";
 import "leaflet/dist/leaflet.css";
 import { useAuth } from "../hooks/useAuth";
+import { apiFetch } from "../lib/api";
 
 // Fix for default marker icon in Leaflet + Vite
 const markerIcon = new L.Icon({
@@ -111,7 +112,7 @@ export default function Contact() {
     }
 
     try {
-      const response = await fetch("/api/v1/contact", {
+      const response = await apiFetch("/api/v1/contact", {
         method: "POST",
         body: formData,
       });

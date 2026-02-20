@@ -42,6 +42,7 @@ import {
 import { TbDrone } from "react-icons/tb";
 import Flag from "../components/Flag";
 import { useAuth } from "../hooks/useAuth";
+import { apiFetch } from "../lib/api";
 import UserFormModal, { UserFormData } from "../components/UserFormModal";
 
 interface TripDestination {
@@ -381,7 +382,7 @@ function VaultTab() {
   const newTravelDocCountry = searchParams.get("newTravelDoc");
 
   const checkStatus = useCallback(() => {
-    fetch("/api/auth/vault/status", { credentials: "include" })
+    apiFetch("/api/auth/vault/status")
       .then((res) => res.json())
       .then((data) => {
         setUnlocked(data.unlocked);
@@ -391,7 +392,7 @@ function VaultTab() {
   }, []);
 
   const vaultFetch = useCallback(async (url: string, opts?: RequestInit) => {
-    const res = await fetch(url, { credentials: "include", ...opts });
+    const res = await apiFetch(url, opts);
     if (res.status === 401) {
       const data = await res.json().catch(() => null);
       if (data?.detail === "vault_locked") {
@@ -438,10 +439,8 @@ function VaultTab() {
   const fetchUsers = useCallback(() => {
     // Fetch other users + current admin (the users endpoint excludes self)
     Promise.all([
-      fetch("/api/v1/admin/users/", { credentials: "include" }).then((r) =>
-        r.json(),
-      ),
-      fetch("/api/auth/me", { credentials: "include" }).then((r) => r.json()),
+      apiFetch("/api/v1/admin/users/").then((r) => r.json()),
+      apiFetch("/api/auth/me").then((r) => r.json()),
     ])
       .then(([usersData, me]) => {
         const others: VaultUser[] = (usersData.users || []).map(
@@ -799,9 +798,8 @@ function VaultTab() {
   };
 
   const handleLock = async () => {
-    await fetch("/api/auth/vault/lock", {
+    await apiFetch("/api/auth/vault/lock", {
       method: "POST",
-      credentials: "include",
     });
     setUnlocked(false);
     if (lockTimerRef.current) clearTimeout(lockTimerRef.current);
@@ -2686,7 +2684,7 @@ function CloseOnesTab() {
   const [editingUser, setEditingUser] = useState<CloseOneUser | null>(null);
 
   const fetchUsers = useCallback(() => {
-    fetch("/api/v1/admin/users/", { credentials: "include" })
+    apiFetch("/api/v1/admin/users/")
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch users");
         return res.json();
@@ -2719,9 +2717,8 @@ function CloseOnesTab() {
     if (!confirm("Are you sure you want to remove this user?")) return;
 
     try {
-      const res = await fetch(`/api/v1/admin/users/${userId}`, {
+      const res = await apiFetch(`/api/v1/admin/users/${userId}`, {
         method: "DELETE",
-        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to delete user");
       fetchUsers();
@@ -2742,10 +2739,9 @@ function CloseOnesTab() {
       birthday: data.birthday || null,
     };
 
-    const res = await fetch(url, {
+    const res = await apiFetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      credentials: "include",
       body: JSON.stringify(payload),
     });
 
@@ -2913,9 +2909,7 @@ function InstagramTab({
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch("/api/v1/admin/instagram/stats", {
-        credentials: "include",
-      });
+      const res = await apiFetch("/api/v1/admin/instagram/stats");
       const data = await res.json();
       setStats(data);
       return data;
@@ -2925,7 +2919,7 @@ function InstagramTab({
   }, []);
 
   const fetchTccOptions = useCallback(() => {
-    fetch("/api/v1/travels/tcc-options", { credentials: "include" })
+    apiFetch("/api/v1/travels/tcc-options")
       .then((res) => res.json())
       .then((data) => setTccOptions(data.destinations || []))
       .catch(() => {});
@@ -2933,9 +2927,7 @@ function InstagramTab({
 
   const fetchTrips = useCallback((postedAt: string) => {
     const dateOnly = postedAt.split("T")[0];
-    fetch(`/api/v1/admin/instagram/trips?before_date=${dateOnly}`, {
-      credentials: "include",
-    })
+    apiFetch(`/api/v1/admin/instagram/trips?before_date=${dateOnly}`)
       .then((res) => res.json())
       .then((data) => setTrips(data || []))
       .catch(() => {});
@@ -2945,7 +2937,7 @@ function InstagramTab({
   const preloadPost = useCallback((igId: string) => {
     if (preloadedPosts.current.has(igId)) return;
 
-    fetch(`/api/v1/admin/instagram/posts/${igId}`, { credentials: "include" })
+    apiFetch(`/api/v1/admin/instagram/posts/${igId}`)
       .then((res) => res.json())
       .then((data: InstagramPost) => {
         preloadedPosts.current.set(igId, data);
@@ -2966,9 +2958,7 @@ function InstagramTab({
   const preloadChain = useCallback(
     (startIgId: string, depth: number) => {
       if (depth <= 0) return;
-      fetch(`/api/v1/admin/instagram/posts/${startIgId}/nav`, {
-        credentials: "include",
-      })
+      apiFetch(`/api/v1/admin/instagram/posts/${startIgId}/nav`)
         .then((res) => res.json())
         .then((data) => {
           if (data.next_ig_id) {
@@ -2984,9 +2974,7 @@ function InstagramTab({
 
   const fetchNavigation = useCallback(
     (igId: string) => {
-      fetch(`/api/v1/admin/instagram/posts/${igId}/nav`, {
-        credentials: "include",
-      })
+      apiFetch(`/api/v1/admin/instagram/posts/${igId}/nav`)
         .then((res) => res.json())
         .then((data) => {
           setPrevIgId(data.prev_ig_id);
@@ -3046,9 +3034,7 @@ function InstagramTab({
       }
 
       setLoading(true);
-      fetch(`/api/v1/admin/instagram/posts/${igId}`, {
-        credentials: "include",
-      })
+      apiFetch(`/api/v1/admin/instagram/posts/${igId}`)
         .then((res) => {
           if (!res.ok) throw new Error("Failed to fetch post");
           return res.json();
@@ -3097,7 +3083,7 @@ function InstagramTab({
 
   const fetchLatestPost = useCallback(() => {
     setLoading(true);
-    fetch("/api/v1/admin/instagram/posts/latest", { credentials: "include" })
+    apiFetch("/api/v1/admin/instagram/posts/latest")
       .then((res) => res.json())
       .then((igId) => {
         if (igId) {
@@ -3119,9 +3105,8 @@ function InstagramTab({
   const fetchMoreFromInstagram = useCallback(async (): Promise<boolean> => {
     setFetching(true);
     try {
-      const res = await fetch("/api/v1/admin/instagram/fetch?count=10", {
+      const res = await apiFetch("/api/v1/admin/instagram/fetch?count=10", {
         method: "POST",
-        credentials: "include",
       });
       if (!res.ok) {
         const err = await res.json();
@@ -3218,9 +3203,8 @@ function InstagramTab({
   const syncNewFromInstagram = useCallback(async (): Promise<boolean> => {
     setFetching(true);
     try {
-      const res = await fetch("/api/v1/admin/instagram/sync-new", {
+      const res = await apiFetch("/api/v1/admin/instagram/sync-new", {
         method: "POST",
-        credentials: "include",
       });
       if (!res.ok) {
         const err = await res.json();
@@ -3246,9 +3230,9 @@ function InstagramTab({
   }, [fetchStats, fetchLatestPost]);
 
   const jumpToFirstUnprocessed = useCallback(async () => {
-    const res = await fetch("/api/v1/admin/instagram/posts/first-unprocessed", {
-      credentials: "include",
-    });
+    const res = await apiFetch(
+      "/api/v1/admin/instagram/posts/first-unprocessed",
+    );
     const igId = await res.json();
 
     if (igId) {
@@ -3258,9 +3242,8 @@ function InstagramTab({
       const fetched = await fetchMoreFromInstagram();
       if (fetched) {
         // Retry finding first unprocessed
-        const retryRes = await fetch(
+        const retryRes = await apiFetch(
           "/api/v1/admin/instagram/posts/first-unprocessed",
-          { credentials: "include" },
         );
         const retryIgId = await retryRes.json();
         if (retryIgId) {
@@ -3275,9 +3258,7 @@ function InstagramTab({
   }, [fetchPostByIgId, fetchMoreFromInstagram]);
 
   const jumpToFirstSkipped = useCallback(() => {
-    fetch("/api/v1/admin/instagram/posts/first-skipped", {
-      credentials: "include",
-    })
+    apiFetch("/api/v1/admin/instagram/posts/first-skipped")
       .then((res) => res.json())
       .then((igId) => {
         if (igId) {
@@ -3355,12 +3336,11 @@ function InstagramTab({
       const tripId = skip ? null : selectedTripId;
 
       try {
-        const res = await fetch(
+        const res = await apiFetch(
           `/api/v1/admin/instagram/posts/${post.ig_id}/label`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            credentials: "include",
             body: JSON.stringify({
               skip,
               is_aerial: skip ? null : isAerial,
@@ -3394,9 +3374,8 @@ function InstagramTab({
           const fetched = await fetchMoreFromInstagram();
           if (fetched) {
             // Re-fetch navigation to find the newly available next post
-            const navRes = await fetch(
+            const navRes = await apiFetch(
               `/api/v1/admin/instagram/posts/${currentIgId}/nav`,
-              { credentials: "include" },
             );
             const navData = await navRes.json();
             if (navData.next_ig_id) {
@@ -4527,7 +4506,7 @@ function TripsTab({
   }, [viewMode]);
 
   const fetchTrips = useCallback(() => {
-    fetch("/api/v1/travels/trips", { credentials: "include" })
+    apiFetch("/api/v1/travels/trips")
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch trips");
         return res.json();
@@ -4551,22 +4530,22 @@ function TripsTab({
   useEffect(() => {
     fetchTrips();
     // Fetch personal events
-    fetch("/api/v1/travels/events", { credentials: "include" })
+    apiFetch("/api/v1/travels/events")
       .then((res) => res.json())
       .then((data) => setEvents(data.events || []))
       .catch(() => {});
     // Fetch TCC options for mapping names to IDs
-    fetch("/api/v1/travels/tcc-options", { credentials: "include" })
+    apiFetch("/api/v1/travels/tcc-options")
       .then((res) => res.json())
       .then((data) => setTccOptions(data.destinations || []))
       .catch(() => {});
     // Fetch users for birthdays
-    fetch("/api/v1/travels/users-options", { credentials: "include" })
+    apiFetch("/api/v1/travels/users-options")
       .then((res) => res.json())
       .then((data) => {
         const users = data.users || [];
         // Also fetch admin users to get all birthdays
-        fetch("/api/v1/admin/users/", { credentials: "include" })
+        apiFetch("/api/v1/admin/users/")
           .then((res) => res.json())
           .then((adminData) => {
             const allUsers = [...users, ...(adminData.users || [])];
@@ -4587,7 +4566,7 @@ function TripsTab({
       })
       .catch(() => {});
     // Fetch ICS feed token
-    fetch("/api/v1/travels/calendar/feed-token", { credentials: "include" })
+    apiFetch("/api/v1/travels/calendar/feed-token")
       .then((res) => res.json())
       .then((data) => {
         if (data.token) {
@@ -4606,9 +4585,8 @@ function TripsTab({
     )
       return;
     try {
-      const res = await fetch("/api/v1/travels/calendar/regenerate-token", {
+      const res = await apiFetch("/api/v1/travels/calendar/regenerate-token", {
         method: "POST",
-        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to regenerate");
       const data = await res.json();
@@ -4657,9 +4635,7 @@ function TripsTab({
 
     // Fetch holidays for each country
     const fetchPromises = Array.from(countryCodes).map((code) =>
-      fetch(`/api/v1/travels/holidays/${selectedYear}/${code}`, {
-        credentials: "include",
-      })
+      apiFetch(`/api/v1/travels/holidays/${selectedYear}/${code}`)
         .then((res) => res.json())
         .then((data) =>
           (data.holidays || []).map(
@@ -4684,9 +4660,7 @@ function TripsTab({
       return;
     }
 
-    fetch(`/api/v1/travels/holidays/${selectedYear}/CZ`, {
-      credentials: "include",
-    })
+    apiFetch(`/api/v1/travels/holidays/${selectedYear}/CZ`)
       .then((res) => res.json())
       .then((data) => {
         setCzechHolidays(
@@ -4708,9 +4682,7 @@ function TripsTab({
       return;
     }
 
-    fetch(`/api/v1/travels/vacation-summary?year=${selectedYear}`, {
-      credentials: "include",
-    })
+    apiFetch(`/api/v1/travels/vacation-summary?year=${selectedYear}`)
       .then((res) => {
         if (!res.ok) return null;
         return res.json();
@@ -4730,9 +4702,7 @@ function TripsTab({
       return;
     }
 
-    fetch(`/api/v1/travels/flights/dates?year=${selectedYear}`, {
-      credentials: "include",
-    })
+    apiFetch(`/api/v1/travels/flights/dates?year=${selectedYear}`)
       .then((res) => res.json())
       .then((data) =>
         setFlightDates(
@@ -4816,9 +4786,8 @@ function TripsTab({
   };
 
   const deleteTripById = async (tripId: number) => {
-    const res = await fetch(`/api/v1/travels/trips/${tripId}`, {
+    const res = await apiFetch(`/api/v1/travels/trips/${tripId}`, {
       method: "DELETE",
-      credentials: "include",
     });
     if (!res.ok) throw new Error("Failed to delete trip");
     fetchTrips();

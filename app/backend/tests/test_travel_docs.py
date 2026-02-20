@@ -70,7 +70,7 @@ def vault_client(db_session: Session, admin_user: User) -> Generator[TestClient,
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_vault_user] = override_get_vault_user
-    with TestClient(app) as c:
+    with TestClient(app, headers={"X-CSRF": "1"}) as c:
         yield c
     app.dependency_overrides.clear()
 

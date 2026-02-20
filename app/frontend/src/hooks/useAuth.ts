@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { apiFetch } from "../lib/api";
 
 interface User {
   id: number;
@@ -31,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/auth/me", { credentials: "include" })
+    apiFetch("/api/auth/me")
       .then((res) => res.json())
       .then((data) => {
         setUser(data);
@@ -49,10 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    fetch("/api/auth/logout", {
-      method: "POST",
-      credentials: "include",
-    }).then(() => {
+    apiFetch("/api/auth/logout", { method: "POST" }).then(() => {
       window.location.href = "/";
     });
   };

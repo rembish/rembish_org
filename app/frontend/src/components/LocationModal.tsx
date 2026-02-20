@@ -13,6 +13,7 @@ import { BiX } from "react-icons/bi";
 import "leaflet/dist/leaflet.css";
 import Flag from "./Flag";
 import { useAuth } from "../hooks/useAuth";
+import { apiFetch } from "../lib/api";
 
 // Fix for default marker icon in Leaflet + Vite
 const markerIcon = new L.Icon({
@@ -135,13 +136,10 @@ export default function LocationModal({
         // Fetch nearby cities and active trip in parallel
         try {
           const [citiesRes, tripRes] = await Promise.all([
-            fetch(
+            apiFetch(
               `/api/v1/travels/location/nearby?lat=${latitude}&lng=${longitude}`,
-              { credentials: "include" },
             ),
-            fetch("/api/v1/travels/location/active-trip", {
-              credentials: "include",
-            }),
+            apiFetch("/api/v1/travels/location/active-trip"),
           ]);
 
           if (citiesRes.ok) {
@@ -191,10 +189,9 @@ export default function LocationModal({
     setError(null);
 
     try {
-      const response = await fetch("/api/v1/travels/location/check-in", {
+      const response = await apiFetch("/api/v1/travels/location/check-in", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           city_id: selectedCity,
           lat: position.lat,

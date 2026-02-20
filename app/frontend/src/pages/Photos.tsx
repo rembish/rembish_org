@@ -25,6 +25,7 @@ import {
   Marker,
 } from "react-simple-maps";
 import { useAuth } from "../hooks/useAuth";
+import { apiFetch } from "../lib/api";
 
 const geoUrl = "/world-110m.json";
 
@@ -286,7 +287,7 @@ export default function Photos() {
 
     if (isMapTab && countryId) {
       // Country album view
-      fetch(`/api/v1/travels/photos/country/${countryId}`)
+      apiFetch(`/api/v1/travels/photos/country/${countryId}`)
         .then((res) => {
           if (!res.ok) throw new Error("Failed to load country photos");
           return res.json();
@@ -304,7 +305,7 @@ export default function Photos() {
         });
     } else if (isMapTab) {
       // Map view
-      fetch("/api/v1/travels/photos/map")
+      apiFetch("/api/v1/travels/photos/map")
         .then((res) => {
           if (!res.ok) throw new Error("Failed to load photo map");
           return res.json();
@@ -323,12 +324,12 @@ export default function Photos() {
     } else if (tripId) {
       // Trip album view
       Promise.all([
-        fetch(`/api/v1/travels/photos/${tripId}`).then((res) => {
+        apiFetch(`/api/v1/travels/photos/${tripId}`).then((res) => {
           if (!res.ok) throw new Error("Failed to load photos");
           return res.json();
         }),
         allTrips.length === 0
-          ? fetch("/api/v1/travels/photos")
+          ? apiFetch("/api/v1/travels/photos")
               .then((res) => res.json())
               .then((data: PhotosIndexResponse) =>
                 data.years.flatMap((y) => y.trips),
@@ -349,7 +350,7 @@ export default function Photos() {
         });
     } else {
       // Albums index
-      fetch(`/api/v1/travels/photos${showHidden ? "?show_hidden=true" : ""}`)
+      apiFetch(`/api/v1/travels/photos${showHidden ? "?show_hidden=true" : ""}`)
         .then((res) => {
           if (!res.ok) throw new Error("Failed to load photos");
           return res.json();
@@ -393,12 +394,9 @@ export default function Photos() {
   // Toggle trip hidden status
   const toggleHidden = async (tripIdToToggle: number) => {
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/v1/travels/photos/${tripIdToToggle}/toggle-hidden`,
-        {
-          method: "POST",
-          credentials: "include",
-        },
+        { method: "POST" },
       );
 
       if (!res.ok) throw new Error("Failed to toggle hidden");
@@ -448,12 +446,9 @@ export default function Photos() {
   // Set cover photo
   const setCover = async (mediaId: number, coverTripId: number) => {
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/v1/travels/photos/${coverTripId}/cover/${mediaId}`,
-        {
-          method: "POST",
-          credentials: "include",
-        },
+        { method: "POST" },
       );
 
       if (!res.ok) throw new Error("Failed to set cover");

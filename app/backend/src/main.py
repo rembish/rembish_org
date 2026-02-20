@@ -10,6 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.responses import JSONResponse as StarletteJSONResponse
 
 from .admin import router as admin_router
 from .auth import router as auth_router
@@ -38,7 +39,7 @@ app.add_middleware(
     allow_origins=[settings.frontend_url],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=["content-type"],
+    allow_headers=["content-type", "x-csrf"],
 )
 
 
@@ -61,6 +62,24 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(SecurityHeadersMiddleware)
+
+
+# CSRF protection: require X-CSRF header on mutating API requests
+class CSRFMiddleware(BaseHTTPMiddleware):
+    _MUTATING_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
+
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Any]) -> Response:
+        if (
+            request.method in self._MUTATING_METHODS
+            and request.url.path.startswith("/api/")
+            and not request.headers.get("x-csrf")
+        ):
+            return StarletteJSONResponse({"detail": "Missing CSRF header"}, status_code=403)
+        response: Response = await call_next(request)
+        return response
+
+
+app.add_middleware(CSRFMiddleware)
 
 # Include routers
 app.include_router(auth_router, prefix="/api")

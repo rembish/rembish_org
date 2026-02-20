@@ -19,6 +19,7 @@ import {
 } from "react-icons/bi";
 import Flag from "../components/Flag";
 import { useAuth } from "../hooks/useAuth";
+import { apiFetch } from "../lib/api";
 
 interface TCCDestinationOption {
   id: number;
@@ -442,15 +443,9 @@ export default function TripFormPage() {
   // Load TCC options, user options, and personal events on mount
   useEffect(() => {
     Promise.all([
-      fetch("/api/v1/travels/tcc-options", { credentials: "include" }).then(
-        (r) => r.json(),
-      ),
-      fetch("/api/v1/travels/users-options", { credentials: "include" }).then(
-        (r) => r.json(),
-      ),
-      fetch("/api/v1/travels/events", { credentials: "include" }).then((r) =>
-        r.json(),
-      ),
+      apiFetch("/api/v1/travels/tcc-options").then((r) => r.json()),
+      apiFetch("/api/v1/travels/users-options").then((r) => r.json()),
+      apiFetch("/api/v1/travels/events").then((r) => r.json()),
     ])
       .then(([tccData, usersData, eventsData]) => {
         setTccOptions(tccData.destinations || []);
@@ -467,7 +462,7 @@ export default function TripFormPage() {
   useEffect(() => {
     if (!isEdit || tccOptions.length === 0) return;
 
-    fetch(`/api/v1/travels/trips/${tripId}`, { credentials: "include" })
+    apiFetch(`/api/v1/travels/trips/${tripId}`)
       .then((r) => {
         if (!r.ok) throw new Error("Trip not found");
         return r.json();
@@ -526,9 +521,7 @@ export default function TripFormPage() {
     if (activeTab !== "info" || !isEdit) return;
 
     setLoadingInfo(true);
-    fetch(`/api/v1/travels/trips/${tripId}/country-info`, {
-      credentials: "include",
-    })
+    apiFetch(`/api/v1/travels/trips/${tripId}/country-info`)
       .then((r) => {
         if (!r.ok) throw new Error("Failed to load country info");
         return r.json();
@@ -547,7 +540,7 @@ export default function TripFormPage() {
     if (activeTab !== "transport" || !isEdit) return;
 
     setLoadingFlights(true);
-    fetch(`/api/v1/travels/trips/${tripId}/flights`, { credentials: "include" })
+    apiFetch(`/api/v1/travels/trips/${tripId}/flights`)
       .then((r) => {
         if (!r.ok) throw new Error("Failed to load flights");
         return r.json();
@@ -592,7 +585,7 @@ export default function TripFormPage() {
     }
 
     setCitySearching(true);
-    fetch(`/api/v1/travels/cities-search?${params}`, { credentials: "include" })
+    apiFetch(`/api/v1/travels/cities-search?${params}`)
       .then((r) => r.json())
       .then((data) => {
         setCityResults(data.results || []);
@@ -641,9 +634,7 @@ export default function TripFormPage() {
     for (const [countryCode, countryName] of countryMap) {
       for (const year of years) {
         fetchPromises.push(
-          fetch(`/api/v1/travels/holidays/${year}/${countryCode}`, {
-            credentials: "include",
-          })
+          apiFetch(`/api/v1/travels/holidays/${year}/${countryCode}`)
             .then((r) => r.json())
             .then((data) => {
               const holidays = data.holidays || [];
@@ -780,10 +771,9 @@ export default function TripFormPage() {
 
     setSaving(true);
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify(dataToSave),
       });
 
@@ -805,9 +795,8 @@ export default function TripFormPage() {
     if (!confirm("Are you sure you want to delete this trip?")) return;
 
     try {
-      const res = await fetch(`/api/v1/travels/trips/${tripId}`, {
+      const res = await apiFetch(`/api/v1/travels/trips/${tripId}`, {
         method: "DELETE",
-        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to delete trip");
       goBack();
@@ -907,9 +896,7 @@ export default function TripFormPage() {
         flight_number: lookupNumber,
         date: lookupDate,
       });
-      const res = await fetch(`/api/v1/travels/flights/lookup?${params}`, {
-        credentials: "include",
-      });
+      const res = await apiFetch(`/api/v1/travels/flights/lookup?${params}`);
       if (res.status === 501) {
         setLookupError("Flight lookup not configured. Use manual entry.");
         setShowManualForm(true);
@@ -935,10 +922,9 @@ export default function TripFormPage() {
     try {
       for (const idx of Array.from(selectedLegs).sort()) {
         const leg = lookupLegs[idx];
-        await fetch(`/api/v1/travels/trips/${tripId}/flights`, {
+        await apiFetch(`/api/v1/travels/trips/${tripId}/flights`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           body: JSON.stringify({
             flight_date: leg.departure_date || lookupDate,
             flight_number: leg.flight_number,
@@ -955,9 +941,7 @@ export default function TripFormPage() {
         });
       }
       // Refresh flights list
-      const res = await fetch(`/api/v1/travels/trips/${tripId}/flights`, {
-        credentials: "include",
-      });
+      const res = await apiFetch(`/api/v1/travels/trips/${tripId}/flights`);
       const data = await res.json();
       setFlights(data.flights || []);
       setLookupLegs([]);
@@ -979,10 +963,9 @@ export default function TripFormPage() {
       return;
     setAddingFlights(true);
     try {
-      const res = await fetch(`/api/v1/travels/trips/${tripId}/flights`, {
+      const res = await apiFetch(`/api/v1/travels/trips/${tripId}/flights`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           flight_date:
             manualForm.flight_date || lookupDate || formData.start_date,
@@ -997,9 +980,7 @@ export default function TripFormPage() {
       });
       if (!res.ok) throw new Error("Failed to add flight");
       // Refresh
-      const listRes = await fetch(`/api/v1/travels/trips/${tripId}/flights`, {
-        credentials: "include",
-      });
+      const listRes = await apiFetch(`/api/v1/travels/trips/${tripId}/flights`);
       const data = await listRes.json();
       setFlights(data.flights || []);
       setManualForm({
@@ -1023,9 +1004,8 @@ export default function TripFormPage() {
   const handleDeleteFlight = async (flightId: number) => {
     if (!confirm("Delete this flight?")) return;
     try {
-      await fetch(`/api/v1/travels/flights/${flightId}`, {
+      await apiFetch(`/api/v1/travels/flights/${flightId}`, {
         method: "DELETE",
-        credentials: "include",
       });
       setFlights((prev) => prev.filter((f) => f.id !== flightId));
     } catch (err) {

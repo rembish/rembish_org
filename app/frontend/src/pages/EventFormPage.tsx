@@ -4,6 +4,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { BiArrowBack, BiTrash } from "react-icons/bi";
 import { useAuth } from "../hooks/useAuth";
+import { apiFetch } from "../lib/api";
 
 const EVENT_CATEGORIES: Record<string, string> = {
   medical: "\u{1F3E5}",
@@ -58,7 +59,7 @@ export default function EventFormPage() {
   useEffect(() => {
     if (!isEdit) return;
 
-    fetch(`/api/v1/travels/events/${eventId}`, { credentials: "include" })
+    apiFetch(`/api/v1/travels/events/${eventId}`)
       .then((r) => {
         if (!r.ok) throw new Error("Event not found");
         return r.json();
@@ -125,10 +126,9 @@ export default function EventFormPage() {
 
     setSaving(true);
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -148,9 +148,8 @@ export default function EventFormPage() {
     if (!confirm("Are you sure you want to delete this event?")) return;
 
     try {
-      const res = await fetch(`/api/v1/travels/events/${eventId}`, {
+      const res = await apiFetch(`/api/v1/travels/events/${eventId}`, {
         method: "DELETE",
-        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to delete event");
       goBack();

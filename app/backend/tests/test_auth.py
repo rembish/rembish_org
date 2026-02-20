@@ -2,6 +2,8 @@
 
 from fastapi.testclient import TestClient
 
+from src.main import app
+
 
 def test_login_redirects_to_google(client: TestClient) -> None:
     """GET /api/auth/login should redirect to Google OAuth."""
@@ -51,3 +53,18 @@ def test_logout_get_not_allowed(client: TestClient) -> None:
     """GET /api/auth/logout should return 405 (POST-only)."""
     response = client.get("/api/auth/logout")
     assert response.status_code == 405
+
+
+def test_csrf_required_on_mutating_requests() -> None:
+    """POST/PUT/DELETE to /api/* without X-CSRF header should return 403."""
+    with TestClient(app) as c:
+        response = c.post("/api/auth/logout")
+        assert response.status_code == 403
+        assert response.json()["detail"] == "Missing CSRF header"
+
+
+def test_csrf_not_required_on_get(client: TestClient) -> None:
+    """GET requests should not require the CSRF header."""
+    with TestClient(app) as c:
+        response = c.get("/api/auth/me")
+        assert response.status_code == 200

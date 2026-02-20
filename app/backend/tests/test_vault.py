@@ -84,7 +84,7 @@ def vault_client(db_session: Session, admin_user: User) -> Generator[TestClient,
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_vault_user] = override_get_vault_user
-    with TestClient(app) as c:
+    with TestClient(app, headers={"X-CSRF": "1"}) as c:
         yield c
     app.dependency_overrides.clear()
 
@@ -99,7 +99,7 @@ def no_vault_client(
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as c:
+    with TestClient(app, headers={"X-CSRF": "1"}) as c:
         yield c
     app.dependency_overrides.clear()
 
@@ -370,7 +370,7 @@ def test_admin_without_vault_cookie_returns_401(db_session: Session, admin_user:
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_admin_user] = override_get_admin_user
     try:
-        with TestClient(app) as c:
+        with TestClient(app, headers={"X-CSRF": "1"}) as c:
             res = c.get("/api/v1/admin/vault/documents")
             assert res.status_code == 401
             assert res.json()["detail"] == "vault_locked"
