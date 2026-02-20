@@ -1,10 +1,12 @@
 """Tests for flight tracking API."""
 
 from datetime import date
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from src.extraction import ExtractedFlight, FlightExtractionResult
 from src.models import Airport, Flight, Trip, UNCountry
 
 
@@ -532,3 +534,102 @@ def test_flight_stats_empty(client: TestClient) -> None:
     assert data["total_flights"] == 0
     assert data["top_airlines"] == []
     assert data["flights_by_year"] == []
+
+
+@patch("src.travels.flights.extract_flight_data")
+def test_extract_flights_endpoint(
+    mock_extract: object, admin_client: TestClient, db_session: Session
+) -> None:
+    """POST /trips/{id}/flights/extract returns extracted flights."""
+    from unittest.mock import MagicMock
+
+    mock_extract = mock_extract  # type: ignore[assignment]
+    assert isinstance(mock_extract, MagicMock)
+    trip = _create_trip(db_session)
+
+    mock_extract.return_value = FlightExtractionResult(
+        flights=[
+            ExtractedFlight(
+                flight_date="2026-03-10",
+                flight_number="TK1770",
+                airline_name="Turkish Airlines",
+                departure_iata="PRG",
+                arrival_iata="IST",
+                departure_time="06:30",
+                arrival_time="10:15",
+            )
+        ]
+    )
+
+    res = admin_client.post(
+        f"/api/v1/travels/trips/{trip.id}/flights/extract",
+        files={"file": ("ticket.pdf", b"fake-pdf-content", "application/pdf")},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data["flights"]) == 1
+    assert data["flights"][0]["flight_number"] == "TK1770"
+    assert data["flights"][0]["is_duplicate"] is False
+    assert data["error"] is None
+
+
+@patch("src.travels.flights.extract_flight_data")
+def test_extract_flights_dedup(
+    mock_extract: object, admin_client: TestClient, db_session: Session
+) -> None:
+    """Extracted flights matching existing ones are marked as duplicates."""
+    from unittest.mock import MagicMock
+
+    mock_extract = mock_extract  # type: ignore[assignment]
+    assert isinstance(mock_extract, MagicMock)
+    trip = _create_trip(db_session)
+    dep = _create_airport(db_session, "PRG")
+    arr = _create_airport(db_session, "IST")
+
+    # Create existing flight
+    db_session.add(
+        Flight(
+            trip_id=trip.id,
+            flight_date=date(2026, 3, 10),
+            flight_number="TK1770",
+            departure_airport_id=dep.id,
+            arrival_airport_id=arr.id,
+        )
+    )
+    db_session.commit()
+
+    mock_extract.return_value = FlightExtractionResult(
+        flights=[
+            ExtractedFlight(
+                flight_date="2026-03-10",
+                flight_number="TK1770",
+                departure_iata="PRG",
+                arrival_iata="IST",
+            ),
+            ExtractedFlight(
+                flight_date="2026-03-15",
+                flight_number="TK1771",
+                departure_iata="IST",
+                arrival_iata="PRG",
+            ),
+        ]
+    )
+
+    res = admin_client.post(
+        f"/api/v1/travels/trips/{trip.id}/flights/extract",
+        files={"file": ("ticket.pdf", b"fake-pdf", "application/pdf")},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data["flights"]) == 2
+    assert data["flights"][0]["is_duplicate"] is True
+    assert data["flights"][1]["is_duplicate"] is False
+
+
+def test_extract_flights_trip_not_found(admin_client: TestClient) -> None:
+    """Extract endpoint returns 404 for non-existent trip."""
+    res = admin_client.post(
+        "/api/v1/travels/trips/9999/flights/extract",
+        files={"file": ("ticket.pdf", b"fake-pdf", "application/pdf")},
+    )
+    assert res.status_code == 404

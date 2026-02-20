@@ -15,6 +15,7 @@ import {
 } from "react-icons/bi";
 import { SiAnthropic } from "react-icons/si";
 import { useAuth } from "../hooks/useAuth";
+import VaultToggle from "./VaultToggle";
 import { version } from "../../package.json";
 
 interface LayoutProps {
@@ -39,6 +40,7 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <>
+      <VaultToggle />
       <button
         type="button"
         className="mobile-nav-toggle"

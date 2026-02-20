@@ -16,6 +16,7 @@ import {
   BiX,
   BiSignal5,
   BiSolidPlane,
+  BiCopy,
 } from "react-icons/bi";
 import Flag from "../components/Flag";
 import { useAuth } from "../hooks/useAuth";
@@ -196,6 +197,23 @@ interface FlightDataItem {
   seat: string | null;
   booking_reference: string | null;
   notes: string | null;
+}
+
+interface ExtractedFlightData {
+  flight_date: string | null;
+  flight_number: string | null;
+  airline_name: string | null;
+  departure_iata: string | null;
+  arrival_iata: string | null;
+  departure_time: string | null;
+  arrival_time: string | null;
+  arrival_date: string | null;
+  terminal: string | null;
+  arrival_terminal: string | null;
+  aircraft_type: string | null;
+  seat: string | null;
+  booking_reference: string | null;
+  is_duplicate: boolean;
 }
 
 interface FlightLookupLeg {
@@ -436,6 +454,16 @@ export default function TripFormPage() {
     aircraft_type: "",
   });
   const [addingFlights, setAddingFlights] = useState(false);
+  const [extractedFlights, setExtractedFlights] = useState<
+    ExtractedFlightData[]
+  >([]);
+  const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
+  const [selectedExtracted, setSelectedExtracted] = useState<Set<number>>(
+    new Set(),
+  );
+  const extractInputRef = useRef<HTMLInputElement>(null);
+  const [vaultUnlocked, setVaultUnlocked] = useState(false);
   const [tripCitiesDisplay, setTripCitiesDisplay] = useState<
     { name: string; country_code: string | null }[]
   >([]);
@@ -548,7 +576,24 @@ export default function TripFormPage() {
       .then((data) => setFlights(data.flights || []))
       .catch((err) => console.error("Failed to load flights:", err))
       .finally(() => setLoadingFlights(false));
+
+    apiFetch("/api/auth/vault/status")
+      .then((r) => r.json())
+      .then((data) => setVaultUnlocked(data.unlocked === true))
+      .catch(() => setVaultUnlocked(false));
   }, [activeTab, isEdit, tripId]);
+
+  useEffect(() => {
+    const onVaultChange = () => {
+      apiFetch("/api/auth/vault/status")
+        .then((r) => r.json())
+        .then((data) => setVaultUnlocked(data.unlocked === true))
+        .catch(() => setVaultUnlocked(false));
+    };
+    window.addEventListener("vault-status-changed", onVaultChange);
+    return () =>
+      window.removeEventListener("vault-status-changed", onVaultChange);
+  }, []);
 
   // Sync flights_count in formData when flights list changes
   useEffect(() => {
@@ -954,6 +999,79 @@ export default function TripFormPage() {
     }
   };
 
+  const handleExtractUpload = async (file: File) => {
+    setExtracting(true);
+    setExtractError(null);
+    setExtractedFlights([]);
+    setSelectedExtracted(new Set());
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await apiFetch(
+        `/api/v1/travels/trips/${tripId}/flights/extract`,
+        { method: "POST", body: form },
+      );
+      const data = await res.json();
+      if (data.error) {
+        setExtractError(data.error);
+        return;
+      }
+      const flights: ExtractedFlightData[] = data.flights || [];
+      setExtractedFlights(flights);
+      // Pre-select non-duplicates
+      const preSelected = new Set<number>();
+      flights.forEach((f, i) => {
+        if (!f.is_duplicate) preSelected.add(i);
+      });
+      setSelectedExtracted(preSelected);
+    } catch {
+      setExtractError("Upload failed. Try again.");
+    } finally {
+      setExtracting(false);
+      if (extractInputRef.current) extractInputRef.current.value = "";
+    }
+  };
+
+  const handleAddExtractedFlights = async () => {
+    if (selectedExtracted.size === 0) return;
+    setAddingFlights(true);
+    try {
+      for (const idx of Array.from(selectedExtracted).sort()) {
+        const ef = extractedFlights[idx];
+        if (!ef.flight_number || !ef.departure_iata || !ef.arrival_iata)
+          continue;
+        await apiFetch(`/api/v1/travels/trips/${tripId}/flights`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            flight_date: ef.flight_date,
+            flight_number: ef.flight_number,
+            airline_name: ef.airline_name,
+            departure_iata: ef.departure_iata,
+            arrival_iata: ef.arrival_iata,
+            departure_time: ef.departure_time,
+            arrival_time: ef.arrival_time,
+            arrival_date: ef.arrival_date,
+            terminal: ef.terminal,
+            arrival_terminal: ef.arrival_terminal,
+            aircraft_type: ef.aircraft_type,
+            seat: ef.seat,
+            booking_reference: ef.booking_reference,
+          }),
+        });
+      }
+      const res = await apiFetch(`/api/v1/travels/trips/${tripId}/flights`);
+      const data = await res.json();
+      setFlights(data.flights || []);
+      setExtractedFlights([]);
+      setSelectedExtracted(new Set());
+    } catch (err) {
+      console.error("Failed to add extracted flights:", err);
+    } finally {
+      setAddingFlights(false);
+    }
+  };
+
   const handleManualAdd = async () => {
     if (
       !manualForm.flight_number ||
@@ -1144,7 +1262,25 @@ export default function TripFormPage() {
                         )}
                         {f.booking_reference && (
                           <span className="flight-badge">
-                            {f.booking_reference}
+                            {vaultUnlocked ? (
+                              <>
+                                {f.booking_reference}
+                                <button
+                                  className="btn-icon-inline"
+                                  title="Copy PNR"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(
+                                      f.booking_reference!,
+                                    );
+                                  }}
+                                >
+                                  <BiCopy />
+                                </button>
+                              </>
+                            ) : (
+                              "PNR ••••••"
+                            )}
                           </span>
                         )}
                       </div>
@@ -1166,6 +1302,102 @@ export default function TripFormPage() {
         {/* Add flight section */}
         <div className="form-section">
           <h3>Add Flight</h3>
+
+          {/* PDF/image upload for AI extraction */}
+          <div className="flight-extract-row">
+            <label className="btn-save flight-extract-btn">
+              {extracting ? "Extracting..." : "Upload ticket"}
+              <input
+                ref={extractInputRef}
+                type="file"
+                accept=".pdf,image/*"
+                style={{ display: "none" }}
+                disabled={extracting}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleExtractUpload(file);
+                }}
+              />
+            </label>
+            <span className="flight-extract-hint">
+              PDF or photo — AI extracts flight data
+            </span>
+          </div>
+
+          {extractError && (
+            <p className="flight-lookup-error">{extractError}</p>
+          )}
+
+          {extractedFlights.length > 0 && (
+            <div className="flight-lookup-results">
+              {extractedFlights.map((ef, idx) => (
+                <label
+                  key={idx}
+                  className={`flight-lookup-leg${ef.is_duplicate ? " flight-extracted-duplicate" : ""}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedExtracted.has(idx)}
+                    disabled={ef.is_duplicate}
+                    onChange={() => {
+                      setSelectedExtracted((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(idx)) next.delete(idx);
+                        else next.add(idx);
+                        return next;
+                      });
+                    }}
+                  />
+                  <div className="flight-leg-info">
+                    <span className="flight-leg-route">
+                      <strong>{ef.departure_iata}</strong>
+                      {ef.departure_time && ` ${ef.departure_time}`}
+                      {" → "}
+                      <strong>{ef.arrival_iata}</strong>
+                      {ef.arrival_time && ` ${ef.arrival_time}`}
+                      {ef.arrival_date && (
+                        <span className="flight-next-day">+1</span>
+                      )}
+                      {ef.is_duplicate && (
+                        <span className="flight-extracted-dup-label">
+                          (already exists)
+                        </span>
+                      )}
+                    </span>
+                    <span className="flight-leg-details">
+                      {[
+                        ef.flight_number,
+                        ef.airline_name,
+                        ef.aircraft_type,
+                        ef.seat ? `Seat ${ef.seat}` : null,
+                        ef.booking_reference
+                          ? `PNR ${ef.booking_reference}`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                    {ef.flight_date && (
+                      <span className="flight-leg-details">
+                        {ef.flight_date}
+                      </span>
+                    )}
+                  </div>
+                </label>
+              ))}
+              <button
+                type="button"
+                className="btn-save"
+                onClick={handleAddExtractedFlights}
+                disabled={selectedExtracted.size === 0 || addingFlights}
+              >
+                {addingFlights
+                  ? "Adding..."
+                  : `Add selected (${selectedExtracted.size})`}
+              </button>
+            </div>
+          )}
+
           {(() => {
             const today = new Date();
             const yearAgo = new Date(today);

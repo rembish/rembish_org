@@ -447,6 +447,28 @@ class FlightCreateRequest(BaseModel):
     notes: str | None = None
 
 
+class ExtractedFlightResponse(BaseModel):
+    flight_date: str | None = None
+    flight_number: str | None = None
+    airline_name: str | None = None
+    departure_iata: str | None = None
+    arrival_iata: str | None = None
+    departure_time: str | None = None
+    arrival_time: str | None = None
+    arrival_date: str | None = None
+    terminal: str | None = None
+    arrival_terminal: str | None = None
+    aircraft_type: str | None = None
+    seat: str | None = None
+    booking_reference: str | None = None
+    is_duplicate: bool = False
+
+
+class FlightExtractResponse(BaseModel):
+    flights: list[ExtractedFlightResponse] = []
+    error: str | None = None
+
+
 class FlightsResponse(BaseModel):
     flights: list[FlightData]
 

@@ -163,7 +163,10 @@ async def callback(request: Request, db: Session = Depends(get_db)) -> RedirectR
             return response
 
         vault_tok = create_vault_token(user.id)
-        response = RedirectResponse(url=f"{settings.frontend_url}/admin/vault", status_code=302)
+        vault_redirect = (
+            _validate_redirect(redirect_path) if redirect_path != "/" else "/admin/vault"
+        )
+        response = RedirectResponse(url=f"{settings.frontend_url}{vault_redirect}", status_code=302)
         response.set_cookie(
             key=VAULT_COOKIE_NAME,
             value=vault_tok,
@@ -221,7 +224,7 @@ def logout() -> JSONResponse:
 
 
 @router.get("/vault/login")
-async def vault_login(request: Request) -> RedirectResponse:
+async def vault_login(request: Request, redirect: str | None = None) -> RedirectResponse:
     """Redirect to Google OAuth for vault re-authentication.
 
     Reuses the same /api/auth/callback redirect URI (already registered in Google
@@ -242,6 +245,17 @@ async def vault_login(request: Request) -> RedirectResponse:
     response.set_cookie(
         key=VAULT_FLOW_COOKIE_NAME,
         value="1",
+        max_age=300,
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=settings.env == "production",
+    )
+    # Store redirect target for after vault auth (defaults to /admin/vault)
+    target = _validate_redirect(redirect) if redirect else "/admin/vault"
+    response.set_cookie(
+        key=REDIRECT_COOKIE_NAME,
+        value=target,
         max_age=300,
         path="/",
         httponly=True,

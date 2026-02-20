@@ -135,8 +135,10 @@ check: backend-format-check frontend-format-check lint typecheck lockfile-check 
 
 lockfile-check: ## Verify requirements.lock matches pyproject.toml
 	@echo "Checking requirements.lock..."
-	@cd $(BACKEND_DIR) && $(CURDIR)/$(VENV)/uv pip compile pyproject.toml 2>/dev/null \
-		| grep -v '^#' > /tmp/lockfile-expected.txt
+	@cp $(BACKEND_DIR)/requirements.lock /tmp/lockfile-expected.lock
+	@cd $(BACKEND_DIR) && $(CURDIR)/$(VENV)/uv pip compile pyproject.toml \
+		-o /tmp/lockfile-expected.lock 2>/dev/null
+	@grep -v '^#' /tmp/lockfile-expected.lock > /tmp/lockfile-expected.txt
 	@grep -v '^#' $(BACKEND_DIR)/requirements.lock > /tmp/lockfile-current.txt
 	@if ! diff -q /tmp/lockfile-expected.txt /tmp/lockfile-current.txt >/dev/null 2>&1; then \
 		echo "ERROR: requirements.lock is out of date"; \

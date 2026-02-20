@@ -38,6 +38,58 @@ Rules:
 - Extract the passport/travel document number the visa was issued against, if visible"""
 
 
+FLIGHT_EXTRACTION_PROMPT = """\
+You are a flight ticket data extractor. \
+Analyze this document (boarding pass, e-ticket, itinerary) and extract all flights.
+
+Return ONLY a JSON array of flight objects. Each flight should have these fields \
+(use null for unknown values):
+{
+  "flight_date": "YYYY-MM-DD (departure date)",
+  "flight_number": "e.g. TK1770, LH900",
+  "airline_name": "full airline name",
+  "departure_iata": "3-letter IATA code",
+  "arrival_iata": "3-letter IATA code",
+  "departure_time": "HH:MM (24h local time)",
+  "arrival_time": "HH:MM (24h local time)",
+  "arrival_date": "YYYY-MM-DD only if different from flight_date (overnight), else null",
+  "terminal": "departure terminal or null",
+  "arrival_terminal": "arrival terminal or null",
+  "aircraft_type": "e.g. Boeing 737-800, Airbus A321neo, or null",
+  "seat": "e.g. 14A, or null",
+  "booking_reference": "PNR/confirmation code, or null"
+}
+
+Rules:
+- Return a JSON array even for a single flight: [{"flight_date": ...}]
+- For multi-leg itineraries, return one object per leg
+- Use IATA airport codes (3 letters), not ICAO
+- Use 24-hour time format
+- Extract booking/confirmation/PNR reference if visible
+- If the document is not a flight ticket, return an empty array: []"""
+
+
+class ExtractedFlight(BaseModel):
+    flight_date: str | None = None
+    flight_number: str | None = None
+    airline_name: str | None = None
+    departure_iata: str | None = None
+    arrival_iata: str | None = None
+    departure_time: str | None = None
+    arrival_time: str | None = None
+    arrival_date: str | None = None
+    terminal: str | None = None
+    arrival_terminal: str | None = None
+    aircraft_type: str | None = None
+    seat: str | None = None
+    booking_reference: str | None = None
+
+
+class FlightExtractionResult(BaseModel):
+    flights: list[ExtractedFlight] | None = None
+    error: str | None = None
+
+
 class ExtractedDocMetadata(BaseModel):
     doc_type: str | None = None
     label: str | None = None
@@ -120,3 +172,72 @@ def extract_document_metadata(file_content: bytes, mime_type: str) -> Extraction
         if "401" in msg or "auth" in msg.lower():
             return ExtractionResult(error="Invalid API key")
         return ExtractionResult(error="Extraction failed")
+
+
+def extract_flight_data(file_content: bytes, mime_type: str) -> FlightExtractionResult:
+    """Extract flight data from a PDF or image using Claude Haiku."""
+    if not settings.anthropic_api_key:
+        return FlightExtractionResult(error="API key not configured")
+
+    try:
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+
+        content: list[dict[str, Any]] = []
+        if mime_type == "application/pdf":
+            content.append(
+                {
+                    "type": "document",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "application/pdf",
+                        "data": base64.b64encode(file_content).decode(),
+                    },
+                }
+            )
+        elif mime_type.startswith("image/"):
+            content.append(
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": mime_type,
+                        "data": base64.b64encode(file_content).decode(),
+                    },
+                }
+            )
+        else:
+            return FlightExtractionResult(error=f"Unsupported file type: {mime_type}")
+
+        content.append({"type": "text", "text": FLIGHT_EXTRACTION_PROMPT})
+
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=2048,
+            messages=[{"role": "user", "content": content}],  # type: ignore[typeddict-item]
+        )
+
+        text = response.content[0].text.strip()  # type: ignore[union-attr]
+
+        # Strip markdown code fences if present
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+
+        data = json.loads(text)
+        if not isinstance(data, list):
+            data = [data]
+        flights = [ExtractedFlight(**f) for f in data]
+        return FlightExtractionResult(flights=flights)
+
+    except json.JSONDecodeError:
+        log.warning("Failed to parse flight extraction response as JSON")
+        return FlightExtractionResult(error="Failed to parse AI response")
+    except Exception as exc:
+        log.exception("Flight data extraction failed")
+        msg = str(exc)
+        if "credit" in msg.lower() or "balance" in msg.lower() or "402" in msg:
+            return FlightExtractionResult(error="Insufficient API balance")
+        if "401" in msg or "auth" in msg.lower():
+            return FlightExtractionResult(error="Invalid API key")
+        return FlightExtractionResult(error="Extraction failed")

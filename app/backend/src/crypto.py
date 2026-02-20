@@ -46,10 +46,9 @@ def decrypt(data: bytes) -> str:
     return aesgcm.decrypt(nonce, ct, None).decode("utf-8")
 
 
-def mask_value(value: str, max_len: int = 100) -> str:
-    """Mask a value showing first 2 and last 2 chars. Long values capped."""
-    if len(value) <= 4:
+def mask_value(value: str, max_len: int = 100, reveal: int = 2) -> str:
+    """Mask a value showing first/last `reveal` chars. Long values capped."""
+    if len(value) <= reveal * 2:
         return "\u2022" * len(value)
-    # Cap the total masked length to max_len
     masked_len = min(len(value), max_len)
-    return value[:2] + "\u2022" * (masked_len - 4) + value[-2:]
+    return value[:reveal] + "\u2022" * (masked_len - reveal * 2) + value[-reveal:]

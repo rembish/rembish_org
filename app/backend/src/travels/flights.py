@@ -3,17 +3,21 @@ from datetime import date
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session, joinedload
 
-from ..auth.session import get_admin_user
+from ..auth.session import get_admin_user, is_vault_unlocked
 from ..config import settings
+from ..crypto import decrypt, encrypt, mask_value
 from ..database import get_db
+from ..extraction import extract_flight_data
 from ..models import Airport, Flight, Trip, User
 from .models import (
     AirportData,
+    ExtractedFlightResponse,
     FlightCreateRequest,
     FlightData,
+    FlightExtractResponse,
     FlightLookupLeg,
     FlightLookupResponse,
     FlightsResponse,
@@ -76,7 +80,20 @@ def _airport_to_data(airport: Airport) -> AirportData:
     )
 
 
-def _flight_to_data(flight: Flight) -> FlightData:
+def _booking_ref_display(flight: Flight, vault_open: bool) -> str | None:
+    """Return decrypted PNR if vault is unlocked, masked otherwise."""
+    if not flight.booking_ref_encrypted and not flight.booking_ref_masked:
+        return None
+    if flight.booking_ref_encrypted:
+        try:
+            plaintext = decrypt(flight.booking_ref_encrypted)
+            return plaintext if vault_open else mask_value(plaintext, reveal=1)
+        except Exception:
+            pass
+    return flight.booking_ref_masked
+
+
+def _flight_to_data(flight: Flight, vault_open: bool = False) -> FlightData:
     return FlightData(
         id=flight.id,
         trip_id=flight.trip_id,
@@ -93,7 +110,7 @@ def _flight_to_data(flight: Flight) -> FlightData:
         gate=flight.gate,
         aircraft_type=flight.aircraft_type,
         seat=flight.seat,
-        booking_reference=flight.booking_reference,
+        booking_reference=_booking_ref_display(flight, vault_open),
         notes=flight.notes,
     )
 
@@ -228,10 +245,81 @@ def lookup_flight(
         return FlightLookupResponse(legs=[], error="API request failed")
 
 
+MAX_EXTRACT_SIZE = 10 * 1024 * 1024  # 10 MB
+EXTRACT_MIME_TYPES = {"application/pdf", "image/jpeg", "image/png", "image/webp"}
+
+
+@router.post("/trips/{trip_id}/flights/extract", response_model=FlightExtractResponse)
+async def extract_flights_from_ticket(
+    trip_id: int,
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+    file: UploadFile = File(...),
+) -> FlightExtractResponse:
+    """Upload a flight ticket PDF/image and extract flight data via AI."""
+    trip = db.query(Trip).filter(Trip.id == trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    content_type = file.content_type or ""
+    if content_type not in EXTRACT_MIME_TYPES:
+        return FlightExtractResponse(
+            error=f"Unsupported file type: {content_type}. Use PDF or image."
+        )
+
+    content = await file.read()
+    if len(content) > MAX_EXTRACT_SIZE:
+        return FlightExtractResponse(error="File too large (max 10 MB)")
+
+    result = extract_flight_data(content, content_type)
+    if result.error:
+        return FlightExtractResponse(error=result.error)
+    if not result.flights:
+        return FlightExtractResponse(flights=[])
+
+    # Check for duplicates against existing flights in this trip
+    existing = db.query(Flight).filter(Flight.trip_id == trip_id).all()
+    existing_keys = set()
+    for f in existing:
+        dep = db.query(Airport).filter(Airport.id == f.departure_airport_id).first()
+        arr = db.query(Airport).filter(Airport.id == f.arrival_airport_id).first()
+        if dep and arr:
+            existing_keys.add((f.flight_date.isoformat(), dep.iata_code, arr.iata_code))
+
+    extracted: list[ExtractedFlightResponse] = []
+    for flight in result.flights:
+        is_dup = (
+            flight.flight_date,
+            (flight.departure_iata or "").upper(),
+            (flight.arrival_iata or "").upper(),
+        ) in existing_keys
+        extracted.append(
+            ExtractedFlightResponse(
+                flight_date=flight.flight_date,
+                flight_number=flight.flight_number,
+                airline_name=flight.airline_name,
+                departure_iata=flight.departure_iata,
+                arrival_iata=flight.arrival_iata,
+                departure_time=flight.departure_time,
+                arrival_time=flight.arrival_time,
+                arrival_date=flight.arrival_date,
+                terminal=flight.terminal,
+                arrival_terminal=flight.arrival_terminal,
+                aircraft_type=flight.aircraft_type,
+                seat=flight.seat,
+                booking_reference=flight.booking_reference,
+                is_duplicate=is_dup,
+            )
+        )
+
+    return FlightExtractResponse(flights=extracted)
+
+
 @router.get("/trips/{trip_id}/flights", response_model=FlightsResponse)
 def get_trip_flights(
     trip_id: int,
     admin: Annotated[User, Depends(get_admin_user)],
+    vault_open: Annotated[bool, Depends(is_vault_unlocked)],
     db: Session = Depends(get_db),
 ) -> FlightsResponse:
     """Get all flights for a trip, ordered by date and departure time."""
@@ -256,7 +344,7 @@ def get_trip_flights(
         trip.flights_count = actual_count
         db.commit()
 
-    return FlightsResponse(flights=[_flight_to_data(f) for f in flights])
+    return FlightsResponse(flights=[_flight_to_data(f, vault_open) for f in flights])
 
 
 @router.get("/flights/dates")
@@ -290,6 +378,7 @@ def create_flight(
     trip_id: int,
     request: FlightCreateRequest,
     admin: Annotated[User, Depends(get_admin_user)],
+    vault_open: Annotated[bool, Depends(is_vault_unlocked)],
     db: Session = Depends(get_db),
 ) -> FlightData:
     """Create a flight for a trip. Upserts airports by IATA code."""
@@ -315,9 +404,11 @@ def create_flight(
         gate=request.gate,
         aircraft_type=request.aircraft_type,
         seat=request.seat,
-        booking_reference=request.booking_reference,
         notes=request.notes,
     )
+    if request.booking_reference:
+        flight.booking_ref_encrypted = encrypt(request.booking_reference)
+        flight.booking_ref_masked = mask_value(request.booking_reference, reveal=1)
     db.add(flight)
     db.flush()
 
@@ -338,7 +429,7 @@ def create_flight(
         .first()
     )
     assert loaded is not None
-    return _flight_to_data(loaded)
+    return _flight_to_data(loaded, vault_open)
 
 
 @router.delete("/flights/{flight_id}", status_code=204)

@@ -62,7 +62,9 @@ jobs:
       - name: Check requirements.lock freshness
         run: |
           cd app/backend
-          uv pip compile pyproject.toml 2>/dev/null | grep -v '^#' > /tmp/expected.txt
+          cp requirements.lock /tmp/lockfile-expected.lock
+          uv pip compile pyproject.toml -o /tmp/lockfile-expected.lock 2>/dev/null
+          grep -v '^#' /tmp/lockfile-expected.lock > /tmp/expected.txt
           grep -v '^#' requirements.lock > /tmp/current.txt
           if ! diff -q /tmp/expected.txt /tmp/current.txt >/dev/null 2>&1; then
             echo "::error::requirements.lock is out of date with pyproject.toml"

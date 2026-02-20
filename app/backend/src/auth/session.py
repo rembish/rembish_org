@@ -86,6 +86,17 @@ def verify_vault_token(token: str) -> dict[str, Any] | None:
         return None
 
 
+def is_vault_unlocked(
+    user: Annotated[User, Depends(get_admin_user)],
+    vault_auth: Annotated[str | None, Cookie(alias=VAULT_COOKIE_NAME)] = None,
+) -> bool:
+    """Check if vault is currently unlocked (non-throwing)."""
+    if not vault_auth:
+        return False
+    data = verify_vault_token(vault_auth)
+    return bool(data and data.get("user_id") == user.id)
+
+
 def get_vault_user(
     user: Annotated[User, Depends(get_admin_user)],
     vault_auth: Annotated[str | None, Cookie(alias=VAULT_COOKIE_NAME)] = None,

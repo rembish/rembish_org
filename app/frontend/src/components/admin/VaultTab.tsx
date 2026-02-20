@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { BiLock, BiLockOpen } from "react-icons/bi";
+import { BiLock } from "react-icons/bi";
 import { apiFetch } from "../../lib/api";
 import type {
   VaultDocument,
@@ -165,6 +165,13 @@ export default function VaultTab() {
       setSearchParams(searchParams, { replace: true });
     }
   }, [newTravelDocCountry, unlocked, users, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const onVaultChange = () => checkStatus();
+    window.addEventListener("vault-status-changed", onVaultChange);
+    return () =>
+      window.removeEventListener("vault-status-changed", onVaultChange);
+  }, [checkStatus]);
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -447,15 +454,7 @@ export default function VaultTab() {
       <div className="vault-locked">
         <BiLock size={48} />
         <h2>Vault is Locked</h2>
-        <p>Re-authenticate with Google to access sensitive data.</p>
-        <button
-          className="btn-save"
-          onClick={() => {
-            window.location.href = "/api/auth/vault/login";
-          }}
-        >
-          <BiLockOpen /> Authenticate
-        </button>
+        <p>Use the lock icon in the top-right corner to unlock.</p>
       </div>
     );
   }
@@ -466,14 +465,6 @@ export default function VaultTab() {
     if (userId === myUserId) return "Me";
     const u = getUser(userId);
     return u?.nickname || u?.name || `User #${userId}`;
-  };
-
-  const handleLock = async () => {
-    await apiFetch("/api/auth/vault/lock", {
-      method: "POST",
-    });
-    setUnlocked(false);
-    if (lockTimerRef.current) clearTimeout(lockTimerRef.current);
   };
 
   return (
@@ -494,9 +485,6 @@ export default function VaultTab() {
             ))}
           </select>
         </div>
-        <button className="btn-icon" onClick={handleLock} title="Lock vault">
-          <BiLock />
-        </button>
       </div>
 
       <VaultDocumentsSection

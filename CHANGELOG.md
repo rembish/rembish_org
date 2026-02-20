@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.31.0 (2026-02-20)
+
+### Flight Ticket Extraction
+- Upload a flight ticket (PDF or photo) on the transport tab — AI extracts all flights automatically
+- Supports multi-leg itineraries: each leg shown as a reviewable card
+- Duplicate detection: flights matching existing date+airports highlighted, pre-deselected
+- Encrypted PNR storage: booking references extracted and stored in vault (AES-256-GCM)
+- PNR display respects vault lock — masked when locked, full code with copy button when unlocked
+
+### Global Vault Toggle
+- Lock/unlock icon in top-right corner of all admin pages — no more hunting for the button
+- Locks and unlocks vault from any page; VaultTab and transport tab react instantly
+- Removed per-page lock/unlock buttons (VaultTab toolbar, transport page hint link)
+- VaultTab locked screen simplified — just points to the global icon
+
 ## 0.30.1 (2026-02-20)
 
 ### Bug Fixes
