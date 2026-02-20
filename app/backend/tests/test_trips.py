@@ -228,11 +228,11 @@ def test_tcc_options(admin_client: TestClient, db_session: Session) -> None:
 
 
 @patch(
-    "src.travels.trips._fetch_currency_rates",
+    "src.travels.trips_country_info._fetch_currency_rates",
     return_value={"EUR": 1.0, "CZK": 25.5, "USD": 1.08},
 )
 @patch(
-    "src.travels.trips._fetch_weather",
+    "src.travels.trips_country_info._fetch_weather",
     return_value={
         "avg_temp_c": 15.0,
         "min_temp_c": 8.0,
@@ -241,8 +241,8 @@ def test_tcc_options(admin_client: TestClient, db_session: Session) -> None:
         "rainy_days": 7,
     },
 )
-@patch("src.travels.trips._fetch_sunrise_sunset", return_value=None)
-@patch("src.travels.trips._fetch_holidays_for_country", return_value=[])
+@patch("src.travels.trips_country_info._fetch_sunrise_sunset", return_value=None)
+@patch("src.travels.trips_country_info._fetch_holidays_for_country", return_value=[])
 def test_country_info_returns_data(
     _mock_holidays: object,
     _mock_sunrise: object,
@@ -294,9 +294,9 @@ def test_country_info_returns_data(
     assert c["weather"]["month"] == "March"
 
 
-@patch("src.travels.trips._fetch_currency_rates", return_value=None)
+@patch("src.travels.trips_country_info._fetch_currency_rates", return_value=None)
 @patch(
-    "src.travels.trips._fetch_weather",
+    "src.travels.trips_country_info._fetch_weather",
     return_value={
         "avg_temp_c": None,
         "min_temp_c": None,
@@ -305,8 +305,8 @@ def test_country_info_returns_data(
         "rainy_days": None,
     },
 )
-@patch("src.travels.trips._fetch_sunrise_sunset", return_value=None)
-@patch("src.travels.trips._fetch_holidays_for_country", return_value=[])
+@patch("src.travels.trips_country_info._fetch_sunrise_sunset", return_value=None)
+@patch("src.travels.trips_country_info._fetch_holidays_for_country", return_value=[])
 def test_country_info_adapter_needed(
     _mock_holidays: object,
     _mock_sunrise: object,
@@ -339,9 +339,9 @@ def test_country_info_adapter_needed(
     assert c["visa_free_days"] == 180
 
 
-@patch("src.travels.trips._fetch_currency_rates", return_value=None)
-@patch("src.travels.trips._fetch_sunrise_sunset", return_value=None)
-@patch("src.travels.trips._fetch_holidays_for_country", return_value=[])
+@patch("src.travels.trips_country_info._fetch_currency_rates", return_value=None)
+@patch("src.travels.trips_country_info._fetch_sunrise_sunset", return_value=None)
+@patch("src.travels.trips_country_info._fetch_holidays_for_country", return_value=[])
 def test_country_info_multiple_countries(
     _mock_holidays: object,
     _mock_sunrise: object,
@@ -398,9 +398,9 @@ def test_country_info_requires_admin(client: TestClient, db_session: Session) ->
     assert response.status_code in (401, 403)
 
 
-@patch("src.travels.trips._fetch_currency_rates", return_value=None)
-@patch("src.travels.trips._fetch_sunrise_sunset", return_value=None)
-@patch("src.travels.trips._fetch_holidays_for_country", return_value=[])
+@patch("src.travels.trips_country_info._fetch_currency_rates", return_value=None)
+@patch("src.travels.trips_country_info._fetch_sunrise_sunset", return_value=None)
+@patch("src.travels.trips_country_info._fetch_holidays_for_country", return_value=[])
 def test_country_info_orphan_destination(
     _mock_holidays: object,
     _mock_sunrise: object,

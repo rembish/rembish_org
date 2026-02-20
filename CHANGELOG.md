@@ -13,6 +13,12 @@
 ### Improved Error Handling
 - App-wide error boundary catches uncaught errors with recovery UI instead of white screen
 
+### Code Quality
+- Split three oversized modules into focused, maintainable files:
+  - Backend: `vault.py` (1,419 lines → 6 files), `trips.py` (1,595 lines → 4 files)
+  - Frontend: `Admin.tsx` (5,254 lines → 16 files in `components/admin/`)
+- Warnings treated as errors in test suite — catches deprecation issues early
+
 ### Under the Hood
 - Shared API helper reduces boilerplate across all frontend API calls
 - Auth state shared via React Context (single fetch instead of per-component)
