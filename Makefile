@@ -5,7 +5,7 @@
         lint format typecheck test \
         version version-check version-sync tag \
         build-prod build-backend-prod build-frontend-prod \
-        cv-pdf
+        cv-pdf lockfile-check
 
 .DEFAULT_GOAL := help
 
@@ -131,7 +131,19 @@ typecheck: backend-typecheck frontend-typecheck ## Run all type checkers
 
 test: backend-test ## Run all tests
 
-check: backend-format-check frontend-format-check lint typecheck ## Run formatters, linters and type checkers
+check: backend-format-check frontend-format-check lint typecheck lockfile-check ## Run formatters, linters and type checkers
+
+lockfile-check: ## Verify requirements.lock matches pyproject.toml
+	@echo "Checking requirements.lock..."
+	@cd $(BACKEND_DIR) && $(CURDIR)/$(VENV)/uv pip compile pyproject.toml 2>/dev/null \
+		| grep -v '^#' > /tmp/lockfile-expected.txt
+	@grep -v '^#' $(BACKEND_DIR)/requirements.lock > /tmp/lockfile-current.txt
+	@if ! diff -q /tmp/lockfile-expected.txt /tmp/lockfile-current.txt >/dev/null 2>&1; then \
+		echo "ERROR: requirements.lock is out of date"; \
+		echo "Run: cd app/backend && uv pip compile pyproject.toml -o requirements.lock"; \
+		exit 1; \
+	fi
+	@echo "requirements.lock is up to date."
 
 ##@ Production Build
 

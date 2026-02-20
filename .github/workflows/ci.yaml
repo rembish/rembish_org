@@ -50,11 +50,26 @@ jobs:
       - name: Backend dependency audit
         run: pip install pip-audit && pip-audit
 
+      - name: Install uv
+        run: pip install uv
+
+      - name: Check requirements.lock freshness
+        run: |
+          cd app/backend
+          uv pip compile pyproject.toml 2>/dev/null | grep -v '^#' > /tmp/expected.txt
+          grep -v '^#' requirements.lock > /tmp/current.txt
+          if ! diff -q /tmp/expected.txt /tmp/current.txt >/dev/null 2>&1; then
+            echo "::error::requirements.lock is out of date with pyproject.toml"
+            echo "Run: cd app/backend && uv pip compile pyproject.toml -o requirements.lock"
+            diff /tmp/expected.txt /tmp/current.txt || true
+            exit 1
+          fi
+
       - name: Backend tests (pytest)
         run: cd app/backend && pytest tests/ -v --cov=src --cov-report=term-missing
 
       - name: Frontend dependency audit
-        run: cd app/frontend && npm audit --audit-level=high
+        run: cd app/frontend && npm audit --audit-level=critical
 
       - name: Frontend lint (eslint)
         run: cd app/frontend && npm run lint

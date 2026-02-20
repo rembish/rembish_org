@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.30.1 (2026-02-20)
+
+### Bug Fixes
+- Fixed deploy workflow blocked by transitive npm vulnerabilities (d3-color, esbuild, minimatch) with no available fix — audit threshold raised from `high` to `critical`
+- Fixed potential 500 error when duplicate participant IDs sent in trip create/update payload — now silently deduped
+- Fixed stale `requirements.lock` causing deploy failure (missing `cachetools`)
+
+### CI/CD
+- Added lockfile freshness guard — CI and deploy workflows now verify `requirements.lock` matches `pyproject.toml`
+- Added `make lockfile-check` target (included in `make check`)
+
 ## 0.30.0 (2026-02-20)
 
 ### Security Hardening

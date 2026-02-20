@@ -283,10 +283,13 @@ def _create_trip_relations(
             )
         )
 
-    # Batch-validate participants
-    if participant_ids:
-        valid_users = {u.id for u in db.query(User.id).filter(User.id.in_(participant_ids)).all()}
-        for user_id in participant_ids:
+    # Batch-validate participants (dedupe to prevent unique constraint violations)
+    unique_participant_ids = list(dict.fromkeys(participant_ids))
+    if unique_participant_ids:
+        valid_users = {
+            u.id for u in db.query(User.id).filter(User.id.in_(unique_participant_ids)).all()
+        }
+        for user_id in unique_participant_ids:
             if user_id in valid_users:
                 trip.participants.append(TripParticipant(user_id=user_id))
 
@@ -415,19 +418,20 @@ def update_trip(
                 )
             )
 
-    # Update participants if changed
+    # Update participants if changed (dedupe to prevent unique constraint violations)
     if request.participant_ids is not None:
+        unique_participant_ids = list(dict.fromkeys(request.participant_ids))
         existing_ids = sorted(p.user_id for p in trip.participants)
-        requested_ids = sorted(request.participant_ids)
+        requested_ids = sorted(unique_participant_ids)
         if existing_ids != requested_ids:
             valid_users = (
-                {u.id for u in db.query(User.id).filter(User.id.in_(request.participant_ids)).all()}
-                if request.participant_ids
+                {u.id for u in db.query(User.id).filter(User.id.in_(unique_participant_ids)).all()}
+                if unique_participant_ids
                 else set()
             )
             trip.participants.clear()
             db.flush()
-            for user_id in request.participant_ids:
+            for user_id in unique_participant_ids:
                 if user_id in valid_users:
                     trip.participants.append(TripParticipant(user_id=user_id))
 
