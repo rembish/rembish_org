@@ -1,7 +1,17 @@
 from datetime import UTC, date, datetime
 from enum import StrEnum
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
@@ -210,6 +220,7 @@ class TripDestination(Base):
     """Junction table linking trips to TCC destinations."""
 
     __tablename__ = "trip_destinations"
+    __table_args__ = (UniqueConstraint("trip_id", "tcc_destination_id"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     trip_id: Mapped[int] = mapped_column(

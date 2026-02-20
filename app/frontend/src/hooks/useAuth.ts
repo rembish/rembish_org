@@ -1,4 +1,11 @@
-import { useState, useEffect } from "react";
+import {
+  createContext,
+  createElement,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 
 interface User {
   id: number;
@@ -10,7 +17,16 @@ interface User {
   is_admin: boolean;
 }
 
-export function useAuth() {
+interface AuthContextValue {
+  user: User | null;
+  loading: boolean;
+  login: () => void;
+  logout: () => void;
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -41,5 +57,17 @@ export function useAuth() {
     });
   };
 
-  return { user, loading, login, logout };
+  return createElement(
+    AuthContext.Provider,
+    { value: { user, loading, login, logout } },
+    children,
+  );
+}
+
+export function useAuth(): AuthContextValue {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
 }

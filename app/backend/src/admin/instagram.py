@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any, cast
 
-import requests
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
@@ -619,10 +619,10 @@ def _api_request_with_retry(
     last_error: Exception | None = None
     for attempt in range(max_retries):
         try:
-            response = requests.get(url, params=params or {}, timeout=60)
+            response = httpx.get(url, params=params or {}, timeout=60)
             response.raise_for_status()
             return cast(dict[str, Any], response.json())
-        except (requests.Timeout, requests.ConnectionError) as e:
+        except (httpx.TimeoutException, httpx.ConnectError) as e:
             last_error = e
             if attempt < max_retries - 1:
                 time.sleep(2**attempt)  # Exponential backoff: 1s, 2s, 4s
@@ -697,7 +697,7 @@ def _download_image(
     from PIL import Image
 
     try:
-        response = requests.get(url, timeout=60)
+        response = httpx.get(url, timeout=60)
         response.raise_for_status()
         content = response.content
 
@@ -878,7 +878,7 @@ def fetch_more_posts(
             if not cursor:
                 break
 
-    except requests.RequestException as e:
+    except httpx.HTTPError as e:
         raise HTTPException(status_code=502, detail=f"Instagram API error: {e}")
 
     db.commit()
@@ -932,7 +932,7 @@ def fill_gaps_stream(
 
         try:
             while pages_fetched < max_pages:
-                response = requests.get(url, params=params, timeout=30)
+                response = httpx.get(url, params=params, timeout=30)
                 response.raise_for_status()
                 data = response.json()
                 pages_fetched += 1
@@ -999,7 +999,7 @@ def fill_gaps_stream(
                 url = next_url
                 params = {}
 
-        except requests.RequestException as e:
+        except httpx.HTTPError as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
             return
 
@@ -1035,7 +1035,7 @@ def sync_new_posts(
 
     try:
         while pages_fetched < max_pages:
-            response = requests.get(url, params=params, timeout=30)
+            response = httpx.get(url, params=params, timeout=30)
             response.raise_for_status()
             data = response.json()
             pages_fetched += 1
@@ -1087,7 +1087,7 @@ def sync_new_posts(
             url = next_url
             params = {}
 
-    except requests.RequestException as e:
+    except httpx.HTTPError as e:
         raise HTTPException(status_code=502, detail=f"Instagram API error: {e}")
 
     db.commit()

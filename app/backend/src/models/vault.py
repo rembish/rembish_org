@@ -1,9 +1,10 @@
-from datetime import date
+from datetime import UTC, date, datetime
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Date,
+    DateTime,
     Enum,
     ForeignKey,
     Integer,
@@ -14,6 +15,8 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
+
+_now = lambda: datetime.now(UTC)  # noqa: E731
 
 
 class VaultDocument(Base):
@@ -37,6 +40,10 @@ class VaultDocument(Base):
     notes_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     notes_masked: Mapped[str | None] = mapped_column(String(100), nullable=True)
     is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=_now, onupdate=_now
+    )
 
     user: Mapped["User"] = relationship(back_populates="vault_documents")
     files: Mapped[list["VaultFile"]] = relationship(
@@ -66,6 +73,10 @@ class VaultLoyaltyProgram(Base):
     notes_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     notes_masked: Mapped[str | None] = mapped_column(String(100), nullable=True)
     is_favorite: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=_now, onupdate=_now
+    )
 
     user: Mapped["User"] = relationship(back_populates="vault_loyalty_programs")
 
@@ -89,6 +100,10 @@ class VaultVaccination(Base):
     batch_number_masked: Mapped[str | None] = mapped_column(String(100), nullable=True)
     notes_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     notes_masked: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=_now, onupdate=_now
+    )
 
     user: Mapped["User"] = relationship(back_populates="vault_vaccinations")
     files: Mapped[list["VaultFile"]] = relationship(
@@ -134,6 +149,10 @@ class VaultTravelDoc(Base):
     )
     notes_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     notes_masked: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=_now, onupdate=_now
+    )
 
     user: Mapped["User"] = relationship(back_populates="vault_travel_docs")
     passport: Mapped["VaultDocument | None"] = relationship(foreign_keys=[document_id])

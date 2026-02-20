@@ -32,7 +32,7 @@ jobs:
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e "app/backend[dev]"
+          pip install -e "app/backend[dev]" pytest-cov
 
       - name: Install frontend dependencies
         run: |
@@ -51,7 +51,7 @@ jobs:
         run: pip install pip-audit && pip-audit
 
       - name: Backend tests (pytest)
-        run: cd app/backend && pytest tests/ -v
+        run: cd app/backend && pytest tests/ -v --cov=src --cov-report=term-missing
 
       - name: Frontend dependency audit
         run: cd app/frontend && npm audit --audit-level=high

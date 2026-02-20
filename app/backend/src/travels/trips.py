@@ -8,6 +8,7 @@ from typing import Annotated
 from zoneinfo import ZoneInfo
 
 import httpx
+from cachetools import TTLCache
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 
@@ -62,21 +63,15 @@ from .vacation import ANNUAL_LEAVE_DAYS, count_vacation_days
 _nominatim_last_request: float = 0.0
 _NOMINATIM_COOLDOWN = 1.0  # seconds between requests
 
-# Holidays cache: {(year, country_code): (holidays_list, timestamp)}
-_holidays_cache: dict[tuple[int, str], tuple[list[dict], float]] = {}
-_HOLIDAYS_CACHE_TTL = 86400  # 24 hours
-
-# Currency cache: {currency_code: (rates_dict, timestamp)}
-_currency_cache: dict[str, tuple[dict[str, float] | None, float]] = {}
-_CURRENCY_CACHE_TTL = 3600  # 1 hour
-
-# Weather cache: {(lat, lng, month): (data_dict, timestamp)}
-_weather_cache: dict[tuple[float, float, int], tuple[dict[str, float | None | int], float]] = {}
-_WEATHER_CACHE_TTL = 86400  # 24 hours
-
-# Sunrise/sunset cache: {(lat, lng, date_str): (data, timestamp)}
-_sunrise_cache: dict[tuple[float, float, str], tuple[SunriseSunset | None, float]] = {}
-_SUNRISE_CACHE_TTL = 86400  # 24 hours
+# TTL caches for external API responses (auto-evict expired entries, bounded size)
+_holidays_cache: TTLCache[tuple[int, str], list[dict]] = TTLCache(maxsize=256, ttl=86400)
+_currency_cache: TTLCache[str, dict[str, float] | None] = TTLCache(maxsize=64, ttl=3600)
+_weather_cache: TTLCache[tuple[float, float, int], dict[str, float | None | int]] = TTLCache(
+    maxsize=256, ttl=86400
+)
+_sunrise_cache: TTLCache[tuple[float, float, str], SunriseSunset | None] = TTLCache(
+    maxsize=256, ttl=86400
+)
 
 # Health requirements data: loaded once from static JSON
 _health_data: dict[str, dict] = {}
@@ -786,19 +781,18 @@ def get_holidays(
     cache_key = (year, country_code)
 
     # Check cache
-    if cache_key in _holidays_cache:
-        cached_holidays, cached_time = _holidays_cache[cache_key]
-        if time.time() - cached_time < _HOLIDAYS_CACHE_TTL:
-            return HolidaysResponse(
-                holidays=[
-                    PublicHoliday(
-                        date=h["date"],
-                        name=h["name"],
-                        local_name=h.get("localName"),
-                    )
-                    for h in cached_holidays
-                ]
-            )
+    cached_holidays = _holidays_cache.get(cache_key)
+    if cached_holidays is not None:
+        return HolidaysResponse(
+            holidays=[
+                PublicHoliday(
+                    date=h["date"],
+                    name=h["name"],
+                    local_name=h.get("localName"),
+                )
+                for h in cached_holidays
+            ]
+        )
 
     # Fetch from Nager.Date API
     try:
@@ -807,15 +801,12 @@ def get_holidays(
             timeout=10.0,
         )
         if response.status_code in (204, 404):
-            # Country not supported or not found - cache empty result
-            _holidays_cache[cache_key] = ([], time.time())
+            _holidays_cache[cache_key] = []
             return HolidaysResponse(holidays=[])
 
         response.raise_for_status()
         data = response.json()
-
-        # Cache the raw data
-        _holidays_cache[cache_key] = (data, time.time())
+        _holidays_cache[cache_key] = data
 
         return HolidaysResponse(
             holidays=[
@@ -828,7 +819,6 @@ def get_holidays(
             ]
         )
     except Exception:
-        # Return empty on any error (network, timeout, rate limit, etc.)
         return HolidaysResponse(holidays=[])
 
 
@@ -1002,11 +992,8 @@ def _fetch_currency_rates(currency_code: str) -> dict[str, float] | None:
     Uses Frankfurter (ECB) for supported currencies, falls back to
     open.er-api.com (free, no key, 150+ currencies) for others.
     """
-    now = time.time()
     if currency_code in _currency_cache:
-        cached_rates, cached_time = _currency_cache[currency_code]
-        if now - cached_time < _CURRENCY_CACHE_TTL:
-            return cached_rates
+        return _currency_cache[currency_code]
 
     # ECB-supported currencies via Frankfurter (more reliable)
     ecb_supported = {
@@ -1047,7 +1034,7 @@ def _fetch_currency_rates(currency_code: str) -> dict[str, float] | None:
     if rates is None:
         rates = _fetch_open_er(currency_code)
 
-    _currency_cache[currency_code] = (rates, now)
+    _currency_cache[currency_code] = rates
     return rates
 
 
@@ -1095,11 +1082,9 @@ def _fetch_weather(lat: float, lng: float, month: int) -> dict[str, float | None
     """Fetch climate averages from Open-Meteo Climate API with caching."""
     # Round coords to 2 decimal places for cache key stability
     cache_key = (round(lat, 2), round(lng, 2), month)
-    now = time.time()
-    if cache_key in _weather_cache:
-        cached_data, cached_time = _weather_cache[cache_key]
-        if now - cached_time < _WEATHER_CACHE_TTL:
-            return cached_data
+    cached_data = _weather_cache.get(cache_key)
+    if cached_data is not None:
+        return cached_data
 
     # Use a representative year range for climate data
     year = 2020
@@ -1142,7 +1127,7 @@ def _fetch_weather(lat: float, lng: float, month: int) -> dict[str, float | None
             "avg_precipitation_mm": round(sum(precip) / len(precip), 1) if precip else None,
             "rainy_days": rainy if precip else None,
         }
-        _weather_cache[cache_key] = (result, now)
+        _weather_cache[cache_key] = result
         return result
     except Exception:
         log.warning("Failed to fetch weather for (%.2f, %.2f, %d)", lat, lng, month)
@@ -1153,7 +1138,7 @@ def _fetch_weather(lat: float, lng: float, month: int) -> dict[str, float | None
             "avg_precipitation_mm": None,
             "rainy_days": None,
         }
-        _weather_cache[cache_key] = (fallback, now)
+        _weather_cache[cache_key] = fallback
         return fallback
 
 
@@ -1163,11 +1148,8 @@ def _fetch_sunrise_sunset(
     """Fetch sunrise/sunset for a location and date."""
     date_str = trip_date.isoformat()
     cache_key = (round(lat, 2), round(lng, 2), date_str)
-    now = time.time()
     if cache_key in _sunrise_cache:
-        cached, cached_time = _sunrise_cache[cache_key]
-        if now - cached_time < _SUNRISE_CACHE_TTL:
-            return cached
+        return _sunrise_cache[cache_key]
 
     try:
         resp = httpx.get(
@@ -1183,7 +1165,7 @@ def _fetch_sunrise_sunset(
         resp.raise_for_status()
         data = resp.json()
         if data.get("status") != "OK":
-            _sunrise_cache[cache_key] = (None, now)
+            _sunrise_cache[cache_key] = None
             return None
 
         results = data["results"]
@@ -1214,11 +1196,11 @@ def _fetch_sunrise_sunset(
             sunset=ss.strftime("%H:%M"),
             day_length_hours=round(day_length / 3600, 1),
         )
-        _sunrise_cache[cache_key] = (result, now)
+        _sunrise_cache[cache_key] = result
         return result
     except Exception:
         log.warning("Failed sunrise/sunset for (%.2f, %.2f, %s)", lat, lng, date_str)
-        _sunrise_cache[cache_key] = (None, now)
+        _sunrise_cache[cache_key] = None
         return None
 
 
@@ -1242,16 +1224,11 @@ def _fetch_holidays_for_country(country_code: str, start: date, end: date) -> li
 
     for year in sorted(years):
         cache_key = (year, country_code.upper())
-        now = time.time()
 
         # Check cache
         raw_holidays: list[dict] = []
         if cache_key in _holidays_cache:
-            cached, cached_time = _holidays_cache[cache_key]
-            if now - cached_time < _HOLIDAYS_CACHE_TTL:
-                raw_holidays = cached
-            else:
-                raw_holidays = _fetch_holidays_raw(year, country_code)
+            raw_holidays = _holidays_cache[cache_key]
         else:
             raw_holidays = _fetch_holidays_raw(year, country_code)
 
@@ -1278,14 +1255,14 @@ def _fetch_holidays_raw(year: int, country_code: str) -> list[dict]:
             timeout=10.0,
         )
         if resp.status_code in (204, 404):
-            _holidays_cache[cache_key] = ([], time.time())
+            _holidays_cache[cache_key] = []
             return []
         resp.raise_for_status()
         data: list[dict] = resp.json()
-        _holidays_cache[cache_key] = (data, time.time())
+        _holidays_cache[cache_key] = data
         return data
     except Exception:
-        _holidays_cache[cache_key] = ([], time.time())
+        _holidays_cache[cache_key] = []
         return []
 
 
