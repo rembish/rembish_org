@@ -21,9 +21,9 @@ import {
 
 interface Props {
   travelDocs: VaultTravelDoc[];
-  selectedUserId: number | null;
   showExpiredTravelDocs: boolean;
   expandedFiles: Set<string>;
+  hideHeader?: boolean;
   onShowExpiredChange: (value: boolean) => void;
   onEditTravelDoc: (doc: VaultTravelDoc) => void;
   onAddTravelDoc: () => void;
@@ -38,9 +38,9 @@ interface Props {
 
 export default function VaultTravelDocsSection({
   travelDocs,
-  selectedUserId,
   showExpiredTravelDocs,
   expandedFiles,
+  hideHeader,
   onShowExpiredChange,
   onEditTravelDoc,
   onAddTravelDoc,
@@ -54,28 +54,30 @@ export default function VaultTravelDocsSection({
 }: Props) {
   return (
     <div className="vault-section">
-      <div className="vault-section-header">
-        <h3>
-          <BiWorld /> Travel Documents
-        </h3>
-        <div className="vault-section-actions">
-          <label className="vault-toggle-label">
-            <input
-              type="checkbox"
-              checked={showExpiredTravelDocs}
-              onChange={(e) => onShowExpiredChange(e.target.checked)}
-            />
-            Show expired
-          </label>
-          <button
-            className="btn-icon"
-            onClick={onAddTravelDoc}
-            title="Add travel document"
-          >
-            <BiPlus />
-          </button>
+      {!hideHeader && (
+        <div className="vault-section-header">
+          <h3>
+            <BiWorld /> Travel Documents
+          </h3>
+          <div className="vault-section-actions">
+            <label className="vault-toggle-label">
+              <input
+                type="checkbox"
+                checked={showExpiredTravelDocs}
+                onChange={(e) => onShowExpiredChange(e.target.checked)}
+              />
+              Show expired
+            </label>
+            <button
+              className="btn-icon"
+              onClick={onAddTravelDoc}
+              title="Add travel document"
+            >
+              <BiPlus />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
       <div className="vault-cards">
         {travelDocs
           .filter((td) => {
@@ -163,22 +165,20 @@ export default function VaultTravelDocsSection({
                 {td.passport_label && (
                   <div className="vault-card-passport">{td.passport_label}</div>
                 )}
-                {!selectedUserId && (
-                  <div
-                    className="vault-card-avatar"
-                    title={getUserName(td.user_id)}
-                  >
-                    {getUser(td.user_id)?.picture ? (
-                      <img
-                        src={getUser(td.user_id)!.picture!}
-                        alt={getUserName(td.user_id)}
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <span>{getUserName(td.user_id).charAt(0)}</span>
-                    )}
-                  </div>
-                )}
+                <div
+                  className="vault-card-avatar"
+                  title={getUserName(td.user_id)}
+                >
+                  {getUser(td.user_id)?.picture ? (
+                    <img
+                      src={getUser(td.user_id)!.picture!}
+                      alt={getUserName(td.user_id)}
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <span>{getUserName(td.user_id).charAt(0)}</span>
+                  )}
+                </div>
                 <div className="vault-card-dates">
                   {td.valid_from && <span>From: {fmtDate(td.valid_from)}</span>}
                   {td.valid_until && (

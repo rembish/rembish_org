@@ -2088,7 +2088,7 @@ export default function TripFormPage() {
                       className="travel-doc-add-btn"
                       onClick={() =>
                         navigate(
-                          `/admin/vault?newTravelDoc=${country.iso_alpha2}`,
+                          `/admin/documents/visas?newTravelDoc=${country.iso_alpha2}`,
                         )
                       }
                     >

@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
-import { BiCake, BiPencil, BiPlus, BiTrash } from "react-icons/bi";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { BiCake, BiPencil, BiTrash } from "react-icons/bi";
 import { apiFetch } from "../../lib/api";
 import UserFormModal, { UserFormData } from "../UserFormModal";
 import type { CloseOneUser } from "./types";
 
-export default function CloseOnesTab() {
+export default function CloseOnesTab({ addTrigger }: { addTrigger?: number }) {
   const [users, setUsers] = useState<CloseOneUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,10 +31,15 @@ export default function CloseOnesTab() {
     fetchUsers();
   }, [fetchUsers]);
 
-  const handleAddUser = () => {
-    setEditingUser(null);
-    setModalOpen(true);
-  };
+  // Open add modal when parent triggers (ignore stale value on mount)
+  const lastTriggerRef = useRef(addTrigger ?? 0);
+  useEffect(() => {
+    if (addTrigger != null && addTrigger > lastTriggerRef.current) {
+      setEditingUser(null);
+      setModalOpen(true);
+    }
+    lastTriggerRef.current = addTrigger ?? 0;
+  }, [addTrigger]);
 
   const handleEditUser = (user: CloseOneUser) => {
     setEditingUser(user);
@@ -109,12 +114,6 @@ export default function CloseOnesTab() {
 
   return (
     <div className="close-ones-tab">
-      <div className="close-ones-header">
-        <button className="btn-add-user" onClick={handleAddUser}>
-          <BiPlus /> Add User
-        </button>
-      </div>
-
       <div className="users-grid">
         {users.length === 0 ? (
           <p className="no-users">No close ones added yet.</p>
@@ -152,13 +151,17 @@ export default function CloseOnesTab() {
                       <BiCake />{" "}
                       {new Date(user.birthday + "T00:00:00").toLocaleDateString(
                         "en-GB",
-                        { day: "numeric", month: "short" },
+                        {
+                          day: "numeric",
+                          month: "short",
+                        },
                       )}
                     </span>
                   )}
                   {user.trips_count > 0 && (
                     <span className="trips-badge">
-                      {user.trips_count} trip{user.trips_count !== 1 ? "s" : ""}
+                      {user.trips_count} trip
+                      {user.trips_count !== 1 ? "s" : ""}
                     </span>
                   )}
                 </div>

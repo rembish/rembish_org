@@ -73,7 +73,27 @@ export interface PersonalEvent {
   category_emoji: string;
 }
 
-export type AdminTab = "trips" | "close-ones" | "instagram" | "vault";
+export type AdminTab =
+  | "trips"
+  | "instagram"
+  | "people"
+  | "documents"
+  | "loyalty";
+
+export type PeopleSection = "close-ones" | "addresses";
+
+export const PEOPLE_SECTIONS: { key: PeopleSection; label: string }[] = [
+  { key: "close-ones", label: "Close Ones" },
+  { key: "addresses", label: "Addresses" },
+];
+
+export type DocSection = "ids" | "vaccinations" | "visas";
+
+export const DOC_SECTIONS: { key: DocSection; label: string }[] = [
+  { key: "ids", label: "IDs" },
+  { key: "vaccinations", label: "Vaccinations" },
+  { key: "visas", label: "Visas" },
+];
 
 // Instagram labeling types
 export interface InstagramMedia {
@@ -225,6 +245,18 @@ export interface VaultTravelDoc {
   notes_decrypted: string | null;
   files: VaultFile[];
   trip_ids: number[];
+}
+
+export interface VaultAddress {
+  id: number;
+  name: string;
+  address: string;
+  country_code: string | null;
+  user_id: number | null;
+  user_name: string | null;
+  user_picture: string | null;
+  notes_masked: string | null;
+  notes_decrypted: string | null;
 }
 
 export interface ExtractedDocMetadata {

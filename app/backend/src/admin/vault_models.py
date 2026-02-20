@@ -5,7 +5,14 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from ..crypto import decrypt
-from ..models import VaultDocument, VaultFile, VaultLoyaltyProgram, VaultTravelDoc, VaultVaccination
+from ..models import (
+    VaultAddress,
+    VaultDocument,
+    VaultFile,
+    VaultLoyaltyProgram,
+    VaultTravelDoc,
+    VaultVaccination,
+)
 
 # --- Document models ---
 
@@ -136,6 +143,44 @@ class VaccinationResponse(BaseModel):
 
 class VaccinationListResponse(BaseModel):
     vaccinations: list[VaccinationResponse]
+
+
+# --- Address models ---
+
+
+class AddressRequest(BaseModel):
+    name: str
+    address: str
+    country_code: str | None = None
+    user_id: int | None = None
+    notes: str | None = None
+
+
+class AddressResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    address: str
+    country_code: str | None
+    user_id: int | None = None
+    user_name: str | None = None
+    user_picture: str | None = None
+    notes_masked: str | None
+    notes_decrypted: str | None = None
+
+
+class AddressListResponse(BaseModel):
+    addresses: list[AddressResponse]
+
+
+class AddressSearchResult(BaseModel):
+    display_name: str
+    country_code: str | None = None
+
+
+class AddressSearchResponse(BaseModel):
+    results: list[AddressSearchResult]
 
 
 # --- Travel Document models ---
@@ -278,6 +323,23 @@ def _vaccination_to_response(vax: VaultVaccination) -> VaccinationResponse:
         notes_masked=vax.notes_masked,
         notes_decrypted=notes_decrypted,
         files=_files_to_response(vax.files),
+    )
+
+
+def _address_to_response(addr: VaultAddress) -> AddressResponse:
+    notes_decrypted = None
+    if addr.notes_encrypted:
+        notes_decrypted = decrypt(addr.notes_encrypted)
+    return AddressResponse(
+        id=addr.id,
+        name=addr.name,
+        address=addr.address,
+        country_code=addr.country_code,
+        user_id=addr.user_id,
+        user_name=addr.user.nickname or addr.user.name if addr.user else None,
+        user_picture=addr.user.picture if addr.user else None,
+        notes_masked=addr.notes_masked,
+        notes_decrypted=notes_decrypted,
     )
 
 

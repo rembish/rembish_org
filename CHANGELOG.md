@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.32.0 (2026-02-20)
+
+### People Tab
+- New "People" tab merges Close Ones and Addresses into a single tab with sub-tabs
+- Consistent sub-tab pattern matching Documents (IDs / Vaccinations / Visas)
+
+### Address Autocomplete
+- Type-ahead address search powered by Nominatim — no more filling in line1/city/state/postal_code manually
+- Results formatted as proper postal addresses (street, postcode + city, country)
+- Pick a result, tweak it if needed, save
+- Addresses can optionally be linked to a close-one user (avatar shown on card)
+- Search filter matches both name and address text
+
 ## 0.31.0 (2026-02-20)
 
 ### Flight Ticket Extraction

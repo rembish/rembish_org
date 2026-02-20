@@ -15,9 +15,7 @@ import { ALLIANCE_LABELS } from "./types";
 interface Props {
   programs: VaultLoyaltyProgram[];
   programOptions: ProgramOption[];
-  selectedUserId: number | null;
   myUserId: number | null;
-  users: VaultUser[];
   copied: string | null;
   expandedAlliances: Set<string>;
   airlineSearch: string;
@@ -35,7 +33,6 @@ interface Props {
 export default function VaultProgramsSection({
   programs,
   programOptions,
-  selectedUserId,
   myUserId,
   copied,
   expandedAlliances,
@@ -207,22 +204,20 @@ export default function VaultProgramsSection({
                           </button>
                         </div>
                       </div>
-                      {!selectedUserId && (
-                        <div
-                          className="vault-card-avatar"
-                          title={getUserName(prog.user_id)}
-                        >
-                          {getUser(prog.user_id)?.picture ? (
-                            <img
-                              src={getUser(prog.user_id)!.picture!}
-                              alt={getUserName(prog.user_id)}
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <span>{getUserName(prog.user_id).charAt(0)}</span>
-                          )}
-                        </div>
-                      )}
+                      <div
+                        className="vault-card-avatar"
+                        title={getUserName(prog.user_id)}
+                      >
+                        {getUser(prog.user_id)?.picture ? (
+                          <img
+                            src={getUser(prog.user_id)!.picture!}
+                            alt={getUserName(prog.user_id)}
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <span>{getUserName(prog.user_id).charAt(0)}</span>
+                        )}
+                      </div>
                       {prog.membership_number_masked && (
                         <div className="vault-masked-row">
                           <span className="vault-masked">

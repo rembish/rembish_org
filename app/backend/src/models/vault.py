@@ -10,6 +10,7 @@ from sqlalchemy import (
     Integer,
     LargeBinary,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -112,6 +113,29 @@ class VaultVaccination(Base):
 
     def __repr__(self) -> str:
         return f"<VaultVaccination #{self.id}: {self.vaccine_name}>"
+
+
+class VaultAddress(Base):
+    __tablename__ = "vault_addresses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    address: Mapped[str] = mapped_column(Text, nullable=False)
+    country_code: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    user_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    notes_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    notes_masked: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=_now, onupdate=_now
+    )
+
+    user: Mapped["User | None"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<VaultAddress #{self.id}: {self.name}>"
 
 
 class VaultTravelDoc(Base):

@@ -18,6 +18,7 @@ from ..models import (
     VaultVaccination,
 )
 from ..models.vault import TripPassport
+from .vault_addresses import router as addresses_router
 from .vault_documents import router as documents_router
 from .vault_models import (
     ExtractedMetadataResponse,
@@ -35,6 +36,7 @@ log = get_logger(__name__)
 router = APIRouter(prefix="/vault", tags=["admin-vault"])
 router.include_router(documents_router)
 router.include_router(programs_router)
+router.include_router(addresses_router)
 router.include_router(vaccinations_router)
 
 # --- Allowed file types & size ---

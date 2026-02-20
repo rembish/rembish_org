@@ -378,6 +378,138 @@ def test_admin_without_vault_cookie_returns_401(db_session: Session, admin_user:
         app.dependency_overrides.clear()
 
 
+# --- Address CRUD tests ---
+
+
+def test_create_address(vault_client: TestClient) -> None:
+    res = vault_client.post(
+        "/api/v1/admin/vault/addresses",
+        json={
+            "name": "Jane Doe",
+            "address": "123 Main St, Apt 4B, 10115 Berlin",
+            "country_code": "de",
+            "notes": "Ring twice",
+        },
+    )
+    assert res.status_code == 201
+    data = res.json()
+    assert data["name"] == "Jane Doe"
+    assert data["address"] == "123 Main St, Apt 4B, 10115 Berlin"
+    assert data["country_code"] == "DE"  # uppercased
+    assert data["notes_decrypted"] == "Ring twice"
+    assert data["notes_masked"] is not None
+    assert data["id"] > 0
+
+
+def test_create_address_required_fields(vault_client: TestClient) -> None:
+    """Missing required fields should return 422."""
+    res = vault_client.post(
+        "/api/v1/admin/vault/addresses",
+        json={"name": "Incomplete"},
+    )
+    assert res.status_code == 422
+
+
+def test_list_addresses_alphabetical(vault_client: TestClient) -> None:
+    for name in ("Zara", "Alice", "Marta"):
+        vault_client.post(
+            "/api/v1/admin/vault/addresses",
+            json={"name": name, "address": "Str 1, Prague"},
+        )
+    res = vault_client.get("/api/v1/admin/vault/addresses")
+    assert res.status_code == 200
+    names = [a["name"] for a in res.json()["addresses"]]
+    assert names == ["Alice", "Marta", "Zara"]
+
+
+def test_search_addresses(vault_client: TestClient) -> None:
+    vault_client.post(
+        "/api/v1/admin/vault/addresses",
+        json={"name": "Alice Wonder", "address": "Str 1, London"},
+    )
+    vault_client.post(
+        "/api/v1/admin/vault/addresses",
+        json={"name": "Bob Builder", "address": "Str 2, London"},
+    )
+    res = vault_client.get("/api/v1/admin/vault/addresses", params={"search": "alice"})
+    addrs = res.json()["addresses"]
+    assert len(addrs) == 1
+    assert addrs[0]["name"] == "Alice Wonder"
+
+
+def test_search_addresses_by_address(vault_client: TestClient) -> None:
+    vault_client.post(
+        "/api/v1/admin/vault/addresses",
+        json={"name": "Alice", "address": "123 Baker Street, London"},
+    )
+    vault_client.post(
+        "/api/v1/admin/vault/addresses",
+        json={"name": "Bob", "address": "456 Oxford Road, Manchester"},
+    )
+    res = vault_client.get("/api/v1/admin/vault/addresses", params={"search": "baker"})
+    addrs = res.json()["addresses"]
+    assert len(addrs) == 1
+    assert addrs[0]["name"] == "Alice"
+
+
+def test_update_address(vault_client: TestClient) -> None:
+    create_res = vault_client.post(
+        "/api/v1/admin/vault/addresses",
+        json={
+            "name": "Old Name",
+            "address": "Old St, Old City",
+            "notes": "old note",
+        },
+    )
+    addr_id = create_res.json()["id"]
+
+    update_res = vault_client.put(
+        f"/api/v1/admin/vault/addresses/{addr_id}",
+        json={
+            "name": "New Name",
+            "address": "New St, New City",
+        },
+    )
+    assert update_res.status_code == 200
+    data = update_res.json()
+    assert data["name"] == "New Name"
+    assert data["address"] == "New St, New City"
+    assert data["notes_decrypted"] is None  # notes cleared
+
+
+def test_delete_address(vault_client: TestClient) -> None:
+    create_res = vault_client.post(
+        "/api/v1/admin/vault/addresses",
+        json={"name": "To Delete", "address": "Str 1, Wien"},
+    )
+    addr_id = create_res.json()["id"]
+
+    res = vault_client.delete(f"/api/v1/admin/vault/addresses/{addr_id}")
+    assert res.status_code == 204
+
+    list_res = vault_client.get("/api/v1/admin/vault/addresses")
+    assert len(list_res.json()["addresses"]) == 0
+
+
+def test_delete_address_not_found(vault_client: TestClient) -> None:
+    res = vault_client.delete("/api/v1/admin/vault/addresses/999")
+    assert res.status_code == 404
+
+
+def test_update_address_not_found(vault_client: TestClient) -> None:
+    res = vault_client.put(
+        "/api/v1/admin/vault/addresses/999",
+        json={"name": "X", "address": "Y, Z"},
+    )
+    assert res.status_code == 404
+
+
+def test_address_vault_auth_guard(no_vault_client: TestClient) -> None:
+    """Addresses require vault auth."""
+    res = no_vault_client.get("/api/v1/admin/vault/addresses")
+    assert res.status_code == 401
+
+
 def test_vault_status_unlocked(vault_client: TestClient) -> None:
     """Status endpoint works (though it checks cookie, not dependency override)."""
     # With the vault client, status check goes through regular auth path

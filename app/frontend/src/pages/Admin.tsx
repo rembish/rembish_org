@@ -1,10 +1,19 @@
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import type { AdminTab } from "../components/admin/types";
+import type {
+  AdminTab,
+  DocSection,
+  PeopleSection,
+} from "../components/admin/types";
+import { DOC_SECTIONS, PEOPLE_SECTIONS } from "../components/admin/types";
 import TripsTab from "../components/admin/TripsTab";
-import CloseOnesTab from "../components/admin/CloseOnesTab";
 import InstagramTab from "../components/admin/InstagramTab";
-import VaultTab from "../components/admin/VaultTab";
+import PeopleTab from "../components/admin/PeopleTab";
+import DocumentsTab from "../components/admin/DocumentsTab";
+import LoyaltyTab from "../components/admin/LoyaltyTab";
+
+const validDocSections = new Set<string>(DOC_SECTIONS.map((s) => s.key));
+const validPeopleSections = new Set<string>(PEOPLE_SECTIONS.map((s) => s.key));
 
 export default function Admin() {
   const { user, loading: authLoading } = useAuth();
@@ -13,12 +22,31 @@ export default function Admin() {
   const activeTab = (tab as AdminTab) || "trips";
   // For trips tab, 'year' is the year number
   // For instagram tab, 'year' is the ig_id (Instagram ID string)
-  const selectedYear = tab === "instagram" ? null : year ? Number(year) : null;
+  // For documents tab, 'year' is the doc section (ids/vaccinations/visas)
+  // For people tab, 'year' is the people section (close-ones/addresses)
+  const selectedYear =
+    tab === "instagram" || tab === "documents" || tab === "people"
+      ? null
+      : year
+        ? Number(year)
+        : null;
   const instagramIgId = tab === "instagram" && year ? year : null;
+  const docSection: DocSection =
+    tab === "documents" && year && validDocSections.has(year)
+      ? (year as DocSection)
+      : "ids";
+  const peopleSection: PeopleSection =
+    tab === "people" && year && validPeopleSections.has(year)
+      ? (year as PeopleSection)
+      : "close-ones";
 
   const setActiveTab = (newTab: AdminTab) => {
     if (newTab === "trips" && selectedYear) {
       navigate(`/admin/${newTab}/${selectedYear}`);
+    } else if (newTab === "documents") {
+      navigate(`/admin/documents/ids`);
+    } else if (newTab === "people") {
+      navigate(`/admin/people/close-ones`);
     } else {
       navigate(`/admin/${newTab}`);
     }
@@ -36,17 +64,30 @@ export default function Admin() {
     }
   };
 
+  const setDocSection = (section: DocSection) => {
+    navigate(`/admin/documents/${section}`, { replace: true });
+  };
+
+  const setPeopleSection = (section: PeopleSection) => {
+    navigate(`/admin/people/${section}`, { replace: true });
+  };
+
   // Redirect non-admin users
   if (!authLoading && !user?.is_admin) {
     return <Navigate to="/" replace />;
   }
 
-  // Remove year from URL for close-ones and vault tabs
-  if (activeTab === "close-ones" && year) {
-    return <Navigate to="/admin/close-ones" replace />;
+  // Remove year from URL for tabs that don't use it
+  if (activeTab === "loyalty" && year) {
+    return <Navigate to="/admin/loyalty" replace />;
   }
-  if (activeTab === "vault" && year) {
-    return <Navigate to="/admin/vault" replace />;
+  // Default documents to ids sub-tab
+  if (activeTab === "documents" && !year) {
+    return <Navigate to="/admin/documents/ids" replace />;
+  }
+  // Default people to close-ones sub-tab
+  if (activeTab === "people" && !year) {
+    return <Navigate to="/admin/people/close-ones" replace />;
   }
 
   if (authLoading) {
@@ -80,16 +121,22 @@ export default function Admin() {
             Instagram
           </button>
           <button
-            className={`admin-tab ${activeTab === "close-ones" ? "active" : ""}`}
-            onClick={() => setActiveTab("close-ones")}
+            className={`admin-tab ${activeTab === "people" ? "active" : ""}`}
+            onClick={() => setActiveTab("people")}
           >
-            Close Ones
+            People
           </button>
           <button
-            className={`admin-tab ${activeTab === "vault" ? "active" : ""}`}
-            onClick={() => setActiveTab("vault")}
+            className={`admin-tab ${activeTab === "documents" ? "active" : ""}`}
+            onClick={() => setActiveTab("documents")}
           >
-            Vault
+            Documents
+          </button>
+          <button
+            className={`admin-tab ${activeTab === "loyalty" ? "active" : ""}`}
+            onClick={() => setActiveTab("loyalty")}
+          >
+            Loyalty
           </button>
         </div>
 
@@ -100,7 +147,6 @@ export default function Admin() {
               onYearChange={setSelectedYear}
             />
           )}
-          {activeTab === "close-ones" && <CloseOnesTab />}
           {activeTab === "instagram" && (
             <InstagramTab
               key={instagramIgId ?? "latest"}
@@ -108,7 +154,19 @@ export default function Admin() {
               onIgIdChange={setInstagramIgId}
             />
           )}
-          {activeTab === "vault" && <VaultTab />}
+          {activeTab === "people" && (
+            <PeopleTab
+              activeSection={peopleSection}
+              onSectionChange={setPeopleSection}
+            />
+          )}
+          {activeTab === "documents" && (
+            <DocumentsTab
+              activeSection={docSection}
+              onSectionChange={setDocSection}
+            />
+          )}
+          {activeTab === "loyalty" && <LoyaltyTab />}
         </div>
       </div>
     </section>

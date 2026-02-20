@@ -20,6 +20,7 @@ from .user import User
 from .vault import (
     TripPassport,
     TripTravelDoc,
+    VaultAddress,
     VaultDocument,
     VaultFile,
     VaultLoyaltyProgram,
@@ -47,6 +48,7 @@ __all__ = [
     "UNCountry",
     "User",
     "UserLastLocation",
+    "VaultAddress",
     "VaultDocument",
     "VaultFile",
     "VaultLoyaltyProgram",

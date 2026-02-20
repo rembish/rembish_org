@@ -24,6 +24,14 @@ export default function VaultToggle() {
     }
   }, [user, pathname, checkStatus]);
 
+  // Listen for vault status changes from auto-lock timer or other tabs
+  useEffect(() => {
+    const onVaultChange = () => checkStatus();
+    window.addEventListener("vault-status-changed", onVaultChange);
+    return () =>
+      window.removeEventListener("vault-status-changed", onVaultChange);
+  }, [checkStatus]);
+
   if (!user?.is_admin || !pathname.startsWith("/admin") || unlocked === null) {
     return null;
   }

@@ -17,11 +17,9 @@ import { DOC_TYPE_LABELS, expiryClass, fmtDate, fmtFileSize } from "./types";
 
 interface Props {
   documents: VaultDocument[];
-  selectedUserId: number | null;
-  myUserId: number | null;
-  users: VaultUser[];
   copied: string | null;
   expandedFiles: Set<string>;
+  hideHeader?: boolean;
   onEditDoc: (doc: VaultDocument) => void;
   onAddDoc: () => void;
   onDeleteDoc: (id: number) => void;
@@ -37,9 +35,9 @@ interface Props {
 
 export default function VaultDocumentsSection({
   documents,
-  selectedUserId,
   copied,
   expandedFiles,
+  hideHeader,
   onEditDoc,
   onAddDoc,
   onDeleteDoc,
@@ -54,14 +52,16 @@ export default function VaultDocumentsSection({
 }: Props) {
   return (
     <div className="vault-section">
-      <div className="vault-section-header">
-        <h3>
-          <BiShield /> Documents
-        </h3>
-        <button className="btn-icon" onClick={onAddDoc} title="Add document">
-          <BiPlus />
-        </button>
-      </div>
+      {!hideHeader && (
+        <div className="vault-section-header">
+          <h3>
+            <BiShield /> Documents
+          </h3>
+          <button className="btn-icon" onClick={onAddDoc} title="Add document">
+            <BiPlus />
+          </button>
+        </div>
+      )}
       <div className="vault-cards">
         {documents.map((doc) => {
           const ec = doc.is_archived
@@ -122,22 +122,20 @@ export default function VaultDocumentsSection({
               {doc.proper_name && (
                 <div className="vault-card-proper-name">{doc.proper_name}</div>
               )}
-              {!selectedUserId && (
-                <div
-                  className="vault-card-avatar"
-                  title={getUserName(doc.user_id)}
-                >
-                  {getUser(doc.user_id)?.picture ? (
-                    <img
-                      src={getUser(doc.user_id)!.picture!}
-                      alt={getUserName(doc.user_id)}
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <span>{getUserName(doc.user_id).charAt(0)}</span>
-                  )}
-                </div>
-              )}
+              <div
+                className="vault-card-avatar"
+                title={getUserName(doc.user_id)}
+              >
+                {getUser(doc.user_id)?.picture ? (
+                  <img
+                    src={getUser(doc.user_id)!.picture!}
+                    alt={getUserName(doc.user_id)}
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span>{getUserName(doc.user_id).charAt(0)}</span>
+                )}
+              </div>
               {doc.number_masked && (
                 <div className="vault-masked-row">
                   <span className="vault-masked">{doc.number_masked}</span>

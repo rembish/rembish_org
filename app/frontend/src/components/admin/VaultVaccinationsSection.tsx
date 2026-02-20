@@ -15,9 +15,9 @@ import { expiryClass, fmtDate, fmtFileSize } from "./types";
 
 interface Props {
   vaccinations: VaultVaccination[];
-  selectedUserId: number | null;
   copied: string | null;
   expandedFiles: Set<string>;
+  hideHeader?: boolean;
   onEditVax: (vax: VaultVaccination) => void;
   onAddVax: () => void;
   onDeleteVax: (id: number) => void;
@@ -32,9 +32,9 @@ interface Props {
 
 export default function VaultVaccinationsSection({
   vaccinations,
-  selectedUserId,
   copied,
   expandedFiles,
+  hideHeader,
   onEditVax,
   onAddVax,
   onDeleteVax,
@@ -48,14 +48,20 @@ export default function VaultVaccinationsSection({
 }: Props) {
   return (
     <div className="vault-section">
-      <div className="vault-section-header">
-        <h3>
-          <BiTargetLock /> Vaccinations
-        </h3>
-        <button className="btn-icon" onClick={onAddVax} title="Add vaccination">
-          <BiPlus />
-        </button>
-      </div>
+      {!hideHeader && (
+        <div className="vault-section-header">
+          <h3>
+            <BiTargetLock /> Vaccinations
+          </h3>
+          <button
+            className="btn-icon"
+            onClick={onAddVax}
+            title="Add vaccination"
+          >
+            <BiPlus />
+          </button>
+        </div>
+      )}
       <div className="vault-cards">
         {vaccinations.map((vax) => {
           const ec = vax.expiry_date
@@ -103,22 +109,20 @@ export default function VaultVaccinationsSection({
                   )}
                 </div>
               )}
-              {!selectedUserId && (
-                <div
-                  className="vault-card-avatar"
-                  title={getUserName(vax.user_id)}
-                >
-                  {getUser(vax.user_id)?.picture ? (
-                    <img
-                      src={getUser(vax.user_id)!.picture!}
-                      alt={getUserName(vax.user_id)}
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <span>{getUserName(vax.user_id).charAt(0)}</span>
-                  )}
-                </div>
-              )}
+              <div
+                className="vault-card-avatar"
+                title={getUserName(vax.user_id)}
+              >
+                {getUser(vax.user_id)?.picture ? (
+                  <img
+                    src={getUser(vax.user_id)!.picture!}
+                    alt={getUserName(vax.user_id)}
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span>{getUserName(vax.user_id).charAt(0)}</span>
+                )}
+              </div>
               {vax.batch_number_masked && (
                 <div className="vault-masked-row">
                   <span className="vault-masked">
