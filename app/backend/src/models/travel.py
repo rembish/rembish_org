@@ -215,6 +215,9 @@ class Trip(Base):
     transport_bookings: Mapped[list["TransportBooking"]] = relationship(
         back_populates="trip", cascade="all, delete-orphan"
     )
+    accommodations: Mapped[list["Accommodation"]] = relationship(
+        back_populates="trip", cascade="all, delete-orphan"
+    )
     travel_docs: Mapped[list["TripTravelDoc"]] = relationship(
         back_populates="trip", cascade="all, delete-orphan"
     )
@@ -440,6 +443,41 @@ class TransportBooking(Base):
 
     def __repr__(self) -> str:
         return f"<TransportBooking #{self.id}: {self.type} {self.operator}>"
+
+
+class Accommodation(Base):
+    """Accommodation booking (hotel, apartment) linked to a trip."""
+
+    __tablename__ = "accommodations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    trip_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    property_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    platform: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    checkin_date: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    checkout_date: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    total_amount: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    payment_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    payment_date: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    guests: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    rooms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    confirmation_code_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    confirmation_code_masked: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    booking_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    document_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    document_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    document_mime_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    document_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Relationships
+    trip: Mapped[Trip] = relationship(back_populates="accommodations")
+
+    def __repr__(self) -> str:
+        return f"<Accommodation #{self.id}: {self.property_name}>"
 
 
 # Import to complete relationships

@@ -24,6 +24,7 @@ import {
   BiWater,
   BiFile,
   BiCloudUpload,
+  BiBuildings,
 } from "react-icons/bi";
 import Flag from "../components/Flag";
 import { useAuth } from "../hooks/useAuth";
@@ -318,6 +319,58 @@ interface ExtractedTransportBookingData {
   is_duplicate: boolean;
 }
 
+interface AccommodationItem {
+  id: number;
+  trip_id: number;
+  property_name: string;
+  platform: string | null;
+  checkin_date: string | null;
+  checkout_date: string | null;
+  address: string | null;
+  total_amount: string | null;
+  payment_status: string | null;
+  payment_date: string | null;
+  guests: number | null;
+  rooms: number | null;
+  confirmation_code: string | null;
+  booking_url: string | null;
+  has_document: boolean;
+  document_name: string | null;
+  document_mime_type: string | null;
+  document_size: number | null;
+  notes: string | null;
+}
+
+interface ExtractedAccommodationData {
+  property_name: string | null;
+  platform: string | null;
+  checkin_date: string | null;
+  checkout_date: string | null;
+  address: string | null;
+  total_amount: string | null;
+  payment_status: string | null;
+  payment_date: string | null;
+  guests: number | null;
+  rooms: number | null;
+  confirmation_code: string | null;
+  notes: string | null;
+  is_duplicate: boolean;
+}
+
+const PLATFORM_LABELS: Record<string, string> = {
+  booking: "Booking.com",
+  agoda: "Agoda",
+  airbnb: "Airbnb",
+  direct: "Direct",
+  other: "Other",
+};
+
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  paid: "Paid",
+  pay_at_property: "Pay at property",
+  pay_by_date: "Pay by date",
+};
+
 const TRANSPORT_TYPE_ICONS: Record<
   string,
   React.ComponentType<{ size?: number }>
@@ -495,14 +548,15 @@ export default function TripFormPage() {
   const isEdit = !!tripId;
   const preselectedDate = searchParams.get("date");
 
-  // Tab from URL: /info, /edit, or /transport
-  const activeTab: "edit" | "info" | "transport" = location.pathname.endsWith(
-    "/transport",
-  )
-    ? "transport"
-    : isEdit && !location.pathname.endsWith("/edit")
-      ? "info"
-      : "edit";
+  // Tab from URL: /info, /edit, /transport, or /stays
+  const activeTab: "edit" | "info" | "transport" | "stays" =
+    location.pathname.endsWith("/transport")
+      ? "transport"
+      : location.pathname.endsWith("/stays")
+        ? "stays"
+        : isEdit && !location.pathname.endsWith("/edit")
+          ? "info"
+          : "edit";
 
   const [formData, setFormData] = useState<TripFormData>(() => {
     if (preselectedDate) {
@@ -643,6 +697,40 @@ export default function TripFormPage() {
     number | null
   >(null);
 
+  // Accommodation state
+  const [accommodations, setAccommodations] = useState<AccommodationItem[]>([]);
+  const [showAccommodationModal, setShowAccommodationModal] = useState(false);
+  const [editingAccommodationId, setEditingAccommodationId] = useState<
+    number | null
+  >(null);
+  const [accommodationForm, setAccommodationForm] = useState({
+    property_name: "",
+    platform: "",
+    checkin_date: "",
+    checkout_date: "",
+    address: "",
+    total_amount: "",
+    payment_status: "",
+    payment_date: "",
+    guests: "",
+    rooms: "",
+    confirmation_code: "",
+    booking_url: "",
+    notes: "",
+  });
+  const [addingAccommodation, setAddingAccommodation] = useState(false);
+  const [extractedAccommodation, setExtractedAccommodation] =
+    useState<ExtractedAccommodationData | null>(null);
+  const [extractingAccommodation, setExtractingAccommodation] = useState(false);
+  const [extractAccommodationError, setExtractAccommodationError] = useState<
+    string | null
+  >(null);
+  const accommodationExtractInputRef = useRef<HTMLInputElement>(null);
+  const accommodationDocInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingAccommodationDoc, setUploadingAccommodationDoc] = useState<
+    number | null
+  >(null);
+
   const [tripCitiesDisplay, setTripCitiesDisplay] = useState<
     { name: string; country_code: string | null }[]
   >([]);
@@ -757,9 +845,9 @@ export default function TripFormPage() {
       });
   };
 
-  // Fetch flights when switching to Transport tab
+  // Fetch flights when switching to Transport or Stays tab
   useEffect(() => {
-    if (activeTab !== "transport" || !isEdit) return;
+    if ((activeTab !== "transport" && activeTab !== "stays") || !isEdit) return;
 
     setLoadingFlights(true);
     Promise.all([
@@ -770,11 +858,15 @@ export default function TripFormPage() {
       apiFetch(`/api/v1/travels/trips/${tripId}/transport-bookings`).then((r) =>
         r.json(),
       ),
+      apiFetch(`/api/v1/travels/trips/${tripId}/accommodations`).then((r) =>
+        r.json(),
+      ),
     ])
-      .then(([flightsData, rentalsData, transportData]) => {
+      .then(([flightsData, rentalsData, transportData, accommodationsData]) => {
         setFlights(flightsData.flights || []);
         setCarRentals(rentalsData.car_rentals || []);
         setTransportBookings(transportData.transport_bookings || []);
+        setAccommodations(accommodationsData.accommodations || []);
       })
       .catch((err) => console.error("Failed to load transport data:", err))
       .finally(() => setLoadingFlights(false));
@@ -1735,6 +1827,230 @@ export default function TripFormPage() {
       );
       const data = await listRes.json();
       setTransportBookings(data.transport_bookings || []);
+    } catch (err) {
+      console.error("Failed to delete document:", err);
+    }
+  };
+
+  // Accommodation handlers
+  const resetAccommodationForm = () => {
+    setAccommodationForm({
+      property_name: "",
+      platform: "",
+      checkin_date: "",
+      checkout_date: "",
+      address: "",
+      total_amount: "",
+      payment_status: "",
+      payment_date: "",
+      guests: "",
+      rooms: "",
+      confirmation_code: "",
+      booking_url: "",
+      notes: "",
+    });
+  };
+
+  const handleAccommodationExtractUpload = async (file: File) => {
+    setExtractingAccommodation(true);
+    setExtractAccommodationError(null);
+    setExtractedAccommodation(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await apiFetch(
+        `/api/v1/travels/trips/${tripId}/accommodations/extract`,
+        { method: "POST", body: form },
+      );
+      const data = await res.json();
+      if (data.error) {
+        setExtractAccommodationError(data.error);
+        return;
+      }
+      if (data.accommodation) {
+        setExtractedAccommodation(data.accommodation);
+      }
+    } catch {
+      setExtractAccommodationError("Upload failed. Try again.");
+    } finally {
+      setExtractingAccommodation(false);
+      if (accommodationExtractInputRef.current)
+        accommodationExtractInputRef.current.value = "";
+    }
+  };
+
+  const handleManualAccommodationAdd = async () => {
+    if (!accommodationForm.property_name) return;
+    setAddingAccommodation(true);
+    try {
+      const res = await apiFetch(
+        `/api/v1/travels/trips/${tripId}/accommodations`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            property_name: accommodationForm.property_name,
+            platform: accommodationForm.platform || null,
+            checkin_date: accommodationForm.checkin_date || null,
+            checkout_date: accommodationForm.checkout_date || null,
+            address: accommodationForm.address || null,
+            total_amount: accommodationForm.total_amount || null,
+            payment_status: accommodationForm.payment_status || null,
+            payment_date: accommodationForm.payment_date || null,
+            guests: accommodationForm.guests
+              ? parseInt(accommodationForm.guests)
+              : null,
+            rooms: accommodationForm.rooms
+              ? parseInt(accommodationForm.rooms)
+              : null,
+            confirmation_code: accommodationForm.confirmation_code || null,
+            booking_url: accommodationForm.booking_url || null,
+            notes: accommodationForm.notes || null,
+          }),
+        },
+      );
+      if (!res.ok) throw new Error("Failed to add accommodation");
+      const listRes = await apiFetch(
+        `/api/v1/travels/trips/${tripId}/accommodations`,
+      );
+      const data = await listRes.json();
+      setAccommodations(data.accommodations || []);
+      resetAccommodationForm();
+      setShowAccommodationModal(false);
+      setExtractedAccommodation(null);
+      setExtractAccommodationError(null);
+    } catch (err) {
+      console.error("Failed to add accommodation:", err);
+    } finally {
+      setAddingAccommodation(false);
+    }
+  };
+
+  const handleEditAccommodation = (acc: AccommodationItem) => {
+    setEditingAccommodationId(acc.id);
+    setAccommodationForm({
+      property_name: acc.property_name,
+      platform: acc.platform || "",
+      checkin_date: acc.checkin_date || "",
+      checkout_date: acc.checkout_date || "",
+      address: acc.address || "",
+      total_amount: acc.total_amount || "",
+      payment_status: acc.payment_status || "",
+      payment_date: acc.payment_date || "",
+      guests: acc.guests?.toString() || "",
+      rooms: acc.rooms?.toString() || "",
+      confirmation_code: "",
+      booking_url: acc.booking_url || "",
+      notes: acc.notes || "",
+    });
+    setShowAccommodationModal(true);
+  };
+
+  const handleUpdateAccommodation = async () => {
+    if (!editingAccommodationId || !accommodationForm.property_name) return;
+    setAddingAccommodation(true);
+    try {
+      const res = await apiFetch(
+        `/api/v1/travels/accommodations/${editingAccommodationId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            property_name: accommodationForm.property_name,
+            platform: accommodationForm.platform || null,
+            checkin_date: accommodationForm.checkin_date || null,
+            checkout_date: accommodationForm.checkout_date || null,
+            address: accommodationForm.address || null,
+            total_amount: accommodationForm.total_amount || null,
+            payment_status: accommodationForm.payment_status || null,
+            payment_date: accommodationForm.payment_date || null,
+            guests: accommodationForm.guests
+              ? parseInt(accommodationForm.guests)
+              : null,
+            rooms: accommodationForm.rooms
+              ? parseInt(accommodationForm.rooms)
+              : null,
+            confirmation_code: accommodationForm.confirmation_code || null,
+            booking_url: accommodationForm.booking_url || null,
+            notes: accommodationForm.notes || null,
+          }),
+        },
+      );
+      if (!res.ok) throw new Error("Failed to update accommodation");
+      const listRes = await apiFetch(
+        `/api/v1/travels/trips/${tripId}/accommodations`,
+      );
+      const data = await listRes.json();
+      setAccommodations(data.accommodations || []);
+      resetAccommodationForm();
+      setShowAccommodationModal(false);
+      setEditingAccommodationId(null);
+    } catch (err) {
+      console.error("Failed to update accommodation:", err);
+    } finally {
+      setAddingAccommodation(false);
+    }
+  };
+
+  const handleDeleteAccommodation = async (accId: number) => {
+    if (!confirm("Delete this accommodation?")) return;
+    try {
+      await apiFetch(`/api/v1/travels/accommodations/${accId}`, {
+        method: "DELETE",
+      });
+      setAccommodations((prev) => prev.filter((a) => a.id !== accId));
+    } catch (err) {
+      console.error("Failed to delete accommodation:", err);
+    }
+  };
+
+  const handleAccommodationDocUpload = async (accId: number, file: File) => {
+    setUploadingAccommodationDoc(accId);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await apiFetch(
+        `/api/v1/travels/accommodations/${accId}/document`,
+        { method: "POST", body: form },
+      );
+      if (!res.ok) throw new Error("Upload failed");
+      const listRes = await apiFetch(
+        `/api/v1/travels/trips/${tripId}/accommodations`,
+      );
+      const data = await listRes.json();
+      setAccommodations(data.accommodations || []);
+    } catch (err) {
+      console.error("Failed to upload document:", err);
+    } finally {
+      setUploadingAccommodationDoc(null);
+      if (accommodationDocInputRef.current)
+        accommodationDocInputRef.current.value = "";
+    }
+  };
+
+  const handleViewAccommodationDoc = async (accId: number) => {
+    try {
+      const res = await apiFetch(
+        `/api/v1/travels/accommodations/${accId}/document`,
+      );
+      const data = await res.json();
+      if (data.url) window.open(data.url, "_blank");
+    } catch (err) {
+      console.error("Failed to get document URL:", err);
+    }
+  };
+
+  const handleDeleteAccommodationDoc = async (accId: number) => {
+    if (!confirm("Delete the attached document?")) return;
+    try {
+      await apiFetch(`/api/v1/travels/accommodations/${accId}/document`, {
+        method: "DELETE",
+      });
+      const listRes = await apiFetch(
+        `/api/v1/travels/trips/${tripId}/accommodations`,
+      );
+      const data = await listRes.json();
+      setAccommodations(data.accommodations || []);
     } catch (err) {
       console.error("Failed to delete document:", err);
     }
@@ -3360,6 +3676,635 @@ export default function TripFormPage() {
     );
   };
 
+  const renderStaysTab = () => {
+    if (loadingFlights) {
+      return (
+        <div className="trip-transport-tab">
+          <p>Loading stays...</p>
+        </div>
+      );
+    }
+
+    const tripDests = formData.destinations
+      .map((d) => tccOptions.find((o) => o.id === d.tcc_destination_id)?.name)
+      .filter(Boolean);
+    const dateFrom = formData.start_date
+      ? new Date(formData.start_date + "T00:00:00").toLocaleDateString(
+          "en-GB",
+          { day: "numeric", month: "short", year: "numeric" },
+        )
+      : "";
+    const dateTo = formData.end_date
+      ? new Date(formData.end_date + "T00:00:00").toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "";
+
+    return (
+      <div className="trip-transport-tab">
+        {/* Trip context */}
+        {!readOnly && (
+          <div className="transport-trip-context">
+            <span className="transport-dates">
+              {dateFrom}
+              {dateTo && ` – ${dateTo}`}
+            </span>
+            {tripDests.length > 0 && (
+              <span className="transport-destinations">
+                {tripDests.join(", ")}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Accommodations section */}
+        <div className="form-section">
+          <h3 className="section-header-with-action">
+            <span>
+              <BiBuildings
+                style={{ verticalAlign: "middle", marginRight: 6 }}
+              />
+              Stays ({accommodations.length})
+            </span>
+            {!readOnly && (
+              <button
+                type="button"
+                className="btn-add-inline"
+                onClick={() => {
+                  setEditingAccommodationId(null);
+                  resetAccommodationForm();
+                  setExtractedAccommodation(null);
+                  setExtractAccommodationError(null);
+                  setShowAccommodationModal(true);
+                }}
+              >
+                + Add
+              </button>
+            )}
+          </h3>
+          {accommodations.length === 0 ? (
+            <p className="flight-empty">No accommodations added yet.</p>
+          ) : (
+            <div className="transport-booking-list">
+              {accommodations.map((a) => (
+                <div key={a.id} className="transport-booking-card">
+                  <div className="transport-booking-main">
+                    <div className="transport-booking-header">
+                      <span className="transport-booking-operator">
+                        {a.property_name}
+                      </span>
+                      {a.platform && (
+                        <span className="accommodation-platform">
+                          {PLATFORM_LABELS[a.platform] || a.platform}
+                        </span>
+                      )}
+                    </div>
+                    {(a.checkin_date || a.checkout_date || a.address) && (
+                      <div className="transport-booking-route">
+                        {(a.checkin_date || a.checkout_date) && (
+                          <div className="transport-booking-route-row">
+                            <span className="transport-booking-route-label">
+                              Dates
+                            </span>
+                            <span>
+                              {a.checkin_date &&
+                                new Date(
+                                  a.checkin_date + "T00:00:00",
+                                ).toLocaleDateString("en-GB", {
+                                  day: "numeric",
+                                  month: "short",
+                                })}
+                              {a.checkin_date && a.checkout_date && " – "}
+                              {a.checkout_date &&
+                                new Date(
+                                  a.checkout_date + "T00:00:00",
+                                ).toLocaleDateString("en-GB", {
+                                  day: "numeric",
+                                  month: "short",
+                                })}
+                            </span>
+                          </div>
+                        )}
+                        {a.address && (
+                          <div className="transport-booking-route-row">
+                            <span className="transport-booking-route-label">
+                              Addr
+                            </span>
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="transport-booking-station-link"
+                            >
+                              {a.address}
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="transport-booking-details">
+                      {a.payment_status && (
+                        <span
+                          className={`accommodation-payment-status accommodation-payment-${a.payment_status}`}
+                        >
+                          {PAYMENT_STATUS_LABELS[a.payment_status] ||
+                            a.payment_status}
+                          {a.payment_status === "pay_by_date" &&
+                            a.payment_date &&
+                            ` (${new Date(a.payment_date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })})`}
+                        </span>
+                      )}
+                      {a.total_amount && (
+                        <span className="flight-badge">{a.total_amount}</span>
+                      )}
+                      {a.rooms && a.rooms > 1 && (
+                        <span className="flight-badge">
+                          {a.rooms} room{a.rooms > 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {a.guests && (
+                        <span className="flight-badge">
+                          {a.guests} guest{a.guests > 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {a.confirmation_code && vaultUnlocked && (
+                        <span className="flight-badge">
+                          {a.confirmation_code}
+                          <button
+                            className="btn-icon-inline"
+                            title="Copy"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(
+                                a.confirmation_code!,
+                              );
+                            }}
+                          >
+                            <BiCopy />
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="transport-booking-actions">
+                    {a.has_document && (
+                      <button
+                        className="transport-booking-doc-btn"
+                        onClick={() => handleViewAccommodationDoc(a.id)}
+                        title={`View ${a.document_name || "document"}`}
+                      >
+                        <BiFile size={16} />
+                      </button>
+                    )}
+                    {a.booking_url && (
+                      <a
+                        className="transport-booking-doc-btn"
+                        href={
+                          a.booking_url.startsWith("http")
+                            ? a.booking_url
+                            : `https://${a.booking_url}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Open booking"
+                      >
+                        <BiSearch size={16} />
+                      </a>
+                    )}
+                    {!readOnly && (
+                      <>
+                        <label
+                          className="transport-booking-doc-btn"
+                          title="Attach document"
+                          style={{ cursor: "pointer" }}
+                        >
+                          <BiCloudUpload size={16} />
+                          <input
+                            type="file"
+                            accept=".pdf,image/*"
+                            style={{ display: "none" }}
+                            disabled={uploadingAccommodationDoc === a.id}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file)
+                                handleAccommodationDocUpload(a.id, file);
+                            }}
+                          />
+                        </label>
+                        {a.has_document && (
+                          <button
+                            className="transport-booking-doc-btn"
+                            onClick={() => handleDeleteAccommodationDoc(a.id)}
+                            title="Remove document"
+                          >
+                            <BiX size={16} />
+                          </button>
+                        )}
+                        <button
+                          className="flight-delete-btn"
+                          onClick={() => handleEditAccommodation(a)}
+                          title="Edit accommodation"
+                        >
+                          <BiPencil />
+                        </button>
+                        <button
+                          className="flight-delete-btn"
+                          onClick={() => handleDeleteAccommodation(a.id)}
+                          title="Delete accommodation"
+                        >
+                          <BiTrash />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Accommodation Modal */}
+        {showAccommodationModal && (
+          <div
+            className="modal-overlay"
+            onClick={() => {
+              setShowAccommodationModal(false);
+              setEditingAccommodationId(null);
+              resetAccommodationForm();
+              setExtractedAccommodation(null);
+              setExtractAccommodationError(null);
+            }}
+          >
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>
+                  {editingAccommodationId
+                    ? "Edit Accommodation"
+                    : "Add Accommodation"}
+                </h2>
+                <button
+                  className="btn-icon"
+                  onClick={() => {
+                    setShowAccommodationModal(false);
+                    setEditingAccommodationId(null);
+                    resetAccommodationForm();
+                    setExtractedAccommodation(null);
+                    setExtractAccommodationError(null);
+                  }}
+                >
+                  <BiX size={20} />
+                </button>
+              </div>
+              <div style={{ padding: "1.25rem" }}>
+                {/* Extraction section (add mode only) */}
+                {!editingAccommodationId && (
+                  <>
+                    <div className="flight-extract-row">
+                      <label className="btn-save flight-extract-btn">
+                        {extractingAccommodation
+                          ? "Extracting..."
+                          : "Upload booking PDF"}
+                        <input
+                          ref={accommodationExtractInputRef}
+                          type="file"
+                          accept=".pdf,image/*"
+                          style={{ display: "none" }}
+                          disabled={extractingAccommodation}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleAccommodationExtractUpload(file);
+                          }}
+                        />
+                      </label>
+                      <span className="flight-extract-hint">
+                        PDF or photo — AI extracts booking details
+                      </span>
+                    </div>
+
+                    {extractAccommodationError && (
+                      <p className="flight-lookup-error">
+                        {extractAccommodationError}
+                      </p>
+                    )}
+
+                    {extractedAccommodation && (
+                      <div className="flight-lookup-results">
+                        <div
+                          className={`flight-lookup-leg${extractedAccommodation.is_duplicate ? " flight-extracted-duplicate" : ""}`}
+                        >
+                          <div className="flight-leg-info">
+                            <span className="flight-leg-route">
+                              <strong>
+                                {extractedAccommodation.property_name}
+                              </strong>
+                              {extractedAccommodation.platform &&
+                                ` — ${PLATFORM_LABELS[extractedAccommodation.platform] || extractedAccommodation.platform}`}
+                              {extractedAccommodation.is_duplicate && (
+                                <span className="flight-extracted-dup-label">
+                                  (already exists)
+                                </span>
+                              )}
+                            </span>
+                            <span className="flight-leg-details">
+                              {[
+                                extractedAccommodation.checkin_date,
+                                extractedAccommodation.checkout_date
+                                  ? `– ${extractedAccommodation.checkout_date}`
+                                  : null,
+                                extractedAccommodation.address,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn-save"
+                          onClick={() => {
+                            setAccommodationForm({
+                              property_name:
+                                extractedAccommodation.property_name || "",
+                              platform: extractedAccommodation.platform || "",
+                              checkin_date:
+                                extractedAccommodation.checkin_date || "",
+                              checkout_date:
+                                extractedAccommodation.checkout_date || "",
+                              address: extractedAccommodation.address || "",
+                              total_amount:
+                                extractedAccommodation.total_amount || "",
+                              payment_status:
+                                extractedAccommodation.payment_status || "",
+                              payment_date:
+                                extractedAccommodation.payment_date || "",
+                              guests:
+                                extractedAccommodation.guests?.toString() || "",
+                              rooms:
+                                extractedAccommodation.rooms?.toString() || "",
+                              confirmation_code:
+                                extractedAccommodation.confirmation_code || "",
+                              booking_url: "",
+                              notes: extractedAccommodation.notes || "",
+                            });
+                          }}
+                          disabled={
+                            extractedAccommodation.is_duplicate ||
+                            !extractedAccommodation.property_name
+                          }
+                        >
+                          Use extracted data
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="modal-section-divider">
+                      or enter manually
+                    </div>
+                  </>
+                )}
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Property Name *</label>
+                    <input
+                      type="text"
+                      value={accommodationForm.property_name}
+                      onChange={(e) =>
+                        setAccommodationForm((prev) => ({
+                          ...prev,
+                          property_name: e.target.value,
+                        }))
+                      }
+                      placeholder="Hotel Marrakech"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Platform</label>
+                    <select
+                      value={accommodationForm.platform}
+                      onChange={(e) =>
+                        setAccommodationForm((prev) => ({
+                          ...prev,
+                          platform: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">—</option>
+                      <option value="booking">Booking.com</option>
+                      <option value="agoda">Agoda</option>
+                      <option value="airbnb">Airbnb</option>
+                      <option value="direct">Direct</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Check-in</label>
+                    <input
+                      type="date"
+                      value={accommodationForm.checkin_date}
+                      onChange={(e) =>
+                        setAccommodationForm((prev) => ({
+                          ...prev,
+                          checkin_date: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Check-out</label>
+                    <input
+                      type="date"
+                      value={accommodationForm.checkout_date}
+                      onChange={(e) =>
+                        setAccommodationForm((prev) => ({
+                          ...prev,
+                          checkout_date: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Address</label>
+                  <input
+                    type="text"
+                    value={accommodationForm.address}
+                    onChange={(e) =>
+                      setAccommodationForm((prev) => ({
+                        ...prev,
+                        address: e.target.value,
+                      }))
+                    }
+                    placeholder="123 Main Street, City"
+                  />
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Total Amount</label>
+                    <input
+                      type="text"
+                      value={accommodationForm.total_amount}
+                      onChange={(e) =>
+                        setAccommodationForm((prev) => ({
+                          ...prev,
+                          total_amount: e.target.value,
+                        }))
+                      }
+                      placeholder="€245.00"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Payment Status</label>
+                    <select
+                      value={accommodationForm.payment_status}
+                      onChange={(e) =>
+                        setAccommodationForm((prev) => ({
+                          ...prev,
+                          payment_status: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">—</option>
+                      <option value="paid">Paid</option>
+                      <option value="pay_at_property">Pay at property</option>
+                      <option value="pay_by_date">Pay by date</option>
+                    </select>
+                  </div>
+                </div>
+                {accommodationForm.payment_status === "pay_by_date" && (
+                  <div className="form-group">
+                    <label>Payment Deadline</label>
+                    <input
+                      type="date"
+                      value={accommodationForm.payment_date}
+                      onChange={(e) =>
+                        setAccommodationForm((prev) => ({
+                          ...prev,
+                          payment_date: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                )}
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Guests</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={accommodationForm.guests}
+                      onChange={(e) =>
+                        setAccommodationForm((prev) => ({
+                          ...prev,
+                          guests: e.target.value,
+                        }))
+                      }
+                      placeholder="2"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Rooms</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={accommodationForm.rooms}
+                      onChange={(e) =>
+                        setAccommodationForm((prev) => ({
+                          ...prev,
+                          rooms: e.target.value,
+                        }))
+                      }
+                      placeholder="1"
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Confirmation Code</label>
+                  <input
+                    type="text"
+                    value={accommodationForm.confirmation_code}
+                    onChange={(e) =>
+                      setAccommodationForm((prev) => ({
+                        ...prev,
+                        confirmation_code: e.target.value,
+                      }))
+                    }
+                    placeholder="123456789"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Booking URL</label>
+                  <input
+                    type="text"
+                    value={accommodationForm.booking_url}
+                    onChange={(e) =>
+                      setAccommodationForm((prev) => ({
+                        ...prev,
+                        booking_url: e.target.value,
+                      }))
+                    }
+                    placeholder="https://www.booking.com/..."
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Notes</label>
+                  <textarea
+                    value={accommodationForm.notes}
+                    onChange={(e) =>
+                      setAccommodationForm((prev) => ({
+                        ...prev,
+                        notes: e.target.value,
+                      }))
+                    }
+                    placeholder="Room type, breakfast, cancellation policy..."
+                    rows={2}
+                  />
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-cancel"
+                  onClick={() => {
+                    setShowAccommodationModal(false);
+                    setEditingAccommodationId(null);
+                    resetAccommodationForm();
+                    setExtractedAccommodation(null);
+                    setExtractAccommodationError(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-save"
+                  onClick={
+                    editingAccommodationId
+                      ? handleUpdateAccommodation
+                      : handleManualAccommodationAdd
+                  }
+                  disabled={
+                    addingAccommodation || !accommodationForm.property_name
+                  }
+                >
+                  {addingAccommodation
+                    ? "Saving..."
+                    : editingAccommodationId
+                      ? "Update Accommodation"
+                      : "Add Accommodation"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderInfoPanel = () => {
     if (loadingInfo) {
       return (
@@ -3906,11 +4851,21 @@ export default function TripFormPage() {
           >
             Transport
           </button>
+          <button
+            className={`trip-form-tab ${activeTab === "stays" ? "active" : ""}`}
+            onClick={() =>
+              navigate(`/admin/trips/${tripId}/stays`, { replace: true })
+            }
+          >
+            Stays
+          </button>
         </div>
       )}
 
       {activeTab === "transport" && isEdit ? (
         renderTransportTab()
+      ) : activeTab === "stays" && isEdit ? (
+        renderStaysTab()
       ) : activeTab === "info" && isEdit ? (
         renderInfoPanel()
       ) : (

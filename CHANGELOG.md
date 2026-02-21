@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.38.0 (2026-02-21)
+
+### Accommodation Bookings — "Stays" Tab
+- New "Stays" tab on trip pages for hotel/apartment bookings
+- Upload a booking confirmation (PDF or photo) and Claude Haiku auto-extracts property name, platform, dates, address, amount, payment status, guests, rooms, and confirmation code
+- Platform detection: Booking.com, Agoda, Airbnb, direct, or other
+- Payment status badges: paid (green), pay at property (orange), pay by date (red)
+- Confirmation codes stored encrypted (AES-256-GCM), displayed only when vault is unlocked
+- Attach/view/delete booking documents, edit and delete accommodations
+- Clickable addresses open in Google Maps, booking URLs open in new tab
+
 ## 0.37.2 (2026-02-21)
 
 ### Fixers

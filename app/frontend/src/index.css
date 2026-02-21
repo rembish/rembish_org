@@ -7189,6 +7189,55 @@ a {
   }
 }
 
+/* Accommodation-specific styles */
+.accommodation-platform {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+}
+
+.accommodation-payment-status {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+}
+
+.accommodation-payment-paid {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.accommodation-payment-pay_at_property {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.accommodation-payment-pay_by_date {
+  background: #ffebee;
+  color: #c62828;
+}
+
+@media (prefers-color-scheme: dark) {
+  .accommodation-payment-paid {
+    background: rgba(46, 125, 50, 0.2);
+    color: #81c784;
+  }
+
+  .accommodation-payment-pay_at_property {
+    background: rgba(230, 81, 0, 0.2);
+    color: #ffb74d;
+  }
+
+  .accommodation-payment-pay_by_date {
+    background: rgba(198, 40, 40, 0.2);
+    color: #ef9a9a;
+  }
+}
+
 /* Flight Stats Section */
 .flight-stats-section {
   background: var(--color-bg);

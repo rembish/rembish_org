@@ -4,6 +4,7 @@ from .instagram import InstagramMedia, InstagramPost
 from .location import UserLastLocation
 from .setting import AppSetting
 from .travel import (
+    Accommodation,
     Airport,
     CarRental,
     City,
@@ -32,6 +33,7 @@ from .vault import (
 )
 
 __all__ = [
+    "Accommodation",
     "Airport",
     "AppSetting",
     "CarRental",

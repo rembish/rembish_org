@@ -621,3 +621,67 @@ class TransportBookingExtractResponse(BaseModel):
 
 class TransportBookingsResponse(BaseModel):
     transport_bookings: list[TransportBookingData]
+
+
+# Accommodation models
+class AccommodationData(BaseModel):
+    id: int
+    trip_id: int
+    property_name: str
+    platform: str | None
+    checkin_date: str | None
+    checkout_date: str | None
+    address: str | None
+    total_amount: str | None
+    payment_status: str | None
+    payment_date: str | None
+    guests: int | None
+    rooms: int | None
+    confirmation_code: str | None
+    booking_url: str | None
+    has_document: bool
+    document_name: str | None
+    document_mime_type: str | None
+    document_size: int | None
+    notes: str | None
+
+
+class AccommodationCreateRequest(BaseModel):
+    property_name: str
+    platform: str | None = None
+    checkin_date: str | None = None
+    checkout_date: str | None = None
+    address: str | None = None
+    total_amount: str | None = None
+    payment_status: str | None = None
+    payment_date: str | None = None
+    guests: int | None = None
+    rooms: int | None = None
+    confirmation_code: str | None = None
+    booking_url: str | None = None
+    notes: str | None = None
+
+
+class ExtractedAccommodationResponse(BaseModel):
+    property_name: str | None = None
+    platform: str | None = None
+    checkin_date: str | None = None
+    checkout_date: str | None = None
+    address: str | None = None
+    total_amount: str | None = None
+    payment_status: str | None = None
+    payment_date: str | None = None
+    guests: int | None = None
+    rooms: int | None = None
+    confirmation_code: str | None = None
+    notes: str | None = None
+    is_duplicate: bool = False
+
+
+class AccommodationExtractResponse(BaseModel):
+    accommodation: ExtractedAccommodationResponse | None = None
+    error: str | None = None
+
+
+class AccommodationsResponse(BaseModel):
+    accommodations: list[AccommodationData]

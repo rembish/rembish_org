@@ -185,6 +185,58 @@ class TransportBookingExtractionResult(BaseModel):
     error: str | None = None
 
 
+ACCOMMODATION_EXTRACTION_PROMPT = """\
+You are an accommodation booking data extractor. \
+Analyze this document (hotel confirmation, booking receipt, Airbnb reservation) \
+and extract booking details.
+
+Return ONLY a JSON object with these fields (use null for unknown values):
+{
+  "property_name": "hotel/property name as shown on booking",
+  "platform": "booking" or "agoda" or "airbnb" or "direct" or "other",
+  "checkin_date": "YYYY-MM-DD",
+  "checkout_date": "YYYY-MM-DD",
+  "address": "property address",
+  "total_amount": "amount with currency symbol, e.g. €245.00",
+  "payment_status": "paid" or "pay_at_property" or "pay_by_date",
+  "payment_date": "YYYY-MM-DD deadline for pay_by_date, else null",
+  "guests": number of guests or null,
+  "rooms": number of rooms or null,
+  "confirmation_code": "booking/confirmation/reservation number, or null",
+  "notes": "room type, special requests, cancellation policy, breakfast included, etc."
+}
+
+Rules:
+- Infer "platform" from the document branding (Booking.com → "booking", Agoda → "agoda", \
+Airbnb → "airbnb", hotel direct → "direct")
+- payment_status: "paid" if prepaid/charged, "pay_at_property" if pay at check-in, \
+"pay_by_date" if there's a payment deadline
+- Include currency symbol in total_amount
+- Keep notes concise but include room type, cancellation policy, and meal plan if visible
+- Do NOT extract website URLs or domains — they are not useful booking links
+- If the document is not an accommodation booking, return all null values"""
+
+
+class ExtractedAccommodation(BaseModel):
+    property_name: str | None = None
+    platform: str | None = None
+    checkin_date: str | None = None
+    checkout_date: str | None = None
+    address: str | None = None
+    total_amount: str | None = None
+    payment_status: str | None = None
+    payment_date: str | None = None
+    guests: int | None = None
+    rooms: int | None = None
+    confirmation_code: str | None = None
+    notes: str | None = None
+
+
+class AccommodationExtractionResult(BaseModel):
+    accommodation: ExtractedAccommodation | None = None
+    error: str | None = None
+
+
 class ExtractedDocMetadata(BaseModel):
     doc_type: str | None = None
     label: str | None = None
@@ -470,3 +522,71 @@ def extract_transport_booking_data(
         if "401" in msg or "auth" in msg.lower():
             return TransportBookingExtractionResult(error="Invalid API key")
         return TransportBookingExtractionResult(error="Extraction failed")
+
+
+def extract_accommodation_data(
+    file_content: bytes, mime_type: str
+) -> AccommodationExtractionResult:
+    """Extract accommodation booking data from a PDF or image using Claude Haiku."""
+    if not settings.anthropic_api_key:
+        return AccommodationExtractionResult(error="API key not configured")
+
+    try:
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+
+        content: list[dict[str, Any]] = []
+        if mime_type == "application/pdf":
+            content.append(
+                {
+                    "type": "document",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "application/pdf",
+                        "data": base64.b64encode(file_content).decode(),
+                    },
+                }
+            )
+        elif mime_type.startswith("image/"):
+            content.append(
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": mime_type,
+                        "data": base64.b64encode(file_content).decode(),
+                    },
+                }
+            )
+        else:
+            return AccommodationExtractionResult(error=f"Unsupported file type: {mime_type}")
+
+        content.append({"type": "text", "text": ACCOMMODATION_EXTRACTION_PROMPT})
+
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": content}],  # type: ignore[typeddict-item]
+        )
+
+        text = response.content[0].text.strip()  # type: ignore[union-attr]
+
+        # Strip markdown code fences if present
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+
+        data = json.loads(text)
+        return AccommodationExtractionResult(accommodation=ExtractedAccommodation(**data))
+
+    except json.JSONDecodeError:
+        log.warning("Failed to parse accommodation extraction response as JSON")
+        return AccommodationExtractionResult(error="Failed to parse AI response")
+    except Exception as exc:
+        log.exception("Accommodation data extraction failed")
+        msg = str(exc)
+        if "credit" in msg.lower() or "balance" in msg.lower() or "402" in msg:
+            return AccommodationExtractionResult(error="Insufficient API balance")
+        if "401" in msg or "auth" in msg.lower():
+            return AccommodationExtractionResult(error="Invalid API key")
+        return AccommodationExtractionResult(error="Extraction failed")
