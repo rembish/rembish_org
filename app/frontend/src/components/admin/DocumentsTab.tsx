@@ -163,10 +163,14 @@ export default function DocumentsTab({
   };
 
   const handleViewFile = async (fileId: number) => {
+    const w = window.open("about:blank", "_blank");
     const res = await vaultFetch(`/api/v1/admin/vault/files/${fileId}/url`);
     if (res?.ok) {
       const data = await res.json();
-      window.open(data.url, "_blank");
+      if (w) w.location.href = data.url;
+      else window.location.href = data.url;
+    } else {
+      w?.close();
     }
   };
 

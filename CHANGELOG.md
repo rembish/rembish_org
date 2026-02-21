@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.32.1 (2026-02-21)
+
+### Bug Fixes
+- Fixed vault document "View" button not working on mobile browsers
+
 ## 0.32.0 (2026-02-20)
 
 ### People Tab
