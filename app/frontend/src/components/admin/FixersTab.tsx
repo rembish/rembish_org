@@ -15,6 +15,7 @@ export default function FixersTab({ addTrigger, search, readOnly }: Props) {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Fixer | null>(null);
+  const [countryNames, setCountryNames] = useState<Record<string, string>>({});
 
   const fetchFixers = useCallback(async () => {
     try {
@@ -30,6 +31,14 @@ export default function FixersTab({ addTrigger, search, readOnly }: Props) {
 
   useEffect(() => {
     fetchFixers();
+    apiFetch("/api/v1/admin/fixers/countries")
+      .then((r) => r.json())
+      .then((data) => {
+        const map: Record<string, string> = {};
+        for (const c of data.countries || []) map[c.code] = c.name;
+        setCountryNames(map);
+      })
+      .catch(() => {});
   }, [fetchFixers]);
 
   // Open add modal when parent triggers
@@ -48,9 +57,13 @@ export default function FixersTab({ addTrigger, search, readOnly }: Props) {
     return fixers.filter(
       (f) =>
         f.name.toLowerCase().includes(q) ||
-        f.country_codes.some((cc) => cc.toLowerCase().includes(q)),
+        f.country_codes.some(
+          (cc) =>
+            cc.toLowerCase().includes(q) ||
+            (countryNames[cc] ?? "").toLowerCase().includes(q),
+        ),
     );
-  }, [fixers, search]);
+  }, [fixers, search, countryNames]);
 
   const handleSave = async (data: FixerFormData) => {
     const body = {

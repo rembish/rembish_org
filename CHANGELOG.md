@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.37.2 (2026-02-21)
+
+### Fixers
+- Search now matches country names (e.g. typing "Kenya" finds fixers with code KE)
+
 ## 0.37.1 (2026-02-21)
 
 ### Trip Info — Country Flag Tabs
