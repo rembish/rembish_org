@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.35.2 (2026-02-21)
+
+### Open Graph Link Previews
+- Links shared in Slack, Telegram, Twitter, iMessage now show rich previews with title, description, and image
+- Dynamic previews for trip photo albums (destinations + date + cover photo) and country photo pages
+- Static previews for Home, CV, Travels, Photo Gallery, Photos Map, and other pages
+- Fallback OG tags in index.html for bots that slip past nginx detection
+
+### Bug Fix
+- Fixed Instagram photo fetch failing on production — non-root Docker container couldn't create `/app/data` directory
+- Cursor file moved to `/tmp` (always writable), removed redundant local directory creation when using GCS storage
+
 ## 0.35.1 (2026-02-21)
 
 ### Improved Reliability

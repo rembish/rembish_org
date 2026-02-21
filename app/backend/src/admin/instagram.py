@@ -34,9 +34,8 @@ router = APIRouter(prefix="/instagram", tags=["instagram"])
 # Instagram API config
 GRAPH_API_URL = "https://graph.facebook.com/v24.0"
 
-# Storage paths (for cursor file - always local)
-DATA_DIR = Path("/app/data/instagram")
-CURSOR_FILE = DATA_DIR / ".pagination_cursor"
+# Cursor file — stored in /tmp (always writable, even in non-root containers)
+CURSOR_FILE = Path("/tmp/.instagram_pagination_cursor")
 
 
 class InstagramMediaData(BaseModel):
@@ -606,7 +605,6 @@ def _load_cursor() -> str | None:
 
 def _save_cursor(next_url: str | None) -> None:
     """Save pagination cursor for next fetch."""
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
     CURSOR_FILE.write_text(json.dumps({"next_url": next_url}))
 
 
@@ -778,8 +776,7 @@ def _process_single_post(db: Session, post_data: dict, storage: StorageBackend) 
             }
         )
 
-    # Download and save media
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    # Download and save media (storage backend handles directory creation)
     for item in media_items:
         if item["media_type"] == "VIDEO":
             media = InstagramMedia(

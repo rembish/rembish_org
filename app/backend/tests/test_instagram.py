@@ -317,6 +317,32 @@ def test_cover_replaces_previous(ig_client: TestClient, db_session: Session) -> 
     assert new.cover_media_id == 99
 
 
+# --- Cursor storage ---
+
+
+def test_cursor_file_uses_tmp() -> None:
+    """Cursor file is stored in /tmp, not in /app/data (non-root safe)."""
+    from src.admin.instagram import CURSOR_FILE
+
+    # Cursor lives in /tmp — writable by non-root Docker containers
+    assert str(CURSOR_FILE).startswith("/tmp"), (
+        f"CURSOR_FILE should be in /tmp, got {CURSOR_FILE}"
+    )
+
+
+def test_save_and_load_cursor() -> None:
+    """Cursor save/load round-trips correctly."""
+    from src.admin.instagram import CURSOR_FILE, _load_cursor, _save_cursor
+
+    try:
+        _save_cursor("https://example.com/next")
+        assert _load_cursor() == "https://example.com/next"
+        _save_cursor(None)
+        assert _load_cursor() is None
+    finally:
+        CURSOR_FILE.unlink(missing_ok=True)
+
+
 # --- Auth ---
 
 
