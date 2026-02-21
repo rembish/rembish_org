@@ -18,6 +18,7 @@ from ..models import (
     UNCountry,
     User,
 )
+from ..models.fixer import Fixer, TripFixer
 from ..models.vault import TripPassport, TripTravelDoc, VaultTravelDoc, VaultVaccination
 from .models import (
     CountryInfoData,
@@ -27,6 +28,7 @@ from .models import (
     HealthVaccination,
     MalariaInfo,
     TripCountryInfoResponse,
+    TripFixerInfo,
     TripTravelDocInfo,
     WeatherInfo,
 )
@@ -213,10 +215,13 @@ def get_trip_country_info(
             trip_travel_docs.setdefault(cc, []).append(vtd)
             seen_doc_ids.add(vtd.id)
 
-    # 2. Auto-match: valid docs for trip's destination countries
+    # 2. Auto-match: docs matching trip's destination countries
     today = date.today()
+    trip_is_past = trip.end_date is not None and trip.end_date < today
+    # For past trips, match docs valid during the trip; for future, match docs valid today
+    validity_cutoff = trip.start_date if trip_is_past else today
 
-    # Single-entry visas assigned to a completed trip are considered used
+    # Single-entry visas assigned to a DIFFERENT completed trip are considered used
     used_single_ids: set[int] = {
         row[0]
         for row in db.query(VaultTravelDoc.id)
@@ -226,6 +231,7 @@ def get_trip_country_info(
             VaultTravelDoc.entry_type == "single",
             Trip.end_date.isnot(None),
             Trip.end_date < today,
+            Trip.id != trip_id,
         )
         .all()
     }
@@ -234,7 +240,8 @@ def get_trip_country_info(
         db.query(VaultTravelDoc)
         .filter(
             VaultTravelDoc.country_code.isnot(None),
-            (VaultTravelDoc.valid_until.is_(None)) | (VaultTravelDoc.valid_until >= today),
+            (VaultTravelDoc.valid_until.is_(None))
+            | (VaultTravelDoc.valid_until >= validity_cutoff),
         )
         .all()
     )
@@ -249,6 +256,62 @@ def get_trip_country_info(
         cc = (vtd.country_code or "").upper()
         if cc:
             trip_travel_docs.setdefault(cc, []).append(vtd)
+
+    # Auto-seed fixers on first info view, then manual management
+    if not trip.fixers_synced:
+        # Collect trip's destination country codes
+        dest_codes: set[str] = set()
+        for td in trip.destinations:
+            un = td.tcc_destination.un_country
+            if un:
+                dest_codes.add(un.iso_alpha2)
+
+        # Find fixers matching any destination country
+        if dest_codes:
+            from ..models.fixer import FixerCountry
+
+            matching = (
+                db.query(Fixer)
+                .join(Fixer.countries)
+                .filter(FixerCountry.country_code.in_(dest_codes))
+                .all()
+            )
+            existing_ids = {
+                row[0]
+                for row in db.query(TripFixer.fixer_id).filter(TripFixer.trip_id == trip_id).all()
+            }
+            for fixer in matching:
+                if fixer.id not in existing_ids:
+                    db.add(TripFixer(trip_id=trip_id, fixer_id=fixer.id))
+
+        trip.fixers_synced = True
+        db.commit()
+
+    # Query fixers: assigned (in trip_fixers) + available (matching but not assigned)
+    trip_fixers: dict[str, list[tuple[Fixer, bool]]] = {}
+    assigned_fixer_ids: set[int] = set()
+
+    # Assigned fixers
+    assigned = (
+        db.query(Fixer)
+        .join(TripFixer, TripFixer.fixer_id == Fixer.id)
+        .filter(TripFixer.trip_id == trip_id)
+        .all()
+    )
+    for fixer in assigned:
+        assigned_fixer_ids.add(fixer.id)
+        for fc in fixer.countries:
+            cc = fc.country_code.upper()
+            trip_fixers.setdefault(cc, []).append((fixer, True))
+
+    # Available fixers (matching by country but not assigned)
+    all_fixers = db.query(Fixer).join(Fixer.countries).all()
+    for fixer in all_fixers:
+        if fixer.id in assigned_fixer_ids:
+            continue
+        for fc in fixer.countries:
+            cc = fc.country_code.upper()
+            trip_fixers.setdefault(cc, []).append((fixer, False))
 
     # Group TCC destinations by UN country
     # Key: un_country_id (or negative tcc_id for orphans)
@@ -357,6 +420,18 @@ def get_trip_country_info(
                             has_files=len(vtd.files) > 0 if vtd.files else False,
                         )
                         for vtd in trip_travel_docs.get(iso, [])
+                    ],
+                    fixers=[
+                        TripFixerInfo(
+                            id=f.id,
+                            name=f.name,
+                            type=f.type,
+                            whatsapp=f.whatsapp,
+                            phone=f.phone,
+                            rating=f.rating,
+                            is_assigned=assigned,
+                        )
+                        for f, assigned in trip_fixers.get(iso, [])
                     ],
                 )
             )

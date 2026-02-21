@@ -1,5 +1,5 @@
 from .event import PersonalEvent
-from .fixer import Fixer, FixerCountry
+from .fixer import Fixer, FixerCountry, TripFixer
 from .instagram import InstagramMedia, InstagramPost
 from .location import UserLastLocation
 from .setting import AppSetting
@@ -45,6 +45,7 @@ __all__ = [
     "Trip",
     "TripCity",
     "TripDestination",
+    "TripFixer",
     "TripParticipant",
     "TripPassport",
     "TripTravelDoc",

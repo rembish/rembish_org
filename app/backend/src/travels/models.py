@@ -310,6 +310,16 @@ class TripTravelDocInfo(BaseModel):
     has_files: bool = False
 
 
+class TripFixerInfo(BaseModel):
+    id: int
+    name: str
+    type: str
+    whatsapp: str | None
+    phone: str | None
+    rating: int | None
+    is_assigned: bool
+
+
 class CountryInfoData(BaseModel):
     country_name: str
     iso_alpha2: str
@@ -333,6 +343,7 @@ class CountryInfoData(BaseModel):
     sunrise_sunset: SunriseSunset | None
     health: HealthRequirements | None = None
     travel_docs: list[TripTravelDocInfo] = []
+    fixers: list[TripFixerInfo] = []
 
 
 class TripCountryInfoResponse(BaseModel):

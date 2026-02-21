@@ -205,3 +205,54 @@ def test_links_round_trip(admin_client: TestClient) -> None:
     assert len(links) == 2
     assert links[0]["type"] == "instagram"
     assert links[1]["url"] == "https://example.com"
+
+
+# --- Trip assignment ---
+
+TRIPS_URL = "/api/v1/travels/trips"
+
+
+def _create_trip(client: TestClient) -> int:
+    """Helper: create a minimal trip and return its ID."""
+    res = client.post(TRIPS_URL, json={"start_date": "2026-06-01"})
+    assert res.status_code == 200
+    return res.json()["id"]
+
+
+def test_assign_fixer_to_trip(admin_client: TestClient) -> None:
+    fixer_id = admin_client.post(BASE, json=_minimal_fixer()).json()["id"]
+    trip_id = _create_trip(admin_client)
+
+    res = admin_client.post(f"{BASE}{fixer_id}/trips/{trip_id}")
+    assert res.status_code == 201
+    assert res.json()["message"] == "Assigned"
+
+    # Idempotent: second call returns 201 with "Already assigned"
+    res = admin_client.post(f"{BASE}{fixer_id}/trips/{trip_id}")
+    assert res.status_code == 201
+    assert res.json()["message"] == "Already assigned"
+
+
+def test_unassign_fixer_from_trip(admin_client: TestClient) -> None:
+    fixer_id = admin_client.post(BASE, json=_minimal_fixer()).json()["id"]
+    trip_id = _create_trip(admin_client)
+
+    admin_client.post(f"{BASE}{fixer_id}/trips/{trip_id}")
+    res = admin_client.delete(f"{BASE}{fixer_id}/trips/{trip_id}")
+    assert res.status_code == 204
+
+    # Unassigning again is a no-op (still 204)
+    res = admin_client.delete(f"{BASE}{fixer_id}/trips/{trip_id}")
+    assert res.status_code == 204
+
+
+def test_assign_nonexistent_fixer(admin_client: TestClient) -> None:
+    trip_id = _create_trip(admin_client)
+    res = admin_client.post(f"{BASE}9999/trips/{trip_id}")
+    assert res.status_code == 404
+
+
+def test_assign_nonexistent_trip(admin_client: TestClient) -> None:
+    fixer_id = admin_client.post(BASE, json=_minimal_fixer()).json()["id"]
+    res = admin_client.post(f"{BASE}{fixer_id}/trips/9999")
+    assert res.status_code == 404

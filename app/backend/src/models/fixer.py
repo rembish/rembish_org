@@ -8,6 +8,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -41,6 +42,9 @@ class Fixer(Base):
     countries: Mapped[list["FixerCountry"]] = relationship(
         back_populates="fixer", cascade="all, delete-orphan"
     )
+    trips: Mapped[list["TripFixer"]] = relationship(
+        back_populates="fixer", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Fixer #{self.id}: {self.name}>"
@@ -58,3 +62,26 @@ class FixerCountry(Base):
 
     def __repr__(self) -> str:
         return f"<FixerCountry fixer={self.fixer_id} country={self.country_code}>"
+
+
+class TripFixer(Base):
+    __tablename__ = "trip_fixers"
+    __table_args__ = (UniqueConstraint("trip_id", "fixer_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    trip_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("trips.id", ondelete="CASCADE"), index=True
+    )
+    fixer_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("fixers.id", ondelete="CASCADE"), index=True
+    )
+
+    trip: Mapped["Trip"] = relationship(back_populates="fixers_links")
+    fixer: Mapped[Fixer] = relationship(back_populates="trips")
+
+    def __repr__(self) -> str:
+        return f"<TripFixer trip={self.trip_id} fixer={self.fixer_id}>"
+
+
+# Avoid circular imports
+from .travel import Trip  # noqa: E402, F401

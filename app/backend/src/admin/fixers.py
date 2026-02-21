@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session, subqueryload
 from ..auth.session import get_admin_user, get_trips_viewer
 from ..database import get_db
 from ..log_config import get_logger
-from ..models import UNCountry, User
-from ..models.fixer import Fixer, FixerCountry
+from ..models import Trip, UNCountry, User
+from ..models.fixer import Fixer, FixerCountry, TripFixer
 
 log = get_logger(__name__)
 router = APIRouter(prefix="/fixers", tags=["fixers"])
@@ -184,6 +184,57 @@ def update_fixer(
     db.refresh(fixer)
     log.info(f"Updated fixer: {fixer.name}")
     return _fixer_to_response(fixer)
+
+
+@router.post(
+    "/{fixer_id}/trips/{trip_id}",
+    status_code=status.HTTP_201_CREATED,
+)
+def assign_fixer_to_trip(
+    fixer_id: int,
+    trip_id: int,
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    """Assign a fixer to a trip (idempotent)."""
+    if not db.query(Trip).filter(Trip.id == trip_id).first():
+        raise HTTPException(status_code=404, detail="Trip not found")
+    if not db.query(Fixer).filter(Fixer.id == fixer_id).first():
+        raise HTTPException(status_code=404, detail="Fixer not found")
+
+    existing = (
+        db.query(TripFixer)
+        .filter(TripFixer.trip_id == trip_id, TripFixer.fixer_id == fixer_id)
+        .first()
+    )
+    if existing:
+        return {"message": "Already assigned"}
+
+    db.add(TripFixer(trip_id=trip_id, fixer_id=fixer_id))
+    db.commit()
+    log.info(f"Assigned fixer {fixer_id} to trip {trip_id}")
+    return {"message": "Assigned"}
+
+
+@router.delete(
+    "/{fixer_id}/trips/{trip_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def unassign_fixer_from_trip(
+    fixer_id: int,
+    trip_id: int,
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+) -> None:
+    """Remove a fixer from a trip."""
+    link = (
+        db.query(TripFixer)
+        .filter(TripFixer.trip_id == trip_id, TripFixer.fixer_id == fixer_id)
+        .first()
+    )
+    if link:
+        db.delete(link)
+        db.commit()
 
 
 @router.delete("/{fixer_id}", status_code=status.HTTP_204_NO_CONTENT)

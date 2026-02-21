@@ -146,6 +146,16 @@ interface TripTravelDocInfo {
   has_files: boolean;
 }
 
+interface TripFixerInfo {
+  id: number;
+  name: string;
+  type: string;
+  whatsapp: string | null;
+  phone: string | null;
+  rating: number | null;
+  is_assigned: boolean;
+}
+
 interface CountryInfoData {
   country_name: string;
   iso_alpha2: string;
@@ -169,6 +179,7 @@ interface CountryInfoData {
   sunrise_sunset: SunriseSunset | null;
   health: HealthRequirements | null;
   travel_docs: TripTravelDocInfo[];
+  fixers: TripFixerInfo[];
 }
 
 // Flight types
@@ -564,6 +575,20 @@ export default function TripFormPage() {
       })
       .finally(() => setLoadingInfo(false));
   }, [activeTab, isEdit, tripId]);
+
+  const refetchCountryInfo = () => {
+    apiFetch(`/api/v1/travels/trips/${tripId}/country-info`)
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to reload country info");
+        return r.json();
+      })
+      .then((data) => {
+        setCountryInfo(data.countries || []);
+      })
+      .catch((err) => {
+        console.error("Failed to reload country info:", err);
+      });
+  };
 
   // Fetch flights when switching to Transport tab
   useEffect(() => {
@@ -2069,6 +2094,7 @@ export default function TripFormPage() {
                     <span
                       key={td.id}
                       className={`travel-doc-badge${td.expires_before_trip ? " travel-doc-expiring" : ""}`}
+                      onClick={() => navigate("/admin/documents/visas")}
                     >
                       {td.label}
                       {td.entry_type && (
@@ -2116,6 +2142,80 @@ export default function TripFormPage() {
                   )}
                 </div>
               )}
+            {country.fixers && country.fixers.length > 0 && (
+              <div className="country-info-fixers">
+                <span className="info-label">Fixers</span>
+                <div className="fixer-info-badges">
+                  {country.fixers.map((f) => (
+                    <span
+                      key={f.id}
+                      className={`fixer-info-badge${!f.is_assigned ? " available" : ""}`}
+                    >
+                      <span
+                        className="fixer-info-name"
+                        onClick={() => navigate("/admin/people/fixers")}
+                      >
+                        {f.name}
+                      </span>
+                      <span className="fixer-info-type">{f.type}</span>
+                      {f.rating != null && (
+                        <span className="fixer-info-rating">
+                          {"★".repeat(f.rating)}
+                        </span>
+                      )}
+                      {f.whatsapp && (
+                        <a
+                          className="fixer-info-whatsapp"
+                          href={`https://wa.me/${f.whatsapp.replace(/[^0-9]/g, "")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          WA
+                        </a>
+                      )}
+                      {f.phone && !f.whatsapp && (
+                        <a
+                          className="fixer-info-phone"
+                          href={`tel:${f.phone}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Tel
+                        </a>
+                      )}
+                      {!readOnly && f.is_assigned && (
+                        <button
+                          className="fixer-info-remove-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            apiFetch(
+                              `/api/v1/admin/fixers/${f.id}/trips/${tripId}`,
+                              { method: "DELETE" },
+                            ).then(() => refetchCountryInfo());
+                          }}
+                        >
+                          ×
+                        </button>
+                      )}
+                      {!readOnly && !f.is_assigned && (
+                        <button
+                          className="fixer-info-assign-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            apiFetch(
+                              `/api/v1/admin/fixers/${f.id}/trips/${tripId}`,
+                              { method: "POST" },
+                            ).then(() => refetchCountryInfo());
+                          }}
+                        >
+                          +
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>

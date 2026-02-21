@@ -7551,6 +7551,11 @@ a {
   background: #e8f4fd;
   color: #1a6bb5;
   border: 1px solid #bdd8ef;
+  cursor: pointer;
+}
+
+.travel-doc-badge:hover {
+  background: #d0e8f7;
 }
 
 .travel-doc-badge.travel-doc-expiring {
@@ -7613,6 +7618,93 @@ a {
     background: #856404;
     color: #fff;
   }
+}
+
+/* Trip info tab: fixers section */
+.country-info-fixers {
+  border-top: 1px solid #eee;
+  padding-top: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.fixer-info-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+
+.fixer-info-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  background: #e8f0e8;
+  color: #2d5a2d;
+  border: 1px solid #b5d1b5;
+}
+
+.fixer-info-badge.available {
+  background: #f5f5f5;
+  color: #888;
+  border-color: #ddd;
+  border-style: dashed;
+}
+
+.fixer-info-name {
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.fixer-info-type {
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+.fixer-info-rating {
+  font-size: 0.7rem;
+  color: #c8a415;
+}
+
+.fixer-info-whatsapp,
+.fixer-info-phone {
+  font-size: 0.7rem;
+  color: #25d366;
+  text-decoration: none;
+  font-weight: 600;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.fixer-info-phone {
+  color: #2d5a2d;
+}
+
+.fixer-info-assign-btn,
+.fixer-info-remove-btn {
+  background: none;
+  border: none;
+  padding: 0 0.15rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  line-height: 1;
+  color: #2d5a2d;
+  opacity: 0.7;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.fixer-info-remove-btn {
+  color: #d9534f;
 }
 
 /* --- Address search autocomplete --- */

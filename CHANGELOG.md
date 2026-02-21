@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.35.0 (2026-02-21)
+
+### Fixer-to-Trip Integration
+- Fixers now appear on trip info country cards — auto-assigned on first view based on matching countries
+- After first view, fully manual: add (+) or remove (×) fixers per trip
+- Assigned fixers shown as green badges with name, type, star rating, and WhatsApp link
+- Available (unassigned) fixers shown as dashed grey badges for easy adding
+- Clicking a fixer name navigates to People > Fixers
+
 ## 0.34.0 (2026-02-21)
 
 ### Fixers UX Overhaul

@@ -189,6 +189,9 @@ class Trip(Base):
     # Hide from photos page (for trips with few/unimportant photos)
     hidden_from_photos: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Whether fixers were auto-seeded on first info tab view
+    fixers_synced: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )
@@ -210,6 +213,9 @@ class Trip(Base):
         back_populates="trip", cascade="all, delete-orphan"
     )
     passports: Mapped[list["TripPassport"]] = relationship(
+        back_populates="trip", cascade="all, delete-orphan"
+    )
+    fixers_links: Mapped[list["TripFixer"]] = relationship(
         back_populates="trip", cascade="all, delete-orphan"
     )
 
@@ -368,5 +374,6 @@ class Flight(Base):
 
 
 # Import to complete relationships
+from .fixer import TripFixer  # noqa: E402, F401
 from .user import User  # noqa: E402, F401
 from .vault import TripPassport, TripTravelDoc  # noqa: E402, F401
