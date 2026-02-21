@@ -6,7 +6,12 @@ import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session, joinedload
 
-from ..auth.session import get_admin_user, is_vault_unlocked
+from ..auth.session import (
+    get_admin_user,
+    get_trips_viewer,
+    is_vault_unlocked,
+    is_vault_unlocked_for_viewer,
+)
 from ..config import settings
 from ..crypto import decrypt, encrypt, mask_value
 from ..database import get_db
@@ -318,8 +323,8 @@ async def extract_flights_from_ticket(
 @router.get("/trips/{trip_id}/flights", response_model=FlightsResponse)
 def get_trip_flights(
     trip_id: int,
-    admin: Annotated[User, Depends(get_admin_user)],
-    vault_open: Annotated[bool, Depends(is_vault_unlocked)],
+    admin: Annotated[User, Depends(get_trips_viewer)],
+    vault_open: Annotated[bool, Depends(is_vault_unlocked_for_viewer)],
     db: Session = Depends(get_db),
 ) -> FlightsResponse:
     """Get all flights for a trip, ordered by date and departure time."""
@@ -350,7 +355,7 @@ def get_trip_flights(
 @router.get("/flights/dates")
 def get_flight_dates(
     year: int = Query(...),
-    admin: Annotated[User, Depends(get_admin_user)] = ...,  # type: ignore[assignment]
+    admin: Annotated[User, Depends(get_trips_viewer)] = ...,  # type: ignore[assignment]
     db: Session = Depends(get_db),
 ) -> dict[str, dict[str, list[str]]]:
     """Return flight dates with unique arrival countries for a given year."""

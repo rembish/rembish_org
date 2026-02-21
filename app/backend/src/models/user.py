@@ -15,8 +15,16 @@ class User(Base):
     nickname: Mapped[str | None] = mapped_column(String(50), nullable=True)
     picture: Mapped[str | None] = mapped_column(String(512), nullable=True)
     birthday: Mapped[date | None] = mapped_column(Date, nullable=True)
-    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    role: Mapped[str | None] = mapped_column(String(20), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    @property
+    def is_admin(self) -> bool:
+        return self.role == "admin"
+
+    @property
+    def is_viewer(self) -> bool:
+        return self.role == "viewer"
 
     trip_participations: Mapped[list["TripParticipant"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"

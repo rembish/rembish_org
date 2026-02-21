@@ -6,7 +6,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 
-from ..auth.session import get_admin_user
+from ..auth.session import get_admin_user, get_trips_viewer
 from ..database import get_db
 from ..models import (
     TCCDestination,
@@ -71,10 +71,10 @@ router.include_router(nominatim_router)
 
 @router.get("/trips", response_model=TripsResponse)
 def get_trips(
-    admin: Annotated[User, Depends(get_admin_user)],
+    admin: Annotated[User, Depends(get_trips_viewer)],
     db: Session = Depends(get_db),
 ) -> TripsResponse:
-    """Get all trips (admin only)."""
+    """Get all trips (admin/viewer)."""
     trips = (
         db.query(Trip)
         .options(
@@ -93,10 +93,10 @@ def get_trips(
 
 @router.get("/tcc-options", response_model=TCCDestinationOptionsResponse)
 def get_tcc_options(
-    admin: Annotated[User, Depends(get_admin_user)],
+    admin: Annotated[User, Depends(get_trips_viewer)],
     db: Session = Depends(get_db),
 ) -> TCCDestinationOptionsResponse:
-    """Get all TCC destinations for selector (admin only)."""
+    """Get all TCC destinations for selector (admin/viewer)."""
     destinations = (
         db.query(TCCDestination)
         .options(joinedload(TCCDestination.un_country))
@@ -118,10 +118,10 @@ def get_tcc_options(
 
 @router.get("/users-options", response_model=UserOptionsResponse)
 def get_users_options(
-    admin: Annotated[User, Depends(get_admin_user)],
+    admin: Annotated[User, Depends(get_trips_viewer)],
     db: Session = Depends(get_db),
 ) -> UserOptionsResponse:
-    """Get all users for participant selector (admin only). Excludes the admin (owner)."""
+    """Get all users for participant selector (admin/viewer). Excludes the admin (owner)."""
     users = db.query(User).filter(User.id != admin.id).order_by(User.name).all()
     return UserOptionsResponse(
         users=[
@@ -225,10 +225,10 @@ def _trip_to_data(trip: Trip) -> TripData:
 @router.get("/trips/{trip_id}", response_model=TripData)
 def get_trip(
     trip_id: int,
-    admin: Annotated[User, Depends(get_admin_user)],
+    admin: Annotated[User, Depends(get_trips_viewer)],
     db: Session = Depends(get_db),
 ) -> TripData:
-    """Get a single trip by ID (admin only)."""
+    """Get a single trip by ID (admin/viewer)."""
     trip = (
         db.query(Trip)
         .options(
@@ -492,7 +492,7 @@ def delete_trip(
 
 @router.get("/vacation-summary", response_model=VacationSummary)
 def get_vacation_summary(
-    admin: Annotated[User, Depends(get_admin_user)],
+    admin: Annotated[User, Depends(get_trips_viewer)],
     year: int = Query(...),
     db: Session = Depends(get_db),
 ) -> VacationSummary:
@@ -563,7 +563,7 @@ def get_vacation_summary(
 def get_holidays(
     year: int,
     country_code: str,
-    admin: Annotated[User, Depends(get_admin_user)],
+    admin: Annotated[User, Depends(get_trips_viewer)],
 ) -> HolidaysResponse:
     """Get public holidays for a year/country from Nager.Date API (admin only).
 

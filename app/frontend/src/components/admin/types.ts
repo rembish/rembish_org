@@ -280,6 +280,7 @@ export interface CloseOneUser {
   birthday: string | null;
   is_admin: boolean;
   is_active: boolean;
+  role: string | null;
   trips_count: number;
 }
 

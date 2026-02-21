@@ -51,6 +51,7 @@ class UserResponse(BaseModel):
     picture: str | None
     birthday: date | None
     is_admin: bool
+    role: str | None
 
 
 @router.get("/me")

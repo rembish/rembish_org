@@ -48,7 +48,7 @@ def admin_user(db_session: Session) -> User:
         email="admin@test.com",
         name="Test Admin",
         nickname="admin",
-        is_admin=True,
+        role="admin",
         is_active=True,
     )
     db_session.add(user)
@@ -63,7 +63,6 @@ def other_user(db_session: Session) -> User:
         email="other@test.com",
         name="Other User",
         nickname="other",
-        is_admin=False,
         is_active=True,
     )
     db_session.add(user)

@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
-from ..auth.session import get_admin_user
+from ..auth.session import get_trips_viewer
 from ..database import get_db
 from ..models import (
     TCCDestination,
@@ -167,7 +167,7 @@ def _get_health_requirements(
 @router.get("/trips/{trip_id}/country-info", response_model=TripCountryInfoResponse)
 def get_trip_country_info(
     trip_id: int,
-    admin: Annotated[User, Depends(get_admin_user)],
+    admin: Annotated[User, Depends(get_trips_viewer)],
     db: Session = Depends(get_db),
 ) -> TripCountryInfoResponse:
     """Get aggregated country reference data for a trip's destinations (admin only)."""

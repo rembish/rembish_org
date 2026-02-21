@@ -434,7 +434,7 @@ def get_current_location(
         db.query(UserLastLocation)
         .join(User)
         .options(joinedload(UserLastLocation.city), joinedload(UserLastLocation.user))
-        .filter(User.is_admin == True)  # noqa: E712
+        .filter(User.role == "admin")
         .order_by(UserLastLocation.recorded_at.desc())
         .first()
     )

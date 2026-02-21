@@ -6,7 +6,7 @@ from fastapi.responses import Response
 from icalendar import Calendar, Event
 from sqlalchemy.orm import Session, joinedload
 
-from ..auth.session import get_admin_user
+from ..auth.session import get_admin_user, get_trips_viewer
 from ..database import get_db
 from ..models import AppSetting, PersonalEvent, Trip, TripDestination
 from .events import EVENT_CATEGORIES
@@ -115,7 +115,7 @@ def get_calendar_feed(
 
 @router.get("/calendar/feed-token")
 def get_feed_token(
-    admin: object = Depends(get_admin_user),
+    admin: object = Depends(get_trips_viewer),
     db: Session = Depends(get_db),
 ) -> dict[str, str | None]:
     """Get current calendar feed token (admin only). Frontend builds the URL."""

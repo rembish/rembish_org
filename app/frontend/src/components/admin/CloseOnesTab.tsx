@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BiCake, BiPencil, BiTrash } from "react-icons/bi";
+import { useNavigate } from "react-router-dom";
+import { BiCake, BiPencil, BiShow, BiTrash } from "react-icons/bi";
 import { apiFetch } from "../../lib/api";
-import UserFormModal, { UserFormData } from "../UserFormModal";
+import { useViewAs } from "../../hooks/useViewAs";
+import UserFormModal, { type UserFormData } from "../UserFormModal";
 import type { CloseOneUser } from "./types";
 
 export default function CloseOnesTab({ addTrigger }: { addTrigger?: number }) {
+  const navigate = useNavigate();
+  const { setViewAsUser } = useViewAs();
   const [users, setUsers] = useState<CloseOneUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +74,7 @@ export default function CloseOnesTab({ addTrigger }: { addTrigger?: number }) {
     const payload = {
       ...data,
       birthday: data.birthday || null,
+      role: data.role || null,
     };
 
     const res = await apiFetch(url, {
@@ -94,6 +99,15 @@ export default function CloseOnesTab({ addTrigger }: { addTrigger?: number }) {
     fetchUsers();
   };
 
+  const handleViewAs = (user: CloseOneUser) => {
+    setViewAsUser({
+      id: user.id,
+      name: user.nickname || user.name,
+      picture: user.picture,
+    });
+    navigate("/admin/trips");
+  };
+
   const getInitialFormData = (): UserFormData | null => {
     if (!editingUser) return null;
     return {
@@ -101,6 +115,7 @@ export default function CloseOnesTab({ addTrigger }: { addTrigger?: number }) {
       name: editingUser.name || "",
       nickname: editingUser.nickname || "",
       birthday: editingUser.birthday || "",
+      role: editingUser.role || "",
     };
   };
 
@@ -137,7 +152,12 @@ export default function CloseOnesTab({ addTrigger }: { addTrigger?: number }) {
               <div className="user-card-info">
                 <div className="user-card-name">
                   {user.nickname || user.name || "—"}
-                  {user.is_admin && <span className="admin-badge">Admin</span>}
+                  {user.role === "admin" && (
+                    <span className="admin-badge">Admin</span>
+                  )}
+                  {user.role === "viewer" && (
+                    <span className="viewer-badge">Viewer</span>
+                  )}
                   <span
                     className={`status-badge ${user.is_active ? "active" : "pending"}`}
                   >
@@ -167,6 +187,15 @@ export default function CloseOnesTab({ addTrigger }: { addTrigger?: number }) {
                 </div>
               </div>
               <div className="user-card-actions">
+                {user.role === "viewer" && (
+                  <button
+                    className="user-action-btn"
+                    onClick={() => handleViewAs(user)}
+                    title="View as this user"
+                  >
+                    <BiShow />
+                  </button>
+                )}
                 <button
                   className="user-action-btn"
                   onClick={() => handleEditUser(user)}

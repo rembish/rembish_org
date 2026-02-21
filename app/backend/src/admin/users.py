@@ -27,6 +27,7 @@ class UserResponse(BaseModel):
     birthday: date | None
     is_admin: bool
     is_active: bool
+    role: str | None
     trips_count: int = 0
 
 
@@ -65,12 +66,15 @@ class UserCreateRequest(BaseModel):
         return validate_email_or_placeholder(v)
 
 
+VALID_ROLES = {"admin", "viewer"}
+
+
 class UserUpdateRequest(BaseModel):
     email: str | None = None
     name: str | None = None
     nickname: str | None = None
     birthday: date | None = None
-    is_admin: bool | None = None
+    role: str | None = None
 
     @field_validator("email")
     @classmethod
@@ -78,6 +82,15 @@ class UserUpdateRequest(BaseModel):
         if v is None:
             return None
         return validate_email_or_placeholder(v)
+
+    @field_validator("role", mode="before")
+    @classmethod
+    def check_role(cls, v: str | None) -> str | None:
+        if v == "":
+            return None
+        if v is not None and v not in VALID_ROLES:
+            raise ValueError(f"Role must be one of: {', '.join(sorted(VALID_ROLES))}")
+        return v
 
 
 @router.get("/", response_model=UserListResponse)
@@ -105,6 +118,7 @@ def list_users(
             "birthday": user.birthday,
             "is_admin": user.is_admin,
             "is_active": user.is_active,
+            "role": user.role,
             "trips_count": trips_count,
         }
         result.append(UserResponse.model_validate(user_dict))
@@ -131,7 +145,6 @@ def create_user(
         name=data.name,
         nickname=data.nickname,
         birthday=data.birthday,
-        is_admin=False,
         is_active=False,  # Pending until first login
     )
     db.add(user)
@@ -148,7 +161,7 @@ def update_user(
     admin: Annotated[User, Depends(get_admin_user)],
     db: Session = Depends(get_db),
 ) -> UserResponse:
-    """Update user email, name, nickname, or is_admin status."""
+    """Update user email, name, nickname, or role."""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(
@@ -179,8 +192,8 @@ def update_user(
         user.nickname = data.nickname
     if data.birthday is not None:
         user.birthday = data.birthday
-    if data.is_admin is not None:
-        user.is_admin = data.is_admin
+    if "role" in data.model_fields_set:
+        user.role = data.role
 
     db.commit()
     db.refresh(user)

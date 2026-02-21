@@ -51,7 +51,7 @@ def admin_user(db_session: Session) -> User:
         email="admin@test.com",
         name="Test Admin",
         nickname="admin",
-        is_admin=True,
+        role="admin",
         is_active=True,
     )
     db_session.add(user)
@@ -157,7 +157,7 @@ def test_list_travel_docs(vault_client: TestClient, admin_user: User) -> None:
 def test_list_travel_docs_filter_by_user(
     vault_client: TestClient, admin_user: User, db_session: Session
 ) -> None:
-    other = User(email="other@test.com", name="Other", is_admin=False, is_active=True)
+    other = User(email="other@test.com", name="Other", is_active=True)
     db_session.add(other)
     db_session.commit()
     db_session.refresh(other)

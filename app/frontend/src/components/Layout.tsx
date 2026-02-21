@@ -72,7 +72,7 @@ export default function Layout({ children }: LayoutProps) {
           </ul>
           {!loading && (
             <ul className="nav-menu nav-menu-auth">
-              {user?.is_admin && (
+              {(user?.role === "admin" || user?.role === "viewer") && (
                 <li>
                   <NavLink
                     to="/admin"

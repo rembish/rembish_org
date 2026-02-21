@@ -16,6 +16,7 @@ interface User {
   picture: string | null;
   birthday: string | null;
   is_admin: boolean;
+  role: "admin" | "viewer" | null;
 }
 
 interface AuthContextValue {

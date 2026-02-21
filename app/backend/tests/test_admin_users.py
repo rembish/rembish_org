@@ -16,7 +16,7 @@ def test_list_users_excludes_admin(admin_client: TestClient) -> None:
 
 def test_list_users_includes_others(admin_client: TestClient, db_session: Session) -> None:
     """List users should include non-admin users."""
-    user = User(email="other@test.com", name="Other", is_admin=False, is_active=True)
+    user = User(email="other@test.com", name="Other",is_active=True)
     db_session.add(user)
     db_session.commit()
 
@@ -38,6 +38,7 @@ def test_create_user(admin_client: TestClient) -> None:
     assert data["email"] == "new@test.com"
     assert data["name"] == "New User"
     assert data["is_active"] is False  # Pending until first login
+    assert data["role"] is None
     assert data["is_admin"] is False
 
 
@@ -65,7 +66,7 @@ def test_create_user_invalid_email(admin_client: TestClient) -> None:
 
 def test_update_user(admin_client: TestClient, db_session: Session) -> None:
     """Update an existing user."""
-    user = User(email="update@test.com", name="Old Name", is_admin=False, is_active=True)
+    user = User(email="update@test.com", name="Old Name", is_active=True)
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
@@ -100,7 +101,7 @@ def test_self_edit_prevention(admin_client: TestClient, admin_user: User) -> Non
 
 def test_delete_user(admin_client: TestClient, db_session: Session) -> None:
     """Delete an existing user."""
-    user = User(email="delete@test.com", is_admin=False, is_active=True)
+    user = User(email="delete@test.com", is_active=True)
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
@@ -122,3 +123,42 @@ def test_delete_user_not_found(admin_client: TestClient) -> None:
     """Delete non-existent user should return 404."""
     response = admin_client.delete("/api/v1/admin/users/99999")
     assert response.status_code == 404
+
+
+def test_update_user_role(admin_client: TestClient, db_session: Session) -> None:
+    """Set a user's role to viewer."""
+    user = User(email="role@test.com", is_active=True)
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    response = admin_client.put(
+        f"/api/v1/admin/users/{user.id}",
+        json={"role": "viewer"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["role"] == "viewer"
+    assert data["is_admin"] is False
+
+    # Clear role by sending empty string
+    response = admin_client.put(
+        f"/api/v1/admin/users/{user.id}",
+        json={"role": ""},
+    )
+    assert response.status_code == 200
+    assert response.json()["role"] is None
+
+
+def test_update_user_invalid_role(admin_client: TestClient, db_session: Session) -> None:
+    """Invalid role value should return 422."""
+    user = User(email="badrole@test.com", is_active=True)
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    response = admin_client.put(
+        f"/api/v1/admin/users/{user.id}",
+        json={"role": "superadmin"},
+    )
+    assert response.status_code == 422

@@ -1,11 +1,12 @@
 from datetime import date
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from ..auth.session import get_admin_user
+from ..auth.session import get_admin_user, get_trips_viewer
 from ..database import get_db
-from ..models import PersonalEvent
+from ..models import PersonalEvent, User
 from .models import (
     EventCreateRequest,
     EventData,
@@ -13,7 +14,7 @@ from .models import (
     EventUpdateRequest,
 )
 
-router = APIRouter(dependencies=[Depends(get_admin_user)])
+router = APIRouter()
 
 EVENT_CATEGORIES: dict[str, str] = {
     "medical": "\U0001f3e5",
@@ -42,7 +43,10 @@ def _event_to_data(event: PersonalEvent) -> EventData:
 
 
 @router.get("/events")
-def list_events(db: Session = Depends(get_db)) -> EventsResponse:
+def list_events(
+    user: Annotated[User, Depends(get_trips_viewer)],
+    db: Session = Depends(get_db),
+) -> EventsResponse:
     events = db.query(PersonalEvent).order_by(PersonalEvent.event_date).all()
     return EventsResponse(
         events=[_event_to_data(e) for e in events],
@@ -52,7 +56,11 @@ def list_events(db: Session = Depends(get_db)) -> EventsResponse:
 
 
 @router.get("/events/{event_id}")
-def get_event(event_id: int, db: Session = Depends(get_db)) -> EventData:
+def get_event(
+    event_id: int,
+    user: Annotated[User, Depends(get_trips_viewer)],
+    db: Session = Depends(get_db),
+) -> EventData:
     event = db.get(PersonalEvent, event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -60,7 +68,11 @@ def get_event(event_id: int, db: Session = Depends(get_db)) -> EventData:
 
 
 @router.post("/events", status_code=201)
-def create_event(data: EventCreateRequest, db: Session = Depends(get_db)) -> EventData:
+def create_event(
+    data: EventCreateRequest,
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+) -> EventData:
     if data.category not in EVENT_CATEGORIES:
         raise HTTPException(
             status_code=422,
@@ -83,7 +95,10 @@ def create_event(data: EventCreateRequest, db: Session = Depends(get_db)) -> Eve
 
 @router.put("/events/{event_id}")
 def update_event(
-    event_id: int, data: EventUpdateRequest, db: Session = Depends(get_db)
+    event_id: int,
+    data: EventUpdateRequest,
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
 ) -> EventData:
     event = db.get(PersonalEvent, event_id)
     if not event:
@@ -113,7 +128,11 @@ def update_event(
 
 
 @router.delete("/events/{event_id}", status_code=204)
-def delete_event(event_id: int, db: Session = Depends(get_db)) -> None:
+def delete_event(
+    event_id: int,
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+) -> None:
     event = db.get(PersonalEvent, event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")

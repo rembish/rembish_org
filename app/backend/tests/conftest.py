@@ -27,7 +27,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from src.auth.session import get_admin_user
+from src.auth.session import get_admin_user, get_trips_viewer
 from src.database import Base, get_db
 from src.main import app
 from src.models import User
@@ -58,7 +58,7 @@ def admin_user(db_session: Session) -> User:
         email="admin@test.com",
         name="Test Admin",
         nickname="admin",
-        is_admin=True,
+        role="admin",
         is_active=True,
     )
     db_session.add(user)
@@ -92,6 +92,7 @@ def admin_client(db_session: Session, admin_user: User) -> Generator[TestClient,
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_admin_user] = override_get_admin_user
+    app.dependency_overrides[get_trips_viewer] = override_get_admin_user
     with TestClient(app, headers={"X-CSRF": "1"}) as c:
         yield c
     app.dependency_overrides.clear()

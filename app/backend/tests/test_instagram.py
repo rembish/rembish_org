@@ -25,7 +25,7 @@ def ig_admin(db_session: Session) -> User:
         email="igadmin@test.com",
         name="IG Admin",
         nickname="igadmin",
-        is_admin=True,
+        role="admin",
         is_active=True,
     )
     db_session.add(user)

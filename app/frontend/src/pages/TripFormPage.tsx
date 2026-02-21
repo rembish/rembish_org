@@ -20,6 +20,7 @@ import {
 } from "react-icons/bi";
 import Flag from "../components/Flag";
 import { useAuth } from "../hooks/useAuth";
+import { useViewAs } from "../hooks/useViewAs";
 import { apiFetch } from "../lib/api";
 
 interface TCCDestinationOption {
@@ -370,6 +371,7 @@ const emptyFormData: TripFormData = {
 
 export default function TripFormPage() {
   const { user, loading: authLoading } = useAuth();
+  const { viewAsUser } = useViewAs();
   const navigate = useNavigate();
   const location = useLocation();
   const { tripId } = useParams();
@@ -753,9 +755,16 @@ export default function TripFormPage() {
     navigate(`/admin/trips/${year}`);
   };
 
-  // Auth guard
+  const readOnly = user?.role === "viewer" || !!viewAsUser;
+
+  // Auth guard — require any role
   if (authLoading) return null;
-  if (!user?.is_admin) return <Navigate to="/" replace />;
+  if (!user?.role) return <Navigate to="/" replace />;
+
+  // Viewers cannot create new trips or access the edit tab
+  if (readOnly && !isEdit) return <Navigate to="/admin/trips" replace />;
+  if (readOnly && activeTab === "edit")
+    return <Navigate to={`/admin/trips/${tripId}/info`} replace />;
 
   if (loadingTrip) {
     return (
@@ -1169,27 +1178,29 @@ export default function TripFormPage() {
     return (
       <div className="trip-transport-tab">
         {/* Trip context for email search */}
-        <div className="transport-trip-context">
-          <span className="transport-dates">
-            {dateFrom}
-            {dateTo && ` – ${dateTo}`}
-          </span>
-          {tripDests.length > 0 && (
-            <span className="transport-destinations">
-              {tripDests.join(", ")}
+        {!readOnly && (
+          <div className="transport-trip-context">
+            <span className="transport-dates">
+              {dateFrom}
+              {dateTo && ` – ${dateTo}`}
             </span>
-          )}
-          {tripCitiesDisplay.length > 0 && (
-            <div className="transport-cities">
-              {tripCitiesDisplay.map((c, i) => (
-                <span key={i} className="transport-city">
-                  {c.country_code && <Flag code={c.country_code} size={14} />}
-                  {c.name}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+            {tripDests.length > 0 && (
+              <span className="transport-destinations">
+                {tripDests.join(", ")}
+              </span>
+            )}
+            {tripCitiesDisplay.length > 0 && (
+              <div className="transport-cities">
+                {tripCitiesDisplay.map((c, i) => (
+                  <span key={i} className="transport-city">
+                    {c.country_code && <Flag code={c.country_code} size={14} />}
+                    {c.name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Flight list */}
         <div className="form-section">
@@ -1286,395 +1297,403 @@ export default function TripFormPage() {
                       </div>
                     )}
                   </div>
-                  <button
-                    className="flight-delete-btn"
-                    onClick={() => handleDeleteFlight(f.id)}
-                    title="Delete flight"
-                  >
-                    <BiTrash />
-                  </button>
+                  {!readOnly && (
+                    <button
+                      className="flight-delete-btn"
+                      onClick={() => handleDeleteFlight(f.id)}
+                      title="Delete flight"
+                    >
+                      <BiTrash />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Add flight section */}
-        <div className="form-section">
-          <h3>Add Flight</h3>
+        {/* Add flight section (admin only) */}
+        {!readOnly && (
+          <div className="form-section">
+            <h3>Add Flight</h3>
 
-          {/* PDF/image upload for AI extraction */}
-          <div className="flight-extract-row">
-            <label className="btn-save flight-extract-btn">
-              {extracting ? "Extracting..." : "Upload ticket"}
-              <input
-                ref={extractInputRef}
-                type="file"
-                accept=".pdf,image/*"
-                style={{ display: "none" }}
-                disabled={extracting}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleExtractUpload(file);
-                }}
-              />
-            </label>
-            <span className="flight-extract-hint">
-              PDF or photo — AI extracts flight data
-            </span>
-          </div>
+            {/* PDF/image upload for AI extraction */}
+            <div className="flight-extract-row">
+              <label className="btn-save flight-extract-btn">
+                {extracting ? "Extracting..." : "Upload ticket"}
+                <input
+                  ref={extractInputRef}
+                  type="file"
+                  accept=".pdf,image/*"
+                  style={{ display: "none" }}
+                  disabled={extracting}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleExtractUpload(file);
+                  }}
+                />
+              </label>
+              <span className="flight-extract-hint">
+                PDF or photo — AI extracts flight data
+              </span>
+            </div>
 
-          {extractError && (
-            <p className="flight-lookup-error">{extractError}</p>
-          )}
+            {extractError && (
+              <p className="flight-lookup-error">{extractError}</p>
+            )}
 
-          {extractedFlights.length > 0 && (
-            <div className="flight-lookup-results">
-              {extractedFlights.map((ef, idx) => (
-                <label
-                  key={idx}
-                  className={`flight-lookup-leg${ef.is_duplicate ? " flight-extracted-duplicate" : ""}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedExtracted.has(idx)}
-                    disabled={ef.is_duplicate}
-                    onChange={() => {
-                      setSelectedExtracted((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(idx)) next.delete(idx);
-                        else next.add(idx);
-                        return next;
-                      });
-                    }}
-                  />
-                  <div className="flight-leg-info">
-                    <span className="flight-leg-route">
-                      <strong>{ef.departure_iata}</strong>
-                      {ef.departure_time && ` ${ef.departure_time}`}
-                      {" → "}
-                      <strong>{ef.arrival_iata}</strong>
-                      {ef.arrival_time && ` ${ef.arrival_time}`}
-                      {ef.arrival_date && (
-                        <span className="flight-next-day">+1</span>
-                      )}
-                      {ef.is_duplicate && (
-                        <span className="flight-extracted-dup-label">
-                          (already exists)
-                        </span>
-                      )}
-                    </span>
-                    <span className="flight-leg-details">
-                      {[
-                        ef.flight_number,
-                        ef.airline_name,
-                        ef.aircraft_type,
-                        ef.seat ? `Seat ${ef.seat}` : null,
-                        ef.booking_reference
-                          ? `PNR ${ef.booking_reference}`
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
-                    {ef.flight_date && (
-                      <span className="flight-leg-details">
-                        {ef.flight_date}
+            {extractedFlights.length > 0 && (
+              <div className="flight-lookup-results">
+                {extractedFlights.map((ef, idx) => (
+                  <label
+                    key={idx}
+                    className={`flight-lookup-leg${ef.is_duplicate ? " flight-extracted-duplicate" : ""}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedExtracted.has(idx)}
+                      disabled={ef.is_duplicate}
+                      onChange={() => {
+                        setSelectedExtracted((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(idx)) next.delete(idx);
+                          else next.add(idx);
+                          return next;
+                        });
+                      }}
+                    />
+                    <div className="flight-leg-info">
+                      <span className="flight-leg-route">
+                        <strong>{ef.departure_iata}</strong>
+                        {ef.departure_time && ` ${ef.departure_time}`}
+                        {" → "}
+                        <strong>{ef.arrival_iata}</strong>
+                        {ef.arrival_time && ` ${ef.arrival_time}`}
+                        {ef.arrival_date && (
+                          <span className="flight-next-day">+1</span>
+                        )}
+                        {ef.is_duplicate && (
+                          <span className="flight-extracted-dup-label">
+                            (already exists)
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </div>
-                </label>
-              ))}
-              <button
-                type="button"
-                className="btn-save"
-                onClick={handleAddExtractedFlights}
-                disabled={selectedExtracted.size === 0 || addingFlights}
-              >
-                {addingFlights
-                  ? "Adding..."
-                  : `Add selected (${selectedExtracted.size})`}
-              </button>
-            </div>
-          )}
-
-          {(() => {
-            const today = new Date();
-            const yearAgo = new Date(today);
-            yearAgo.setFullYear(yearAgo.getFullYear() - 1);
-            const weeksAhead = new Date(today);
-            weeksAhead.setDate(weeksAhead.getDate() + 42);
-            const tripStart = formData.start_date
-              ? new Date(formData.start_date)
-              : null;
-            const tripEnd = formData.end_date
-              ? new Date(formData.end_date)
-              : tripStart;
-            if (tripEnd && tripEnd < yearAgo) {
-              return (
-                <p className="flight-api-notice">
-                  This trip is older than 1 year — flight lookup is unavailable.
-                  Use manual entry below.
-                </p>
-              );
-            }
-            if (tripStart && tripStart > weeksAhead) {
-              return (
-                <p className="flight-api-notice">
-                  This trip is more than 6 weeks away — airline schedules may
-                  not be published yet. Lookup may return no results.
-                </p>
-              );
-            }
-            return null;
-          })()}
-          <div className="flight-lookup-row">
-            <div className="form-group">
-              <label>Flight Number</label>
-              <input
-                type="text"
-                value={lookupNumber}
-                onChange={(e) => setLookupNumber(e.target.value.toUpperCase())}
-                placeholder="TK1770"
-                className="flight-input"
-              />
-            </div>
-            <div className="form-group">
-              <label>Date</label>
-              <input
-                type="date"
-                value={lookupDate}
-                onChange={(e) => setLookupDate(e.target.value)}
-                min={formData.start_date || undefined}
-                max={formData.end_date || undefined}
-                className="flight-input"
-              />
-            </div>
-            <button
-              type="button"
-              className="btn-save flight-lookup-btn"
-              onClick={handleLookup}
-              disabled={lookupLoading || !lookupNumber || !lookupDate}
-            >
-              {lookupLoading ? "Looking up..." : "Lookup"}
-            </button>
-          </div>
-
-          {lookupError && <p className="flight-lookup-error">{lookupError}</p>}
-
-          {lookupLegs.length > 0 && (
-            <div className="flight-lookup-results">
-              {lookupLegs.map((leg, idx) => (
-                <label key={idx} className="flight-lookup-leg">
-                  <input
-                    type="checkbox"
-                    checked={selectedLegs.has(idx)}
-                    onChange={() => toggleLeg(idx)}
-                  />
-                  <div className="flight-leg-info">
-                    <span className="flight-leg-route">
-                      <strong>{leg.departure_iata}</strong>
-                      {leg.departure_name && (
-                        <span className="flight-leg-airport-name">
-                          {leg.departure_name}
+                      <span className="flight-leg-details">
+                        {[
+                          ef.flight_number,
+                          ef.airline_name,
+                          ef.aircraft_type,
+                          ef.seat ? `Seat ${ef.seat}` : null,
+                          ef.booking_reference
+                            ? `PNR ${ef.booking_reference}`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                      {ef.flight_date && (
+                        <span className="flight-leg-details">
+                          {ef.flight_date}
                         </span>
                       )}
-                      {leg.departure_time && ` ${leg.departure_time}`}
-                      {" → "}
-                      <strong>{leg.arrival_iata}</strong>
-                      {leg.arrival_name && (
-                        <span className="flight-leg-airport-name">
-                          {leg.arrival_name}
-                        </span>
-                      )}
-                      {leg.arrival_time && ` ${leg.arrival_time}`}
-                      {leg.arrival_date && (
-                        <span className="flight-next-day">+1</span>
-                      )}
-                    </span>
-                    <span className="flight-leg-details">
-                      {[
-                        leg.airline_name,
-                        leg.aircraft_type,
-                        leg.terminal ? `Terminal ${leg.terminal}` : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
-                  </div>
-                </label>
-              ))}
-              <button
-                type="button"
-                className="btn-save"
-                onClick={handleAddSelectedLegs}
-                disabled={selectedLegs.size === 0 || addingFlights}
-              >
-                {addingFlights
-                  ? "Adding..."
-                  : `Add selected (${selectedLegs.size})`}
-              </button>
-            </div>
-          )}
-
-          {!showManualForm && (
-            <button
-              type="button"
-              className="flight-manual-link"
-              onClick={() => setShowManualForm(true)}
-            >
-              Manual entry
-            </button>
-          )}
-
-          {showManualForm && (
-            <div className="flight-manual-form">
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Flight Number *</label>
-                  <input
-                    type="text"
-                    value={manualForm.flight_number}
-                    onChange={(e) =>
-                      setManualForm((prev) => ({
-                        ...prev,
-                        flight_number: e.target.value.toUpperCase(),
-                      }))
-                    }
-                    placeholder="TK1770"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Date</label>
-                  <input
-                    type="date"
-                    value={manualForm.flight_date || lookupDate}
-                    onChange={(e) =>
-                      setManualForm((prev) => ({
-                        ...prev,
-                        flight_date: e.target.value,
-                      }))
-                    }
-                    min={formData.start_date || undefined}
-                    max={formData.end_date || undefined}
-                  />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>From IATA *</label>
-                  <input
-                    type="text"
-                    value={manualForm.departure_iata}
-                    onChange={(e) =>
-                      setManualForm((prev) => ({
-                        ...prev,
-                        departure_iata: e.target.value.toUpperCase(),
-                      }))
-                    }
-                    placeholder="PRG"
-                    maxLength={3}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>To IATA *</label>
-                  <input
-                    type="text"
-                    value={manualForm.arrival_iata}
-                    onChange={(e) =>
-                      setManualForm((prev) => ({
-                        ...prev,
-                        arrival_iata: e.target.value.toUpperCase(),
-                      }))
-                    }
-                    placeholder="IST"
-                    maxLength={3}
-                  />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Departure Time</label>
-                  <input
-                    type="time"
-                    value={manualForm.departure_time}
-                    onChange={(e) =>
-                      setManualForm((prev) => ({
-                        ...prev,
-                        departure_time: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Arrival Time</label>
-                  <input
-                    type="time"
-                    value={manualForm.arrival_time}
-                    onChange={(e) =>
-                      setManualForm((prev) => ({
-                        ...prev,
-                        arrival_time: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Airline</label>
-                  <input
-                    type="text"
-                    value={manualForm.airline_name}
-                    onChange={(e) =>
-                      setManualForm((prev) => ({
-                        ...prev,
-                        airline_name: e.target.value,
-                      }))
-                    }
-                    placeholder="Turkish Airlines"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Aircraft</label>
-                  <input
-                    type="text"
-                    value={manualForm.aircraft_type}
-                    onChange={(e) =>
-                      setManualForm((prev) => ({
-                        ...prev,
-                        aircraft_type: e.target.value,
-                      }))
-                    }
-                    placeholder="Airbus A321"
-                  />
-                </div>
-              </div>
-              <div className="flight-manual-actions">
-                <button
-                  type="button"
-                  className="btn-cancel"
-                  onClick={() => setShowManualForm(false)}
-                >
-                  Cancel
-                </button>
+                    </div>
+                  </label>
+                ))}
                 <button
                   type="button"
                   className="btn-save"
-                  onClick={handleManualAdd}
-                  disabled={
-                    addingFlights ||
-                    !manualForm.flight_number ||
-                    !manualForm.departure_iata ||
-                    !manualForm.arrival_iata
-                  }
+                  onClick={handleAddExtractedFlights}
+                  disabled={selectedExtracted.size === 0 || addingFlights}
                 >
-                  {addingFlights ? "Adding..." : "Add Flight"}
+                  {addingFlights
+                    ? "Adding..."
+                    : `Add selected (${selectedExtracted.size})`}
                 </button>
               </div>
+            )}
+
+            {(() => {
+              const today = new Date();
+              const yearAgo = new Date(today);
+              yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+              const weeksAhead = new Date(today);
+              weeksAhead.setDate(weeksAhead.getDate() + 42);
+              const tripStart = formData.start_date
+                ? new Date(formData.start_date)
+                : null;
+              const tripEnd = formData.end_date
+                ? new Date(formData.end_date)
+                : tripStart;
+              if (tripEnd && tripEnd < yearAgo) {
+                return (
+                  <p className="flight-api-notice">
+                    This trip is older than 1 year — flight lookup is
+                    unavailable. Use manual entry below.
+                  </p>
+                );
+              }
+              if (tripStart && tripStart > weeksAhead) {
+                return (
+                  <p className="flight-api-notice">
+                    This trip is more than 6 weeks away — airline schedules may
+                    not be published yet. Lookup may return no results.
+                  </p>
+                );
+              }
+              return null;
+            })()}
+            <div className="flight-lookup-row">
+              <div className="form-group">
+                <label>Flight Number</label>
+                <input
+                  type="text"
+                  value={lookupNumber}
+                  onChange={(e) =>
+                    setLookupNumber(e.target.value.toUpperCase())
+                  }
+                  placeholder="TK1770"
+                  className="flight-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Date</label>
+                <input
+                  type="date"
+                  value={lookupDate}
+                  onChange={(e) => setLookupDate(e.target.value)}
+                  min={formData.start_date || undefined}
+                  max={formData.end_date || undefined}
+                  className="flight-input"
+                />
+              </div>
+              <button
+                type="button"
+                className="btn-save flight-lookup-btn"
+                onClick={handleLookup}
+                disabled={lookupLoading || !lookupNumber || !lookupDate}
+              >
+                {lookupLoading ? "Looking up..." : "Lookup"}
+              </button>
             </div>
-          )}
-        </div>
+
+            {lookupError && (
+              <p className="flight-lookup-error">{lookupError}</p>
+            )}
+
+            {lookupLegs.length > 0 && (
+              <div className="flight-lookup-results">
+                {lookupLegs.map((leg, idx) => (
+                  <label key={idx} className="flight-lookup-leg">
+                    <input
+                      type="checkbox"
+                      checked={selectedLegs.has(idx)}
+                      onChange={() => toggleLeg(idx)}
+                    />
+                    <div className="flight-leg-info">
+                      <span className="flight-leg-route">
+                        <strong>{leg.departure_iata}</strong>
+                        {leg.departure_name && (
+                          <span className="flight-leg-airport-name">
+                            {leg.departure_name}
+                          </span>
+                        )}
+                        {leg.departure_time && ` ${leg.departure_time}`}
+                        {" → "}
+                        <strong>{leg.arrival_iata}</strong>
+                        {leg.arrival_name && (
+                          <span className="flight-leg-airport-name">
+                            {leg.arrival_name}
+                          </span>
+                        )}
+                        {leg.arrival_time && ` ${leg.arrival_time}`}
+                        {leg.arrival_date && (
+                          <span className="flight-next-day">+1</span>
+                        )}
+                      </span>
+                      <span className="flight-leg-details">
+                        {[
+                          leg.airline_name,
+                          leg.aircraft_type,
+                          leg.terminal ? `Terminal ${leg.terminal}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    </div>
+                  </label>
+                ))}
+                <button
+                  type="button"
+                  className="btn-save"
+                  onClick={handleAddSelectedLegs}
+                  disabled={selectedLegs.size === 0 || addingFlights}
+                >
+                  {addingFlights
+                    ? "Adding..."
+                    : `Add selected (${selectedLegs.size})`}
+                </button>
+              </div>
+            )}
+
+            {!showManualForm && (
+              <button
+                type="button"
+                className="flight-manual-link"
+                onClick={() => setShowManualForm(true)}
+              >
+                Manual entry
+              </button>
+            )}
+
+            {showManualForm && (
+              <div className="flight-manual-form">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Flight Number *</label>
+                    <input
+                      type="text"
+                      value={manualForm.flight_number}
+                      onChange={(e) =>
+                        setManualForm((prev) => ({
+                          ...prev,
+                          flight_number: e.target.value.toUpperCase(),
+                        }))
+                      }
+                      placeholder="TK1770"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Date</label>
+                    <input
+                      type="date"
+                      value={manualForm.flight_date || lookupDate}
+                      onChange={(e) =>
+                        setManualForm((prev) => ({
+                          ...prev,
+                          flight_date: e.target.value,
+                        }))
+                      }
+                      min={formData.start_date || undefined}
+                      max={formData.end_date || undefined}
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>From IATA *</label>
+                    <input
+                      type="text"
+                      value={manualForm.departure_iata}
+                      onChange={(e) =>
+                        setManualForm((prev) => ({
+                          ...prev,
+                          departure_iata: e.target.value.toUpperCase(),
+                        }))
+                      }
+                      placeholder="PRG"
+                      maxLength={3}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>To IATA *</label>
+                    <input
+                      type="text"
+                      value={manualForm.arrival_iata}
+                      onChange={(e) =>
+                        setManualForm((prev) => ({
+                          ...prev,
+                          arrival_iata: e.target.value.toUpperCase(),
+                        }))
+                      }
+                      placeholder="IST"
+                      maxLength={3}
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Departure Time</label>
+                    <input
+                      type="time"
+                      value={manualForm.departure_time}
+                      onChange={(e) =>
+                        setManualForm((prev) => ({
+                          ...prev,
+                          departure_time: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Arrival Time</label>
+                    <input
+                      type="time"
+                      value={manualForm.arrival_time}
+                      onChange={(e) =>
+                        setManualForm((prev) => ({
+                          ...prev,
+                          arrival_time: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Airline</label>
+                    <input
+                      type="text"
+                      value={manualForm.airline_name}
+                      onChange={(e) =>
+                        setManualForm((prev) => ({
+                          ...prev,
+                          airline_name: e.target.value,
+                        }))
+                      }
+                      placeholder="Turkish Airlines"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Aircraft</label>
+                    <input
+                      type="text"
+                      value={manualForm.aircraft_type}
+                      onChange={(e) =>
+                        setManualForm((prev) => ({
+                          ...prev,
+                          aircraft_type: e.target.value,
+                        }))
+                      }
+                      placeholder="Airbus A321"
+                    />
+                  </div>
+                </div>
+                <div className="flight-manual-actions">
+                  <button
+                    type="button"
+                    className="btn-cancel"
+                    onClick={() => setShowManualForm(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-save"
+                    onClick={handleManualAdd}
+                    disabled={
+                      addingFlights ||
+                      !manualForm.flight_number ||
+                      !manualForm.departure_iata ||
+                      !manualForm.arrival_iata
+                    }
+                  >
+                    {addingFlights ? "Adding..." : "Add Flight"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -2122,14 +2141,16 @@ export default function TripFormPage() {
           >
             Info
           </button>
-          <button
-            className={`trip-form-tab ${activeTab === "edit" ? "active" : ""}`}
-            onClick={() =>
-              navigate(`/admin/trips/${tripId}/edit`, { replace: true })
-            }
-          >
-            Edit
-          </button>
+          {!readOnly && (
+            <button
+              className={`trip-form-tab ${activeTab === "edit" ? "active" : ""}`}
+              onClick={() =>
+                navigate(`/admin/trips/${tripId}/edit`, { replace: true })
+              }
+            >
+              Edit
+            </button>
+          )}
           <button
             className={`trip-form-tab ${activeTab === "transport" ? "active" : ""}`}
             onClick={() =>

@@ -173,6 +173,7 @@ def test_me_returns_user(db_session: Session, admin_user: User) -> None:
         assert res.status_code == 200
         data = res.json()
         assert data["email"] == "admin@test.com"
+        assert data["role"] == "admin"
         assert data["is_admin"] is True
     app.dependency_overrides.clear()
 

@@ -1,5 +1,6 @@
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { useViewAs } from "../hooks/useViewAs";
 import type {
   AdminTab,
   DocSection,
@@ -17,6 +18,7 @@ const validPeopleSections = new Set<string>(PEOPLE_SECTIONS.map((s) => s.key));
 
 export default function Admin() {
   const { user, loading: authLoading } = useAuth();
+  const { viewAsUser, setViewAsUser } = useViewAs();
   const navigate = useNavigate();
   const { tab, year } = useParams();
   const activeTab = (tab as AdminTab) || "trips";
@@ -72,9 +74,16 @@ export default function Admin() {
     navigate(`/admin/people/${section}`, { replace: true });
   };
 
-  // Redirect non-admin users
-  if (!authLoading && !user?.is_admin) {
+  const readOnly = user?.role === "viewer" || !!viewAsUser;
+
+  // Redirect users without any role
+  if (!authLoading && !user?.role) {
     return <Navigate to="/" replace />;
+  }
+
+  // Viewers can only see the Trips tab
+  if (readOnly && activeTab !== "trips" && !authLoading) {
+    return <Navigate to="/admin/trips" replace />;
   }
 
   // Remove year from URL for tabs that don't use it
@@ -107,6 +116,23 @@ export default function Admin() {
           <h1>Admin</h1>
         </div>
 
+        {viewAsUser && (
+          <div className="view-as-banner">
+            {viewAsUser.picture && (
+              <img src={viewAsUser.picture} alt="" className="view-as-avatar" />
+            )}
+            <span>
+              Viewing as <strong>{viewAsUser.name || "User"}</strong>
+            </span>
+            <button
+              className="view-as-exit"
+              onClick={() => setViewAsUser(null)}
+            >
+              Exit
+            </button>
+          </div>
+        )}
+
         <div className="admin-tabs">
           <button
             className={`admin-tab ${activeTab === "trips" ? "active" : ""}`}
@@ -114,30 +140,34 @@ export default function Admin() {
           >
             Trips
           </button>
-          <button
-            className={`admin-tab ${activeTab === "instagram" ? "active" : ""}`}
-            onClick={() => setActiveTab("instagram")}
-          >
-            Instagram
-          </button>
-          <button
-            className={`admin-tab ${activeTab === "people" ? "active" : ""}`}
-            onClick={() => setActiveTab("people")}
-          >
-            People
-          </button>
-          <button
-            className={`admin-tab ${activeTab === "documents" ? "active" : ""}`}
-            onClick={() => setActiveTab("documents")}
-          >
-            Documents
-          </button>
-          <button
-            className={`admin-tab ${activeTab === "loyalty" ? "active" : ""}`}
-            onClick={() => setActiveTab("loyalty")}
-          >
-            Loyalty
-          </button>
+          {!readOnly && (
+            <>
+              <button
+                className={`admin-tab ${activeTab === "instagram" ? "active" : ""}`}
+                onClick={() => setActiveTab("instagram")}
+              >
+                Instagram
+              </button>
+              <button
+                className={`admin-tab ${activeTab === "people" ? "active" : ""}`}
+                onClick={() => setActiveTab("people")}
+              >
+                People
+              </button>
+              <button
+                className={`admin-tab ${activeTab === "documents" ? "active" : ""}`}
+                onClick={() => setActiveTab("documents")}
+              >
+                Documents
+              </button>
+              <button
+                className={`admin-tab ${activeTab === "loyalty" ? "active" : ""}`}
+                onClick={() => setActiveTab("loyalty")}
+              >
+                Loyalty
+              </button>
+            </>
+          )}
         </div>
 
         <div className="admin-content">
@@ -145,6 +175,7 @@ export default function Admin() {
             <TripsTab
               selectedYear={selectedYear}
               onYearChange={setSelectedYear}
+              readOnly={readOnly}
             />
           )}
           {activeTab === "instagram" && (

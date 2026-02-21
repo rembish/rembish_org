@@ -24,6 +24,7 @@ export interface UserFormData {
   name: string;
   nickname: string;
   birthday: string;
+  role: string;
 }
 
 interface UserFormModalProps {
@@ -39,6 +40,7 @@ const emptyFormData: UserFormData = {
   name: "",
   nickname: "",
   birthday: "",
+  role: "",
 };
 
 export default function UserFormModal({
@@ -162,6 +164,20 @@ export default function UserFormModal({
               dropdownMode="select"
               isClearable
             />
+          </div>
+
+          <div className="form-group">
+            <label>Role</label>
+            <select
+              value={formData.role}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, role: e.target.value }))
+              }
+            >
+              <option value="">None</option>
+              <option value="admin">Admin</option>
+              <option value="viewer">Viewer</option>
+            </select>
           </div>
 
           <div className="modal-actions">

@@ -42,9 +42,11 @@ import {
 export default function TripsTab({
   selectedYear,
   onYearChange,
+  readOnly,
 }: {
   selectedYear: number | null;
   onYearChange: (year: number) => void;
+  readOnly?: boolean;
 }) {
   const navigate = useNavigate();
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -357,9 +359,9 @@ export default function TripsTab({
   ) => {
     if (trip) {
       handleEditTrip(trip);
-    } else if (event) {
+    } else if (event && !readOnly) {
       navigate(`/admin/events/${event.id}/edit`);
-    } else {
+    } else if (!readOnly) {
       navigate(`/admin/trips/new?date=${date}`);
     }
   };
@@ -420,56 +422,60 @@ export default function TripsTab({
           >
             {viewMode === "table" ? <BiCalendar /> : <BiTable />}
           </button>
-          <button
-            className="btn-add-trip"
-            onClick={handleAddTrip}
-            title="Add Trip"
-          >
-            <BiPlus /> <span className="btn-label">Add Trip</span>
-          </button>
-          <button
-            className="btn-add-event"
-            onClick={() => navigate("/admin/events/new")}
-            title="Add Event"
-          >
-            <BiPlus /> <span className="btn-label">Add Event</span>
-          </button>
-          <div className="ics-feed-wrapper">
-            <button
-              className="view-toggle-btn"
-              onClick={() => setFeedOpen((v) => !v)}
-              title="ICS Calendar Feed"
-            >
-              <BiLink />
-            </button>
-            {feedOpen && (
-              <div className="ics-feed-popup">
-                {feedUrl ? (
-                  <>
-                    <div className="ics-feed-url">
-                      <input type="text" value={feedUrl} readOnly />
-                      <button onClick={handleCopyFeedUrl} title="Copy URL">
-                        {feedCopied ? <BiCheck /> : <BiCopy />}
+          {!readOnly && (
+            <>
+              <button
+                className="btn-add-trip"
+                onClick={handleAddTrip}
+                title="Add Trip"
+              >
+                <BiPlus /> <span className="btn-label">Add Trip</span>
+              </button>
+              <button
+                className="btn-add-event"
+                onClick={() => navigate("/admin/events/new")}
+                title="Add Event"
+              >
+                <BiPlus /> <span className="btn-label">Add Event</span>
+              </button>
+              <div className="ics-feed-wrapper">
+                <button
+                  className="view-toggle-btn"
+                  onClick={() => setFeedOpen((v) => !v)}
+                  title="ICS Calendar Feed"
+                >
+                  <BiLink />
+                </button>
+                {feedOpen && (
+                  <div className="ics-feed-popup">
+                    {feedUrl ? (
+                      <>
+                        <div className="ics-feed-url">
+                          <input type="text" value={feedUrl} readOnly />
+                          <button onClick={handleCopyFeedUrl} title="Copy URL">
+                            {feedCopied ? <BiCheck /> : <BiCopy />}
+                          </button>
+                        </div>
+                        <button
+                          className="ics-feed-regen"
+                          onClick={handleRegenerateToken}
+                        >
+                          <BiRefresh /> Regenerate
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="ics-feed-regen"
+                        onClick={handleRegenerateToken}
+                      >
+                        <BiRefresh /> Generate Feed URL
                       </button>
-                    </div>
-                    <button
-                      className="ics-feed-regen"
-                      onClick={handleRegenerateToken}
-                    >
-                      <BiRefresh /> Regenerate
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    className="ics-feed-regen"
-                    onClick={handleRegenerateToken}
-                  >
-                    <BiRefresh /> Generate Feed URL
-                  </button>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
         <div className="trips-stats">
           <span className="stat-trips">
@@ -697,17 +703,19 @@ export default function TripsTab({
                     <button
                       className="trip-action-btn"
                       onClick={() => handleEditTrip(trip)}
-                      title="Edit trip"
+                      title={readOnly ? "View trip" : "Edit trip"}
                     >
                       <BiPencil />
                     </button>
-                    <button
-                      className="trip-action-btn delete"
-                      onClick={() => handleDeleteTrip(trip.id)}
-                      title="Delete trip"
-                    >
-                      <BiTrash />
-                    </button>
+                    {!readOnly && (
+                      <button
+                        className="trip-action-btn delete"
+                        onClick={() => handleDeleteTrip(trip.id)}
+                        title="Delete trip"
+                      >
+                        <BiTrash />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

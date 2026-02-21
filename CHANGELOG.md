@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.33.0 (2026-02-21)
+
+### Read-Only Viewer Access
+- New "viewer" role for sharing trip data with family — read-only access to trips, calendar, events, and transport
+- Viewers see only the Trips tab with all mutation buttons hidden (no add, edit, or delete)
+- Trip detail pages show Info and Transport tabs in read-only mode
+- Admin user management now has a role dropdown (Admin / Viewer / None) instead of a simple toggle
+
+### "View As" Preview
+- Admins can preview exactly what a viewer sees by clicking the eye icon on a viewer user's card
+- A banner at the top shows whose view is being simulated, with an Exit button to return to admin mode
+
 ## 0.32.1 (2026-02-21)
 
 ### Bug Fixes

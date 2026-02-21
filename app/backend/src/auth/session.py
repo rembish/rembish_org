@@ -70,6 +70,18 @@ def get_admin_user(
     return user
 
 
+def get_trips_viewer(
+    user: Annotated[User, Depends(get_current_user)],
+) -> User:
+    """Allow admin or viewer. 403 otherwise."""
+    if user.role not in ("admin", "viewer"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
+        )
+    return user
+
+
 def create_vault_token(user_id: int) -> str:
     """Create a signed vault session token."""
     return serializer.dumps({"user_id": user_id, "vault": True})
@@ -92,6 +104,17 @@ def is_vault_unlocked(
 ) -> bool:
     """Check if vault is currently unlocked (non-throwing)."""
     if not vault_auth:
+        return False
+    data = verify_vault_token(vault_auth)
+    return bool(data and data.get("user_id") == user.id)
+
+
+def is_vault_unlocked_for_viewer(
+    user: Annotated[User, Depends(get_trips_viewer)],
+    vault_auth: Annotated[str | None, Cookie(alias=VAULT_COOKIE_NAME)] = None,
+) -> bool:
+    """Vault check for viewer-accessible endpoints. Viewers always get False."""
+    if not user.is_admin or not vault_auth:
         return False
     data = verify_vault_token(vault_auth)
     return bool(data and data.get("user_id") == user.id)
