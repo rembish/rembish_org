@@ -212,6 +212,9 @@ class Trip(Base):
     car_rentals: Mapped[list["CarRental"]] = relationship(
         back_populates="trip", cascade="all, delete-orphan"
     )
+    transport_bookings: Mapped[list["TransportBooking"]] = relationship(
+        back_populates="trip", cascade="all, delete-orphan"
+    )
     travel_docs: Mapped[list["TripTravelDoc"]] = relationship(
         back_populates="trip", cascade="all, delete-orphan"
     )
@@ -404,6 +407,39 @@ class CarRental(Base):
 
     def __repr__(self) -> str:
         return f"<CarRental #{self.id}: {self.rental_company}>"
+
+
+class TransportBooking(Base):
+    """Transport booking (train, bus, ferry) linked to a trip."""
+
+    __tablename__ = "transport_bookings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    trip_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    type: Mapped[str] = mapped_column(String(10), nullable=False)
+    operator: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    service_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    departure_station: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    arrival_station: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    departure_datetime: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    arrival_datetime: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    carriage: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    seat: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    booking_reference_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    booking_reference_masked: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    document_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    document_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    document_mime_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    document_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Relationships
+    trip: Mapped[Trip] = relationship(back_populates="transport_bookings")
+
+    def __repr__(self) -> str:
+        return f"<TransportBooking #{self.id}: {self.type} {self.operator}>"
 
 
 # Import to complete relationships

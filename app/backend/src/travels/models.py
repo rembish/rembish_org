@@ -562,3 +562,62 @@ class FlightStatsResponse(BaseModel):
     top_routes: list[RankedItem]
     aircraft_types: list[RankedItem]
     flights_by_year: list[YearFlightCount]
+
+
+# Transport booking models (train, bus, ferry)
+class TransportBookingData(BaseModel):
+    id: int
+    trip_id: int
+    type: str
+    operator: str | None
+    service_number: str | None
+    departure_station: str | None
+    arrival_station: str | None
+    departure_datetime: str | None
+    arrival_datetime: str | None
+    carriage: str | None
+    seat: str | None
+    booking_reference: str | None
+    has_document: bool
+    document_name: str | None
+    document_mime_type: str | None
+    document_size: int | None
+    notes: str | None
+
+
+class TransportBookingCreateRequest(BaseModel):
+    type: str
+    operator: str | None = None
+    service_number: str | None = None
+    departure_station: str | None = None
+    arrival_station: str | None = None
+    departure_datetime: str | None = None
+    arrival_datetime: str | None = None
+    carriage: str | None = None
+    seat: str | None = None
+    booking_reference: str | None = None
+    notes: str | None = None
+
+
+class ExtractedTransportBookingResponse(BaseModel):
+    type: str | None = None
+    operator: str | None = None
+    service_number: str | None = None
+    departure_station: str | None = None
+    arrival_station: str | None = None
+    departure_datetime: str | None = None
+    arrival_datetime: str | None = None
+    carriage: str | None = None
+    seat: str | None = None
+    booking_reference: str | None = None
+    notes: str | None = None
+    is_duplicate: bool = False
+
+
+class TransportBookingExtractResponse(BaseModel):
+    booking: ExtractedTransportBookingResponse | None = None
+    error: str | None = None
+
+
+class TransportBookingsResponse(BaseModel):
+    transport_bookings: list[TransportBookingData]

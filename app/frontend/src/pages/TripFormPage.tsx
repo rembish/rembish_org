@@ -19,6 +19,11 @@ import {
   BiCopy,
   BiCar,
   BiPencil,
+  BiTrain,
+  BiBus,
+  BiWater,
+  BiFile,
+  BiCloudUpload,
 } from "react-icons/bi";
 import Flag from "../components/Flag";
 import { useAuth } from "../hooks/useAuth";
@@ -278,6 +283,56 @@ interface ExtractedCarRentalData {
   is_duplicate: boolean;
 }
 
+interface TransportBookingItem {
+  id: number;
+  trip_id: number;
+  type: string;
+  operator: string | null;
+  service_number: string | null;
+  departure_station: string | null;
+  arrival_station: string | null;
+  departure_datetime: string | null;
+  arrival_datetime: string | null;
+  carriage: string | null;
+  seat: string | null;
+  booking_reference: string | null;
+  has_document: boolean;
+  document_name: string | null;
+  document_mime_type: string | null;
+  document_size: number | null;
+  notes: string | null;
+}
+
+interface ExtractedTransportBookingData {
+  type: string | null;
+  operator: string | null;
+  service_number: string | null;
+  departure_station: string | null;
+  arrival_station: string | null;
+  departure_datetime: string | null;
+  arrival_datetime: string | null;
+  carriage: string | null;
+  seat: string | null;
+  booking_reference: string | null;
+  notes: string | null;
+  is_duplicate: boolean;
+}
+
+const TRANSPORT_TYPE_ICONS: Record<
+  string,
+  React.ComponentType<{ size?: number }>
+> = {
+  train: BiTrain,
+  bus: BiBus,
+  ferry: BiWater,
+};
+
+const TRANSPORT_TYPE_LABELS: Record<string, string> = {
+  train: "Train",
+  bus: "Bus",
+  ferry: "Ferry",
+};
+
 function formatRentalDatetime(dt: string): string {
   // Input: "YYYY-MM-DD HH:MM" or "YYYY-MM-DDTHH:MM"
   const normalized = dt.replace("T", " ");
@@ -504,7 +559,7 @@ export default function TripFormPage() {
   const [lookupLegs, setLookupLegs] = useState<FlightLookupLeg[]>([]);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [selectedLegs, setSelectedLegs] = useState<Set<number>>(new Set());
-  const [showManualForm, setShowManualForm] = useState(false);
+  const [showFlightModal, setShowFlightModal] = useState(false);
   const [manualForm, setManualForm] = useState({
     flight_number: "",
     flight_date: "",
@@ -553,6 +608,40 @@ export default function TripFormPage() {
     confirmation_number: "",
     notes: "",
   });
+  // Transport booking state
+  const [transportBookings, setTransportBookings] = useState<
+    TransportBookingItem[]
+  >([]);
+  const [showTransportModal, setShowTransportModal] = useState(false);
+  const [editingTransportId, setEditingTransportId] = useState<number | null>(
+    null,
+  );
+  const [transportForm, setTransportForm] = useState({
+    type: "train",
+    operator: "",
+    service_number: "",
+    departure_station: "",
+    arrival_station: "",
+    departure_datetime: "",
+    arrival_datetime: "",
+    carriage: "",
+    seat: "",
+    booking_reference: "",
+    notes: "",
+  });
+  const [addingTransport, setAddingTransport] = useState(false);
+  const [extractedTransport, setExtractedTransport] =
+    useState<ExtractedTransportBookingData | null>(null);
+  const [extractingTransport, setExtractingTransport] = useState(false);
+  const [extractTransportError, setExtractTransportError] = useState<
+    string | null
+  >(null);
+  const transportExtractInputRef = useRef<HTMLInputElement>(null);
+  const transportDocInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingTransportDoc, setUploadingTransportDoc] = useState<
+    number | null
+  >(null);
+
   const [tripCitiesDisplay, setTripCitiesDisplay] = useState<
     { name: string; country_code: string | null }[]
   >([]);
@@ -676,10 +765,14 @@ export default function TripFormPage() {
       apiFetch(`/api/v1/travels/trips/${tripId}/car-rentals`).then((r) =>
         r.json(),
       ),
+      apiFetch(`/api/v1/travels/trips/${tripId}/transport-bookings`).then((r) =>
+        r.json(),
+      ),
     ])
-      .then(([flightsData, rentalsData]) => {
+      .then(([flightsData, rentalsData, transportData]) => {
         setFlights(flightsData.flights || []);
         setCarRentals(rentalsData.car_rentals || []);
+        setTransportBookings(transportData.transport_bookings || []);
       })
       .catch((err) => console.error("Failed to load transport data:", err))
       .finally(() => setLoadingFlights(false));
@@ -1058,7 +1151,6 @@ export default function TripFormPage() {
       const res = await apiFetch(`/api/v1/travels/flights/lookup?${params}`);
       if (res.status === 501) {
         setLookupError("Flight lookup not configured. Use manual entry.");
-        setShowManualForm(true);
         return;
       }
       if (!res.ok) throw new Error("Lookup failed");
@@ -1106,6 +1198,7 @@ export default function TripFormPage() {
       setLookupLegs([]);
       setSelectedLegs(new Set());
       setLookupNumber("");
+      setShowFlightModal(false);
     } catch (err) {
       console.error("Failed to add flights:", err);
     } finally {
@@ -1179,6 +1272,7 @@ export default function TripFormPage() {
       setFlights(data.flights || []);
       setExtractedFlights([]);
       setSelectedExtracted(new Set());
+      setShowFlightModal(false);
     } catch (err) {
       console.error("Failed to add extracted flights:", err);
     } finally {
@@ -1225,7 +1319,7 @@ export default function TripFormPage() {
         airline_name: "",
         aircraft_type: "",
       });
-      setShowManualForm(false);
+      setShowFlightModal(false);
     } catch (err) {
       console.error("Failed to add flight:", err);
     } finally {
@@ -1243,6 +1337,28 @@ export default function TripFormPage() {
     } catch (err) {
       console.error("Failed to delete flight:", err);
     }
+  };
+
+  const closeFlightModal = () => {
+    setShowFlightModal(false);
+    setExtractedFlights([]);
+    setSelectedExtracted(new Set());
+    setLookupLegs([]);
+    setSelectedLegs(new Set());
+    setLookupError(null);
+    setExtractError(null);
+    setLookupNumber("");
+    setLookupDate("");
+    setManualForm({
+      flight_number: "",
+      flight_date: "",
+      departure_iata: "",
+      arrival_iata: "",
+      departure_time: "",
+      arrival_time: "",
+      airline_name: "",
+      aircraft_type: "",
+    });
   };
 
   const toggleLeg = (idx: number) => {
@@ -1280,38 +1396,6 @@ export default function TripFormPage() {
       setExtractingRental(false);
       if (rentalExtractInputRef.current)
         rentalExtractInputRef.current.value = "";
-    }
-  };
-
-  const handleAddExtractedRental = async () => {
-    if (!extractedRental || !extractedRental.rental_company) return;
-    setAddingRental(true);
-    try {
-      await apiFetch(`/api/v1/travels/trips/${tripId}/car-rentals`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rental_company: extractedRental.rental_company,
-          car_class: extractedRental.car_class,
-          transmission: extractedRental.transmission,
-          pickup_location: extractedRental.pickup_location,
-          dropoff_location: extractedRental.dropoff_location,
-          pickup_datetime: extractedRental.pickup_datetime,
-          dropoff_datetime: extractedRental.dropoff_datetime,
-          is_paid: extractedRental.is_paid,
-          total_amount: extractedRental.total_amount,
-          confirmation_number: extractedRental.confirmation_number,
-          notes: extractedRental.notes,
-        }),
-      });
-      const res = await apiFetch(`/api/v1/travels/trips/${tripId}/car-rentals`);
-      const data = await res.json();
-      setCarRentals(data.car_rentals || []);
-      setExtractedRental(null);
-    } catch (err) {
-      console.error("Failed to add rental:", err);
-    } finally {
-      setAddingRental(false);
     }
   };
 
@@ -1365,6 +1449,8 @@ export default function TripFormPage() {
       setCarRentals(data.car_rentals || []);
       resetManualRentalForm();
       setShowManualRentalForm(false);
+      setExtractedRental(null);
+      setExtractRentalError(null);
     } catch (err) {
       console.error("Failed to add rental:", err);
     } finally {
@@ -1444,6 +1530,214 @@ export default function TripFormPage() {
     }
   };
 
+  // Transport booking handlers
+  const resetTransportForm = () => {
+    setTransportForm({
+      type: "train",
+      operator: "",
+      service_number: "",
+      departure_station: "",
+      arrival_station: "",
+      departure_datetime: "",
+      arrival_datetime: "",
+      carriage: "",
+      seat: "",
+      booking_reference: "",
+      notes: "",
+    });
+  };
+
+  const handleTransportExtractUpload = async (file: File) => {
+    setExtractingTransport(true);
+    setExtractTransportError(null);
+    setExtractedTransport(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await apiFetch(
+        `/api/v1/travels/trips/${tripId}/transport-bookings/extract`,
+        { method: "POST", body: form },
+      );
+      const data = await res.json();
+      if (data.error) {
+        setExtractTransportError(data.error);
+        return;
+      }
+      if (data.booking) {
+        setExtractedTransport(data.booking);
+      }
+    } catch {
+      setExtractTransportError("Upload failed. Try again.");
+    } finally {
+      setExtractingTransport(false);
+      if (transportExtractInputRef.current)
+        transportExtractInputRef.current.value = "";
+    }
+  };
+
+  const handleManualTransportAdd = async () => {
+    if (!transportForm.type) return;
+    setAddingTransport(true);
+    try {
+      const res = await apiFetch(
+        `/api/v1/travels/trips/${tripId}/transport-bookings`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: transportForm.type,
+            operator: transportForm.operator || null,
+            service_number: transportForm.service_number || null,
+            departure_station: transportForm.departure_station || null,
+            arrival_station: transportForm.arrival_station || null,
+            departure_datetime: transportForm.departure_datetime || null,
+            arrival_datetime: transportForm.arrival_datetime || null,
+            carriage: transportForm.carriage || null,
+            seat: transportForm.seat || null,
+            booking_reference: transportForm.booking_reference || null,
+            notes: transportForm.notes || null,
+          }),
+        },
+      );
+      if (!res.ok) throw new Error("Failed to add transport booking");
+      const listRes = await apiFetch(
+        `/api/v1/travels/trips/${tripId}/transport-bookings`,
+      );
+      const data = await listRes.json();
+      setTransportBookings(data.transport_bookings || []);
+      resetTransportForm();
+      setShowTransportModal(false);
+      setExtractedTransport(null);
+      setExtractTransportError(null);
+    } catch (err) {
+      console.error("Failed to add transport booking:", err);
+    } finally {
+      setAddingTransport(false);
+    }
+  };
+
+  const handleEditTransport = (booking: TransportBookingItem) => {
+    setEditingTransportId(booking.id);
+    setTransportForm({
+      type: booking.type,
+      operator: booking.operator || "",
+      service_number: booking.service_number || "",
+      departure_station: booking.departure_station || "",
+      arrival_station: booking.arrival_station || "",
+      departure_datetime: booking.departure_datetime || "",
+      arrival_datetime: booking.arrival_datetime || "",
+      carriage: booking.carriage || "",
+      seat: booking.seat || "",
+      booking_reference: "",
+      notes: booking.notes || "",
+    });
+    setShowTransportModal(true);
+  };
+
+  const handleUpdateTransport = async () => {
+    if (!editingTransportId || !transportForm.type) return;
+    setAddingTransport(true);
+    try {
+      const res = await apiFetch(
+        `/api/v1/travels/transport-bookings/${editingTransportId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: transportForm.type,
+            operator: transportForm.operator || null,
+            service_number: transportForm.service_number || null,
+            departure_station: transportForm.departure_station || null,
+            arrival_station: transportForm.arrival_station || null,
+            departure_datetime: transportForm.departure_datetime || null,
+            arrival_datetime: transportForm.arrival_datetime || null,
+            carriage: transportForm.carriage || null,
+            seat: transportForm.seat || null,
+            booking_reference: transportForm.booking_reference || null,
+            notes: transportForm.notes || null,
+          }),
+        },
+      );
+      if (!res.ok) throw new Error("Failed to update transport booking");
+      const listRes = await apiFetch(
+        `/api/v1/travels/trips/${tripId}/transport-bookings`,
+      );
+      const data = await listRes.json();
+      setTransportBookings(data.transport_bookings || []);
+      resetTransportForm();
+      setShowTransportModal(false);
+      setEditingTransportId(null);
+    } catch (err) {
+      console.error("Failed to update transport booking:", err);
+    } finally {
+      setAddingTransport(false);
+    }
+  };
+
+  const handleDeleteTransport = async (bookingId: number) => {
+    if (!confirm("Delete this transport booking?")) return;
+    try {
+      await apiFetch(`/api/v1/travels/transport-bookings/${bookingId}`, {
+        method: "DELETE",
+      });
+      setTransportBookings((prev) => prev.filter((b) => b.id !== bookingId));
+    } catch (err) {
+      console.error("Failed to delete transport booking:", err);
+    }
+  };
+
+  const handleTransportDocUpload = async (bookingId: number, file: File) => {
+    setUploadingTransportDoc(bookingId);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await apiFetch(
+        `/api/v1/travels/transport-bookings/${bookingId}/document`,
+        { method: "POST", body: form },
+      );
+      if (!res.ok) throw new Error("Upload failed");
+      const listRes = await apiFetch(
+        `/api/v1/travels/trips/${tripId}/transport-bookings`,
+      );
+      const data = await listRes.json();
+      setTransportBookings(data.transport_bookings || []);
+    } catch (err) {
+      console.error("Failed to upload document:", err);
+    } finally {
+      setUploadingTransportDoc(null);
+      if (transportDocInputRef.current) transportDocInputRef.current.value = "";
+    }
+  };
+
+  const handleViewTransportDoc = async (bookingId: number) => {
+    try {
+      const res = await apiFetch(
+        `/api/v1/travels/transport-bookings/${bookingId}/document`,
+      );
+      const data = await res.json();
+      if (data.url) window.open(data.url, "_blank");
+    } catch (err) {
+      console.error("Failed to get document URL:", err);
+    }
+  };
+
+  const handleDeleteTransportDoc = async (bookingId: number) => {
+    if (!confirm("Delete the attached document?")) return;
+    try {
+      await apiFetch(
+        `/api/v1/travels/transport-bookings/${bookingId}/document`,
+        { method: "DELETE" },
+      );
+      const listRes = await apiFetch(
+        `/api/v1/travels/trips/${tripId}/transport-bookings`,
+      );
+      const data = await listRes.json();
+      setTransportBookings(data.transport_bookings || []);
+    } catch (err) {
+      console.error("Failed to delete document:", err);
+    }
+  };
+
   const renderTransportTab = () => {
     if (loadingFlights) {
       return (
@@ -1499,7 +1793,18 @@ export default function TripFormPage() {
 
         {/* Flight list */}
         <div className="form-section">
-          <h3>Flights ({flights.length})</h3>
+          <h3 className="section-header-with-action">
+            Flights ({flights.length})
+            {!readOnly && (
+              <button
+                type="button"
+                className="btn-add-inline"
+                onClick={() => setShowFlightModal(true)}
+              >
+                + Add
+              </button>
+            )}
+          </h3>
           {flights.length === 0 ? (
             <p className="flight-empty">No flights added yet.</p>
           ) : (
@@ -1607,404 +1912,434 @@ export default function TripFormPage() {
           )}
         </div>
 
-        {/* Add flight section (admin only) */}
-        {!readOnly && (
-          <div className="form-section">
-            <h3>Add Flight</h3>
-
-            {/* PDF/image upload for AI extraction */}
-            <div className="flight-extract-row">
-              <label className="btn-save flight-extract-btn">
-                {extracting ? "Extracting..." : "Upload ticket"}
-                <input
-                  ref={extractInputRef}
-                  type="file"
-                  accept=".pdf,image/*"
-                  style={{ display: "none" }}
-                  disabled={extracting}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleExtractUpload(file);
-                  }}
-                />
-              </label>
-              <span className="flight-extract-hint">
-                PDF or photo — AI extracts flight data
-              </span>
-            </div>
-
-            {extractError && (
-              <p className="flight-lookup-error">{extractError}</p>
-            )}
-
-            {extractedFlights.length > 0 && (
-              <div className="flight-lookup-results">
-                {extractedFlights.map((ef, idx) => (
-                  <label
-                    key={idx}
-                    className={`flight-lookup-leg${ef.is_duplicate ? " flight-extracted-duplicate" : ""}`}
-                  >
+        {/* Flight Modal */}
+        {showFlightModal && (
+          <div className="modal-overlay" onClick={closeFlightModal}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Add Flight</h2>
+                <button className="btn-icon" onClick={closeFlightModal}>
+                  <BiX size={20} />
+                </button>
+              </div>
+              <div style={{ padding: "1.25rem" }}>
+                {/* Extraction section */}
+                <div className="flight-extract-row">
+                  <label className="btn-save flight-extract-btn">
+                    {extracting ? "Extracting..." : "Upload ticket"}
                     <input
-                      type="checkbox"
-                      checked={selectedExtracted.has(idx)}
-                      disabled={ef.is_duplicate}
-                      onChange={() => {
-                        setSelectedExtracted((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(idx)) next.delete(idx);
-                          else next.add(idx);
-                          return next;
-                        });
+                      ref={extractInputRef}
+                      type="file"
+                      accept=".pdf,image/*"
+                      style={{ display: "none" }}
+                      disabled={extracting}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleExtractUpload(file);
                       }}
                     />
-                    <div className="flight-leg-info">
-                      <span className="flight-leg-route">
-                        <strong>{ef.departure_iata}</strong>
-                        {ef.departure_time && ` ${ef.departure_time}`}
-                        {" → "}
-                        <strong>{ef.arrival_iata}</strong>
-                        {ef.arrival_time && ` ${ef.arrival_time}`}
-                        {ef.arrival_date && (
-                          <span className="flight-next-day">+1</span>
-                        )}
-                        {ef.is_duplicate && (
-                          <span className="flight-extracted-dup-label">
-                            (already exists)
-                          </span>
-                        )}
-                      </span>
-                      <span className="flight-leg-details">
-                        {[
-                          ef.flight_number,
-                          ef.airline_name,
-                          ef.aircraft_type,
-                          ef.seat ? `Seat ${ef.seat}` : null,
-                          ef.booking_reference
-                            ? `PNR ${ef.booking_reference}`
-                            : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                      {ef.flight_date && (
-                        <span className="flight-leg-details">
-                          {ef.flight_date}
-                        </span>
-                      )}
-                    </div>
                   </label>
-                ))}
-                <button
-                  type="button"
-                  className="btn-save"
-                  onClick={handleAddExtractedFlights}
-                  disabled={selectedExtracted.size === 0 || addingFlights}
-                >
-                  {addingFlights
-                    ? "Adding..."
-                    : `Add selected (${selectedExtracted.size})`}
-                </button>
-              </div>
-            )}
+                  <span className="flight-extract-hint">
+                    PDF or photo — AI extracts flight data
+                  </span>
+                </div>
 
-            {(() => {
-              const today = new Date();
-              const yearAgo = new Date(today);
-              yearAgo.setFullYear(yearAgo.getFullYear() - 1);
-              const weeksAhead = new Date(today);
-              weeksAhead.setDate(weeksAhead.getDate() + 42);
-              const tripStart = formData.start_date
-                ? new Date(formData.start_date)
-                : null;
-              const tripEnd = formData.end_date
-                ? new Date(formData.end_date)
-                : tripStart;
-              if (tripEnd && tripEnd < yearAgo) {
-                return (
-                  <p className="flight-api-notice">
-                    This trip is older than 1 year — flight lookup is
-                    unavailable. Use manual entry below.
-                  </p>
-                );
-              }
-              if (tripStart && tripStart > weeksAhead) {
-                return (
-                  <p className="flight-api-notice">
-                    This trip is more than 6 weeks away — airline schedules may
-                    not be published yet. Lookup may return no results.
-                  </p>
-                );
-              }
-              return null;
-            })()}
-            <div className="flight-lookup-row">
-              <div className="form-group">
-                <label>Flight Number</label>
-                <input
-                  type="text"
-                  value={lookupNumber}
-                  onChange={(e) =>
-                    setLookupNumber(e.target.value.toUpperCase())
+                {extractError && (
+                  <p className="flight-lookup-error">{extractError}</p>
+                )}
+
+                {extractedFlights.length > 0 && (
+                  <div className="flight-lookup-results">
+                    {extractedFlights.map((ef, idx) => (
+                      <label
+                        key={idx}
+                        className={`flight-lookup-leg${ef.is_duplicate ? " flight-extracted-duplicate" : ""}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedExtracted.has(idx)}
+                          disabled={ef.is_duplicate}
+                          onChange={() => {
+                            setSelectedExtracted((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(idx)) next.delete(idx);
+                              else next.add(idx);
+                              return next;
+                            });
+                          }}
+                        />
+                        <div className="flight-leg-info">
+                          <span className="flight-leg-route">
+                            <strong>{ef.departure_iata}</strong>
+                            {ef.departure_time && ` ${ef.departure_time}`}
+                            {" → "}
+                            <strong>{ef.arrival_iata}</strong>
+                            {ef.arrival_time && ` ${ef.arrival_time}`}
+                            {ef.arrival_date && (
+                              <span className="flight-next-day">+1</span>
+                            )}
+                            {ef.is_duplicate && (
+                              <span className="flight-extracted-dup-label">
+                                (already exists)
+                              </span>
+                            )}
+                          </span>
+                          <span className="flight-leg-details">
+                            {[
+                              ef.flight_number,
+                              ef.airline_name,
+                              ef.aircraft_type,
+                              ef.seat ? `Seat ${ef.seat}` : null,
+                              ef.booking_reference
+                                ? `PNR ${ef.booking_reference}`
+                                : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                          {ef.flight_date && (
+                            <span className="flight-leg-details">
+                              {ef.flight_date}
+                            </span>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                    <button
+                      type="button"
+                      className="btn-save"
+                      onClick={handleAddExtractedFlights}
+                      disabled={selectedExtracted.size === 0 || addingFlights}
+                    >
+                      {addingFlights
+                        ? "Adding..."
+                        : `Add selected (${selectedExtracted.size})`}
+                    </button>
+                  </div>
+                )}
+
+                {/* Divider */}
+                <div className="modal-section-divider">
+                  or lookup by flight number
+                </div>
+
+                {/* Date range notice */}
+                {(() => {
+                  const today = new Date();
+                  const yearAgo = new Date(today);
+                  yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+                  const weeksAhead = new Date(today);
+                  weeksAhead.setDate(weeksAhead.getDate() + 42);
+                  const tripStart = formData.start_date
+                    ? new Date(formData.start_date)
+                    : null;
+                  const tripEnd = formData.end_date
+                    ? new Date(formData.end_date)
+                    : tripStart;
+                  if (tripEnd && tripEnd < yearAgo) {
+                    return (
+                      <p className="flight-api-notice">
+                        This trip is older than 1 year — flight lookup is
+                        unavailable. Use manual entry below.
+                      </p>
+                    );
                   }
-                  placeholder="TK1770"
-                  className="flight-input"
-                />
-              </div>
-              <div className="form-group">
-                <label>Date</label>
-                <input
-                  type="date"
-                  value={lookupDate}
-                  onChange={(e) => setLookupDate(e.target.value)}
-                  min={formData.start_date || undefined}
-                  max={formData.end_date || undefined}
-                  className="flight-input"
-                />
-              </div>
-              <button
-                type="button"
-                className="btn-save flight-lookup-btn"
-                onClick={handleLookup}
-                disabled={lookupLoading || !lookupNumber || !lookupDate}
-              >
-                {lookupLoading ? "Looking up..." : "Lookup"}
-              </button>
-            </div>
+                  if (tripStart && tripStart > weeksAhead) {
+                    return (
+                      <p className="flight-api-notice">
+                        This trip is more than 6 weeks away — airline schedules
+                        may not be published yet. Lookup may return no results.
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
 
-            {lookupError && (
-              <p className="flight-lookup-error">{lookupError}</p>
-            )}
-
-            {lookupLegs.length > 0 && (
-              <div className="flight-lookup-results">
-                {lookupLegs.map((leg, idx) => (
-                  <label key={idx} className="flight-lookup-leg">
-                    <input
-                      type="checkbox"
-                      checked={selectedLegs.has(idx)}
-                      onChange={() => toggleLeg(idx)}
-                    />
-                    <div className="flight-leg-info">
-                      <span className="flight-leg-route">
-                        <strong>{leg.departure_iata}</strong>
-                        {leg.departure_name && (
-                          <span className="flight-leg-airport-name">
-                            {leg.departure_name}
-                          </span>
-                        )}
-                        {leg.departure_time && ` ${leg.departure_time}`}
-                        {" → "}
-                        <strong>{leg.arrival_iata}</strong>
-                        {leg.arrival_name && (
-                          <span className="flight-leg-airport-name">
-                            {leg.arrival_name}
-                          </span>
-                        )}
-                        {leg.arrival_time && ` ${leg.arrival_time}`}
-                        {leg.arrival_date && (
-                          <span className="flight-next-day">+1</span>
-                        )}
-                      </span>
-                      <span className="flight-leg-details">
-                        {[
-                          leg.airline_name,
-                          leg.aircraft_type,
-                          leg.terminal ? `Terminal ${leg.terminal}` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                    </div>
-                  </label>
-                ))}
-                <button
-                  type="button"
-                  className="btn-save"
-                  onClick={handleAddSelectedLegs}
-                  disabled={selectedLegs.size === 0 || addingFlights}
-                >
-                  {addingFlights
-                    ? "Adding..."
-                    : `Add selected (${selectedLegs.size})`}
-                </button>
-              </div>
-            )}
-
-            {!showManualForm && (
-              <button
-                type="button"
-                className="flight-manual-link"
-                onClick={() => setShowManualForm(true)}
-              >
-                Manual entry
-              </button>
-            )}
-
-            {showManualForm && (
-              <div className="flight-manual-form">
-                <div className="form-row">
+                {/* AeroDataBox lookup */}
+                <div className="flight-lookup-row">
                   <div className="form-group">
-                    <label>Flight Number *</label>
+                    <label>Flight Number</label>
                     <input
                       type="text"
-                      value={manualForm.flight_number}
+                      value={lookupNumber}
                       onChange={(e) =>
-                        setManualForm((prev) => ({
-                          ...prev,
-                          flight_number: e.target.value.toUpperCase(),
-                        }))
+                        setLookupNumber(e.target.value.toUpperCase())
                       }
                       placeholder="TK1770"
+                      className="flight-input"
                     />
                   </div>
                   <div className="form-group">
                     <label>Date</label>
                     <input
                       type="date"
-                      value={manualForm.flight_date || lookupDate}
-                      onChange={(e) =>
-                        setManualForm((prev) => ({
-                          ...prev,
-                          flight_date: e.target.value,
-                        }))
-                      }
+                      value={lookupDate}
+                      onChange={(e) => setLookupDate(e.target.value)}
                       min={formData.start_date || undefined}
                       max={formData.end_date || undefined}
+                      className="flight-input"
                     />
                   </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>From IATA *</label>
-                    <input
-                      type="text"
-                      value={manualForm.departure_iata}
-                      onChange={(e) =>
-                        setManualForm((prev) => ({
-                          ...prev,
-                          departure_iata: e.target.value.toUpperCase(),
-                        }))
-                      }
-                      placeholder="PRG"
-                      maxLength={3}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>To IATA *</label>
-                    <input
-                      type="text"
-                      value={manualForm.arrival_iata}
-                      onChange={(e) =>
-                        setManualForm((prev) => ({
-                          ...prev,
-                          arrival_iata: e.target.value.toUpperCase(),
-                        }))
-                      }
-                      placeholder="IST"
-                      maxLength={3}
-                    />
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Departure Time</label>
-                    <input
-                      type="time"
-                      value={manualForm.departure_time}
-                      onChange={(e) =>
-                        setManualForm((prev) => ({
-                          ...prev,
-                          departure_time: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Arrival Time</label>
-                    <input
-                      type="time"
-                      value={manualForm.arrival_time}
-                      onChange={(e) =>
-                        setManualForm((prev) => ({
-                          ...prev,
-                          arrival_time: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Airline</label>
-                    <input
-                      type="text"
-                      value={manualForm.airline_name}
-                      onChange={(e) =>
-                        setManualForm((prev) => ({
-                          ...prev,
-                          airline_name: e.target.value,
-                        }))
-                      }
-                      placeholder="Turkish Airlines"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Aircraft</label>
-                    <input
-                      type="text"
-                      value={manualForm.aircraft_type}
-                      onChange={(e) =>
-                        setManualForm((prev) => ({
-                          ...prev,
-                          aircraft_type: e.target.value,
-                        }))
-                      }
-                      placeholder="Airbus A321"
-                    />
-                  </div>
-                </div>
-                <div className="flight-manual-actions">
                   <button
                     type="button"
-                    className="btn-cancel"
-                    onClick={() => setShowManualForm(false)}
+                    className="btn-save flight-lookup-btn"
+                    onClick={handleLookup}
+                    disabled={lookupLoading || !lookupNumber || !lookupDate}
                   >
-                    Cancel
+                    {lookupLoading ? "Looking up..." : "Lookup"}
                   </button>
-                  <button
-                    type="button"
-                    className="btn-save"
-                    onClick={handleManualAdd}
-                    disabled={
-                      addingFlights ||
-                      !manualForm.flight_number ||
-                      !manualForm.departure_iata ||
-                      !manualForm.arrival_iata
-                    }
-                  >
-                    {addingFlights ? "Adding..." : "Add Flight"}
-                  </button>
+                </div>
+
+                {lookupError && (
+                  <p className="flight-lookup-error">{lookupError}</p>
+                )}
+
+                {lookupLegs.length > 0 && (
+                  <div className="flight-lookup-results">
+                    {lookupLegs.map((leg, idx) => (
+                      <label key={idx} className="flight-lookup-leg">
+                        <input
+                          type="checkbox"
+                          checked={selectedLegs.has(idx)}
+                          onChange={() => toggleLeg(idx)}
+                        />
+                        <div className="flight-leg-info">
+                          <span className="flight-leg-route">
+                            <strong>{leg.departure_iata}</strong>
+                            {leg.departure_name && (
+                              <span className="flight-leg-airport-name">
+                                {leg.departure_name}
+                              </span>
+                            )}
+                            {leg.departure_time && ` ${leg.departure_time}`}
+                            {" → "}
+                            <strong>{leg.arrival_iata}</strong>
+                            {leg.arrival_name && (
+                              <span className="flight-leg-airport-name">
+                                {leg.arrival_name}
+                              </span>
+                            )}
+                            {leg.arrival_time && ` ${leg.arrival_time}`}
+                            {leg.arrival_date && (
+                              <span className="flight-next-day">+1</span>
+                            )}
+                          </span>
+                          <span className="flight-leg-details">
+                            {[
+                              leg.airline_name,
+                              leg.aircraft_type,
+                              leg.terminal ? `Terminal ${leg.terminal}` : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                        </div>
+                      </label>
+                    ))}
+                    <button
+                      type="button"
+                      className="btn-save"
+                      onClick={handleAddSelectedLegs}
+                      disabled={selectedLegs.size === 0 || addingFlights}
+                    >
+                      {addingFlights
+                        ? "Adding..."
+                        : `Add selected (${selectedLegs.size})`}
+                    </button>
+                  </div>
+                )}
+
+                {/* Divider */}
+                <div className="modal-section-divider">or enter manually</div>
+
+                {/* Manual form */}
+                <div className="flight-manual-form">
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Flight Number *</label>
+                      <input
+                        type="text"
+                        value={manualForm.flight_number}
+                        onChange={(e) =>
+                          setManualForm((prev) => ({
+                            ...prev,
+                            flight_number: e.target.value.toUpperCase(),
+                          }))
+                        }
+                        placeholder="TK1770"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Date</label>
+                      <input
+                        type="date"
+                        value={manualForm.flight_date || lookupDate}
+                        onChange={(e) =>
+                          setManualForm((prev) => ({
+                            ...prev,
+                            flight_date: e.target.value,
+                          }))
+                        }
+                        min={formData.start_date || undefined}
+                        max={formData.end_date || undefined}
+                      />
+                    </div>
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>From IATA *</label>
+                      <input
+                        type="text"
+                        value={manualForm.departure_iata}
+                        onChange={(e) =>
+                          setManualForm((prev) => ({
+                            ...prev,
+                            departure_iata: e.target.value.toUpperCase(),
+                          }))
+                        }
+                        placeholder="PRG"
+                        maxLength={3}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>To IATA *</label>
+                      <input
+                        type="text"
+                        value={manualForm.arrival_iata}
+                        onChange={(e) =>
+                          setManualForm((prev) => ({
+                            ...prev,
+                            arrival_iata: e.target.value.toUpperCase(),
+                          }))
+                        }
+                        placeholder="IST"
+                        maxLength={3}
+                      />
+                    </div>
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Departure Time</label>
+                      <input
+                        type="time"
+                        value={manualForm.departure_time}
+                        onChange={(e) =>
+                          setManualForm((prev) => ({
+                            ...prev,
+                            departure_time: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Arrival Time</label>
+                      <input
+                        type="time"
+                        value={manualForm.arrival_time}
+                        onChange={(e) =>
+                          setManualForm((prev) => ({
+                            ...prev,
+                            arrival_time: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Airline</label>
+                      <input
+                        type="text"
+                        value={manualForm.airline_name}
+                        onChange={(e) =>
+                          setManualForm((prev) => ({
+                            ...prev,
+                            airline_name: e.target.value,
+                          }))
+                        }
+                        placeholder="Turkish Airlines"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Aircraft</label>
+                      <input
+                        type="text"
+                        value={manualForm.aircraft_type}
+                        onChange={(e) =>
+                          setManualForm((prev) => ({
+                            ...prev,
+                            aircraft_type: e.target.value,
+                          }))
+                        }
+                        placeholder="Airbus A321"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-cancel"
+                  onClick={closeFlightModal}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-save"
+                  onClick={
+                    selectedExtracted.size > 0
+                      ? handleAddExtractedFlights
+                      : selectedLegs.size > 0
+                        ? handleAddSelectedLegs
+                        : handleManualAdd
+                  }
+                  disabled={
+                    addingFlights ||
+                    (selectedExtracted.size === 0 &&
+                      selectedLegs.size === 0 &&
+                      (!manualForm.flight_number ||
+                        !manualForm.departure_iata ||
+                        !manualForm.arrival_iata))
+                  }
+                >
+                  {addingFlights
+                    ? "Adding..."
+                    : selectedExtracted.size > 0
+                      ? `Add ${selectedExtracted.size} extracted`
+                      : selectedLegs.size > 0
+                        ? `Add ${selectedLegs.size} looked up`
+                        : "Add Flight"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
         {/* Car Rentals section */}
         <div className="form-section">
-          <h3>
-            <BiCar style={{ verticalAlign: "middle", marginRight: 6 }} />
-            Car Rentals ({carRentals.length})
+          <h3 className="section-header-with-action">
+            <span>
+              <BiCar style={{ verticalAlign: "middle", marginRight: 6 }} />
+              Car Rentals ({carRentals.length})
+            </span>
+            {!readOnly && (
+              <button
+                type="button"
+                className="btn-add-inline"
+                onClick={() => {
+                  setEditingRentalId(null);
+                  resetManualRentalForm();
+                  setExtractedRental(null);
+                  setExtractRentalError(null);
+                  setShowManualRentalForm(true);
+                }}
+              >
+                + Add
+              </button>
+            )}
           </h3>
-          {carRentals.length > 0 && (
-            <p className="flight-empty" style={{ marginBottom: "0.5rem" }}>
-              Remember to update{" "}
-              <a href="/travels" style={{ color: "var(--color-primary)" }}>
-                driving flags
-              </a>{" "}
-              for countries on this trip.
-            </p>
-          )}
           {carRentals.length === 0 ? (
             <p className="flight-empty">No car rentals added yet.</p>
           ) : (
@@ -2131,97 +2466,145 @@ export default function TripFormPage() {
               ))}
             </div>
           )}
+          {carRentals.length > 0 && (
+            <p className="transport-hint-box">
+              Remember to update <a href="/travels">driving flags</a> for
+              countries on this trip.
+            </p>
+          )}
         </div>
 
-        {/* Add car rental section (admin only) */}
-        {!readOnly && (
-          <div className="form-section">
-            <h3>Add Car Rental</h3>
-
-            {/* PDF upload for AI extraction */}
-            <div className="flight-extract-row">
-              <label className="btn-save flight-extract-btn">
-                {extractingRental ? "Extracting..." : "Upload reservation PDF"}
-                <input
-                  ref={rentalExtractInputRef}
-                  type="file"
-                  accept=".pdf,image/*"
-                  style={{ display: "none" }}
-                  disabled={extractingRental}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleRentalExtractUpload(file);
-                  }}
-                />
-              </label>
-              <span className="flight-extract-hint">
-                PDF or photo — AI extracts rental details
-              </span>
-            </div>
-
-            {extractRentalError && (
-              <p className="flight-lookup-error">{extractRentalError}</p>
-            )}
-
-            {extractedRental && (
-              <div className="flight-lookup-results">
-                <div
-                  className={`flight-lookup-leg${extractedRental.is_duplicate ? " flight-extracted-duplicate" : ""}`}
-                >
-                  <div className="flight-leg-info">
-                    <span className="flight-leg-route">
-                      <strong>{extractedRental.rental_company}</strong>
-                      {extractedRental.car_class &&
-                        ` — ${extractedRental.car_class}`}
-                      {extractedRental.is_duplicate && (
-                        <span className="flight-extracted-dup-label">
-                          (already exists)
-                        </span>
-                      )}
-                    </span>
-                    <span className="flight-leg-details">
-                      {[
-                        extractedRental.pickup_location,
-                        extractedRental.pickup_datetime,
-                        extractedRental.transmission,
-                        extractedRental.total_amount,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
-                  </div>
-                </div>
+        {/* Car Rental Modal */}
+        {showManualRentalForm && (
+          <div
+            className="modal-overlay"
+            onClick={() => {
+              setShowManualRentalForm(false);
+              setEditingRentalId(null);
+              resetManualRentalForm();
+              setExtractedRental(null);
+              setExtractRentalError(null);
+            }}
+          >
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>
+                  {editingRentalId ? "Edit Car Rental" : "Add Car Rental"}
+                </h2>
                 <button
-                  type="button"
-                  className="btn-save"
-                  onClick={handleAddExtractedRental}
-                  disabled={
-                    extractedRental.is_duplicate ||
-                    !extractedRental.rental_company ||
-                    addingRental
-                  }
+                  className="btn-icon"
+                  onClick={() => {
+                    setShowManualRentalForm(false);
+                    setEditingRentalId(null);
+                    resetManualRentalForm();
+                    setExtractedRental(null);
+                    setExtractRentalError(null);
+                  }}
                 >
-                  {addingRental ? "Adding..." : "Add rental"}
+                  <BiX size={20} />
                 </button>
               </div>
-            )}
+              <div style={{ padding: "1.25rem" }}>
+                {/* Extraction section (add mode only) */}
+                {!editingRentalId && (
+                  <>
+                    <div className="flight-extract-row">
+                      <label className="btn-save flight-extract-btn">
+                        {extractingRental
+                          ? "Extracting..."
+                          : "Upload reservation PDF"}
+                        <input
+                          ref={rentalExtractInputRef}
+                          type="file"
+                          accept=".pdf,image/*"
+                          style={{ display: "none" }}
+                          disabled={extractingRental}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleRentalExtractUpload(file);
+                          }}
+                        />
+                      </label>
+                      <span className="flight-extract-hint">
+                        PDF or photo — AI extracts rental details
+                      </span>
+                    </div>
 
-            {!showManualRentalForm && (
-              <button
-                type="button"
-                className="flight-manual-link"
-                onClick={() => {
-                  setEditingRentalId(null);
-                  resetManualRentalForm();
-                  setShowManualRentalForm(true);
-                }}
-              >
-                Manual entry
-              </button>
-            )}
+                    {extractRentalError && (
+                      <p className="flight-lookup-error">
+                        {extractRentalError}
+                      </p>
+                    )}
 
-            {showManualRentalForm && (
-              <div className="flight-manual-form">
+                    {extractedRental && (
+                      <div className="flight-lookup-results">
+                        <div
+                          className={`flight-lookup-leg${extractedRental.is_duplicate ? " flight-extracted-duplicate" : ""}`}
+                        >
+                          <div className="flight-leg-info">
+                            <span className="flight-leg-route">
+                              <strong>{extractedRental.rental_company}</strong>
+                              {extractedRental.car_class &&
+                                ` — ${extractedRental.car_class}`}
+                              {extractedRental.is_duplicate && (
+                                <span className="flight-extracted-dup-label">
+                                  (already exists)
+                                </span>
+                              )}
+                            </span>
+                            <span className="flight-leg-details">
+                              {[
+                                extractedRental.pickup_location,
+                                extractedRental.pickup_datetime,
+                                extractedRental.transmission,
+                                extractedRental.total_amount,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn-save"
+                          onClick={() => {
+                            setManualRentalForm({
+                              rental_company:
+                                extractedRental.rental_company || "",
+                              car_class: extractedRental.car_class || "",
+                              actual_car: "",
+                              transmission: extractedRental.transmission || "",
+                              pickup_location:
+                                extractedRental.pickup_location || "",
+                              dropoff_location:
+                                extractedRental.dropoff_location || "",
+                              pickup_datetime:
+                                extractedRental.pickup_datetime || "",
+                              dropoff_datetime:
+                                extractedRental.dropoff_datetime || "",
+                              is_paid: extractedRental.is_paid || false,
+                              total_amount: extractedRental.total_amount || "",
+                              confirmation_number:
+                                extractedRental.confirmation_number || "",
+                              notes: extractedRental.notes || "",
+                            });
+                          }}
+                          disabled={
+                            extractedRental.is_duplicate ||
+                            !extractedRental.rental_company
+                          }
+                        >
+                          Use extracted data
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="modal-section-divider">
+                      or enter manually
+                    </div>
+                  </>
+                )}
+
                 <div className="form-row">
                   <div className="form-group">
                     <label>Rental Company *</label>
@@ -2407,37 +2790,568 @@ export default function TripFormPage() {
                     rows={2}
                   />
                 </div>
-                <div className="flight-manual-actions">
-                  <button
-                    type="button"
-                    className="btn-cancel"
-                    onClick={() => {
-                      setShowManualRentalForm(false);
-                      setEditingRentalId(null);
-                      resetManualRentalForm();
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-save"
-                    onClick={
-                      editingRentalId
-                        ? handleUpdateRental
-                        : handleManualRentalAdd
+              </div>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-cancel"
+                  onClick={() => {
+                    setShowManualRentalForm(false);
+                    setEditingRentalId(null);
+                    resetManualRentalForm();
+                    setExtractedRental(null);
+                    setExtractRentalError(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-save"
+                  onClick={
+                    editingRentalId ? handleUpdateRental : handleManualRentalAdd
+                  }
+                  disabled={addingRental || !manualRentalForm.rental_company}
+                >
+                  {addingRental
+                    ? "Saving..."
+                    : editingRentalId
+                      ? "Update Rental"
+                      : "Add Rental"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Transport Bookings section */}
+        <div className="form-section">
+          <h3 className="section-header-with-action">
+            <span>
+              <BiTrain style={{ verticalAlign: "middle", marginRight: 6 }} />
+              Trains, Buses & Ferries ({transportBookings.length})
+            </span>
+            {!readOnly && (
+              <button
+                type="button"
+                className="btn-add-inline"
+                onClick={() => {
+                  setEditingTransportId(null);
+                  resetTransportForm();
+                  setExtractedTransport(null);
+                  setExtractTransportError(null);
+                  setShowTransportModal(true);
+                }}
+              >
+                + Add
+              </button>
+            )}
+          </h3>
+          {transportBookings.length === 0 ? (
+            <p className="flight-empty">No transport bookings added yet.</p>
+          ) : (
+            <div className="transport-booking-list">
+              {transportBookings.map((b) => {
+                const TypeIcon = TRANSPORT_TYPE_ICONS[b.type] || BiTrain;
+                return (
+                  <div key={b.id} className="transport-booking-card">
+                    <div className="transport-booking-main">
+                      <div className="transport-booking-header">
+                        <span
+                          className="transport-booking-type-icon"
+                          title={TRANSPORT_TYPE_LABELS[b.type] || b.type}
+                        >
+                          <TypeIcon size={18} />
+                        </span>
+                        {b.operator && (
+                          <span className="transport-booking-operator">
+                            {b.operator}
+                          </span>
+                        )}
+                        {b.service_number && (
+                          <span className="transport-booking-number">
+                            {b.service_number}
+                          </span>
+                        )}
+                      </div>
+                      {(b.departure_station ||
+                        b.arrival_station ||
+                        b.departure_datetime ||
+                        b.arrival_datetime) && (
+                        <div className="transport-booking-route">
+                          {(b.departure_station || b.departure_datetime) && (
+                            <div className="transport-booking-route-row">
+                              <span className="transport-booking-route-label">
+                                From
+                              </span>
+                              {b.departure_station && (
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.departure_station)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="transport-booking-station-link"
+                                >
+                                  {b.departure_station}
+                                </a>
+                              )}
+                              {b.departure_datetime && (
+                                <span className="transport-booking-datetime">
+                                  {formatRentalDatetime(b.departure_datetime)}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {(b.arrival_station || b.arrival_datetime) && (
+                            <div className="transport-booking-route-row">
+                              <span className="transport-booking-route-label">
+                                To
+                              </span>
+                              {b.arrival_station && (
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.arrival_station)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="transport-booking-station-link"
+                                >
+                                  {b.arrival_station}
+                                </a>
+                              )}
+                              {b.arrival_datetime && (
+                                <span className="transport-booking-datetime">
+                                  {formatRentalDatetime(b.arrival_datetime)}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div className="transport-booking-details">
+                        {b.carriage && (
+                          <span className="flight-badge">Car {b.carriage}</span>
+                        )}
+                        {b.seat && (
+                          <span className="flight-badge">Seat {b.seat}</span>
+                        )}
+                        {b.booking_reference && vaultUnlocked && (
+                          <span className="flight-badge">
+                            {b.booking_reference}
+                            <button
+                              className="btn-icon-inline"
+                              title="Copy"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(
+                                  b.booking_reference!,
+                                );
+                              }}
+                            >
+                              <BiCopy />
+                            </button>
+                          </span>
+                        )}
+                        {b.notes && (
+                          <span className="flight-badge">{b.notes}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="transport-booking-actions">
+                      {b.has_document && (
+                        <button
+                          className="transport-booking-doc-btn"
+                          onClick={() => handleViewTransportDoc(b.id)}
+                          title={`View ${b.document_name || "document"}`}
+                        >
+                          <BiFile size={16} />
+                        </button>
+                      )}
+                      {!readOnly && (
+                        <>
+                          <label
+                            className="transport-booking-doc-btn"
+                            title="Attach document"
+                            style={{ cursor: "pointer" }}
+                          >
+                            <BiCloudUpload size={16} />
+                            <input
+                              type="file"
+                              accept=".pdf,image/*"
+                              style={{ display: "none" }}
+                              disabled={uploadingTransportDoc === b.id}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleTransportDocUpload(b.id, file);
+                              }}
+                            />
+                          </label>
+                          {b.has_document && (
+                            <button
+                              className="transport-booking-doc-btn"
+                              onClick={() => handleDeleteTransportDoc(b.id)}
+                              title="Remove document"
+                            >
+                              <BiX size={16} />
+                            </button>
+                          )}
+                          <button
+                            className="flight-delete-btn"
+                            onClick={() => handleEditTransport(b)}
+                            title="Edit booking"
+                          >
+                            <BiPencil />
+                          </button>
+                          <button
+                            className="flight-delete-btn"
+                            onClick={() => handleDeleteTransport(b.id)}
+                            title="Delete booking"
+                          >
+                            <BiTrash />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Transport Booking Modal */}
+        {showTransportModal && (
+          <div
+            className="modal-overlay"
+            onClick={() => {
+              setShowTransportModal(false);
+              setEditingTransportId(null);
+              resetTransportForm();
+              setExtractedTransport(null);
+              setExtractTransportError(null);
+            }}
+          >
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>
+                  {editingTransportId
+                    ? "Edit Transport Booking"
+                    : "Add Transport Booking"}
+                </h2>
+                <button
+                  className="btn-icon"
+                  onClick={() => {
+                    setShowTransportModal(false);
+                    setEditingTransportId(null);
+                    resetTransportForm();
+                    setExtractedTransport(null);
+                    setExtractTransportError(null);
+                  }}
+                >
+                  <BiX size={20} />
+                </button>
+              </div>
+              <div style={{ padding: "1.25rem" }}>
+                {/* Extraction section (add mode only) */}
+                {!editingTransportId && (
+                  <>
+                    <div className="flight-extract-row">
+                      <label className="btn-save flight-extract-btn">
+                        {extractingTransport
+                          ? "Extracting..."
+                          : "Upload ticket PDF"}
+                        <input
+                          ref={transportExtractInputRef}
+                          type="file"
+                          accept=".pdf,image/*"
+                          style={{ display: "none" }}
+                          disabled={extractingTransport}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleTransportExtractUpload(file);
+                          }}
+                        />
+                      </label>
+                      <span className="flight-extract-hint">
+                        PDF or photo — AI extracts booking details
+                      </span>
+                    </div>
+
+                    {extractTransportError && (
+                      <p className="flight-lookup-error">
+                        {extractTransportError}
+                      </p>
+                    )}
+
+                    {extractedTransport && (
+                      <div className="flight-lookup-results">
+                        <div
+                          className={`flight-lookup-leg${extractedTransport.is_duplicate ? " flight-extracted-duplicate" : ""}`}
+                        >
+                          <div className="flight-leg-info">
+                            <span className="flight-leg-route">
+                              <strong>
+                                {TRANSPORT_TYPE_LABELS[
+                                  extractedTransport.type || ""
+                                ] || extractedTransport.type}
+                              </strong>
+                              {extractedTransport.operator &&
+                                ` — ${extractedTransport.operator}`}
+                              {extractedTransport.service_number &&
+                                ` ${extractedTransport.service_number}`}
+                              {extractedTransport.is_duplicate && (
+                                <span className="flight-extracted-dup-label">
+                                  (already exists)
+                                </span>
+                              )}
+                            </span>
+                            <span className="flight-leg-details">
+                              {[
+                                extractedTransport.departure_station,
+                                extractedTransport.departure_datetime,
+                                extractedTransport.arrival_station,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn-save"
+                          onClick={() => {
+                            setTransportForm({
+                              type: extractedTransport.type || "train",
+                              operator: extractedTransport.operator || "",
+                              service_number:
+                                extractedTransport.service_number || "",
+                              departure_station:
+                                extractedTransport.departure_station || "",
+                              arrival_station:
+                                extractedTransport.arrival_station || "",
+                              departure_datetime:
+                                extractedTransport.departure_datetime || "",
+                              arrival_datetime:
+                                extractedTransport.arrival_datetime || "",
+                              carriage: extractedTransport.carriage || "",
+                              seat: extractedTransport.seat || "",
+                              booking_reference:
+                                extractedTransport.booking_reference || "",
+                              notes: extractedTransport.notes || "",
+                            });
+                          }}
+                          disabled={
+                            extractedTransport.is_duplicate ||
+                            !extractedTransport.type
+                          }
+                        >
+                          Use extracted data
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="modal-section-divider">
+                      or enter manually
+                    </div>
+                  </>
+                )}
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Type *</label>
+                    <select
+                      value={transportForm.type}
+                      onChange={(e) =>
+                        setTransportForm((prev) => ({
+                          ...prev,
+                          type: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="train">Train</option>
+                      <option value="bus">Bus</option>
+                      <option value="ferry">Ferry</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Operator</label>
+                    <input
+                      type="text"
+                      value={transportForm.operator}
+                      onChange={(e) =>
+                        setTransportForm((prev) => ({
+                          ...prev,
+                          operator: e.target.value,
+                        }))
+                      }
+                      placeholder="České dráhy"
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Service Number</label>
+                  <input
+                    type="text"
+                    value={transportForm.service_number}
+                    onChange={(e) =>
+                      setTransportForm((prev) => ({
+                        ...prev,
+                        service_number: e.target.value,
+                      }))
                     }
-                    disabled={addingRental || !manualRentalForm.rental_company}
-                  >
-                    {addingRental
-                      ? "Saving..."
-                      : editingRentalId
-                        ? "Update Rental"
-                        : "Add Rental"}
-                  </button>
+                    placeholder="EC 171"
+                  />
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Departure Station</label>
+                    <input
+                      type="text"
+                      value={transportForm.departure_station}
+                      onChange={(e) =>
+                        setTransportForm((prev) => ({
+                          ...prev,
+                          departure_station: e.target.value,
+                        }))
+                      }
+                      placeholder="Praha hlavní nádraží"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Arrival Station</label>
+                    <input
+                      type="text"
+                      value={transportForm.arrival_station}
+                      onChange={(e) =>
+                        setTransportForm((prev) => ({
+                          ...prev,
+                          arrival_station: e.target.value,
+                        }))
+                      }
+                      placeholder="Wien Hauptbahnhof"
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Departure Date/Time</label>
+                    <input
+                      type="datetime-local"
+                      value={transportForm.departure_datetime}
+                      onChange={(e) =>
+                        setTransportForm((prev) => ({
+                          ...prev,
+                          departure_datetime: e.target.value
+                            ? e.target.value.replace("T", " ")
+                            : "",
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Arrival Date/Time</label>
+                    <input
+                      type="datetime-local"
+                      value={transportForm.arrival_datetime}
+                      onChange={(e) =>
+                        setTransportForm((prev) => ({
+                          ...prev,
+                          arrival_datetime: e.target.value
+                            ? e.target.value.replace("T", " ")
+                            : "",
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Carriage</label>
+                    <input
+                      type="text"
+                      value={transportForm.carriage}
+                      onChange={(e) =>
+                        setTransportForm((prev) => ({
+                          ...prev,
+                          carriage: e.target.value,
+                        }))
+                      }
+                      placeholder="26"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Seat</label>
+                    <input
+                      type="text"
+                      value={transportForm.seat}
+                      onChange={(e) =>
+                        setTransportForm((prev) => ({
+                          ...prev,
+                          seat: e.target.value,
+                        }))
+                      }
+                      placeholder="45"
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Booking Reference</label>
+                  <input
+                    type="text"
+                    value={transportForm.booking_reference}
+                    onChange={(e) =>
+                      setTransportForm((prev) => ({
+                        ...prev,
+                        booking_reference: e.target.value,
+                      }))
+                    }
+                    placeholder="ABC123456"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Notes</label>
+                  <textarea
+                    value={transportForm.notes}
+                    onChange={(e) =>
+                      setTransportForm((prev) => ({
+                        ...prev,
+                        notes: e.target.value,
+                      }))
+                    }
+                    placeholder="1st class, window seat"
+                    rows={2}
+                  />
                 </div>
               </div>
-            )}
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-cancel"
+                  onClick={() => {
+                    setShowTransportModal(false);
+                    setEditingTransportId(null);
+                    resetTransportForm();
+                    setExtractedTransport(null);
+                    setExtractTransportError(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-save"
+                  onClick={
+                    editingTransportId
+                      ? handleUpdateTransport
+                      : handleManualTransportAdd
+                  }
+                  disabled={addingTransport || !transportForm.type}
+                >
+                  {addingTransport
+                    ? "Saving..."
+                    : editingTransportId
+                      ? "Update Booking"
+                      : "Add Booking"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

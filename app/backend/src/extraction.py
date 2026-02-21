@@ -137,6 +137,54 @@ class CarRentalExtractionResult(BaseModel):
     error: str | None = None
 
 
+TRANSPORT_BOOKING_EXTRACTION_PROMPT = """\
+You are a transport booking data extractor. \
+Analyze this document (train ticket, bus ticket, ferry booking, boarding pass) \
+and extract booking details.
+
+Return ONLY a JSON object with these fields (use null for unknown values):
+{
+  "type": "train" or "bus" or "ferry",
+  "operator": "operating company name, e.g. České dráhy, FlixBus, Viking Line",
+  "service_number": "train/bus/ferry number, e.g. EC 171, FlixBus 1234",
+  "departure_station": "departure station/terminal/port name",
+  "arrival_station": "arrival station/terminal/port name",
+  "departure_datetime": "YYYY-MM-DD HH:MM",
+  "arrival_datetime": "YYYY-MM-DD HH:MM",
+  "carriage": "carriage/coach number or null",
+  "seat": "seat number or null",
+  "booking_reference": "booking/reservation reference code, or null",
+  "notes": "class (1st/2nd), important details like conditions"
+}
+
+Rules:
+- Infer "type" from context: train stations → "train", bus terminals → "bus", \
+ferry ports/ships → "ferry"
+- Use 24-hour time format
+- Extract the booking/reservation/confirmation reference if visible
+- Keep notes concise but include travel class if visible
+- If the document is not a transport booking, return all null values"""
+
+
+class ExtractedTransportBooking(BaseModel):
+    type: str | None = None
+    operator: str | None = None
+    service_number: str | None = None
+    departure_station: str | None = None
+    arrival_station: str | None = None
+    departure_datetime: str | None = None
+    arrival_datetime: str | None = None
+    carriage: str | None = None
+    seat: str | None = None
+    booking_reference: str | None = None
+    notes: str | None = None
+
+
+class TransportBookingExtractionResult(BaseModel):
+    booking: ExtractedTransportBooking | None = None
+    error: str | None = None
+
+
 class ExtractedDocMetadata(BaseModel):
     doc_type: str | None = None
     label: str | None = None
@@ -354,3 +402,71 @@ def extract_car_rental_data(file_content: bytes, mime_type: str) -> CarRentalExt
         if "401" in msg or "auth" in msg.lower():
             return CarRentalExtractionResult(error="Invalid API key")
         return CarRentalExtractionResult(error="Extraction failed")
+
+
+def extract_transport_booking_data(
+    file_content: bytes, mime_type: str
+) -> TransportBookingExtractionResult:
+    """Extract transport booking data from a PDF or image using Claude Haiku."""
+    if not settings.anthropic_api_key:
+        return TransportBookingExtractionResult(error="API key not configured")
+
+    try:
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+
+        content: list[dict[str, Any]] = []
+        if mime_type == "application/pdf":
+            content.append(
+                {
+                    "type": "document",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "application/pdf",
+                        "data": base64.b64encode(file_content).decode(),
+                    },
+                }
+            )
+        elif mime_type.startswith("image/"):
+            content.append(
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": mime_type,
+                        "data": base64.b64encode(file_content).decode(),
+                    },
+                }
+            )
+        else:
+            return TransportBookingExtractionResult(error=f"Unsupported file type: {mime_type}")
+
+        content.append({"type": "text", "text": TRANSPORT_BOOKING_EXTRACTION_PROMPT})
+
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": content}],  # type: ignore[typeddict-item]
+        )
+
+        text = response.content[0].text.strip()  # type: ignore[union-attr]
+
+        # Strip markdown code fences if present
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+
+        data = json.loads(text)
+        return TransportBookingExtractionResult(booking=ExtractedTransportBooking(**data))
+
+    except json.JSONDecodeError:
+        log.warning("Failed to parse transport booking extraction response as JSON")
+        return TransportBookingExtractionResult(error="Failed to parse AI response")
+    except Exception as exc:
+        log.exception("Transport booking data extraction failed")
+        msg = str(exc)
+        if "credit" in msg.lower() or "balance" in msg.lower() or "402" in msg:
+            return TransportBookingExtractionResult(error="Insufficient API balance")
+        if "401" in msg or "auth" in msg.lower():
+            return TransportBookingExtractionResult(error="Invalid API key")
+        return TransportBookingExtractionResult(error="Extraction failed")

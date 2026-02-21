@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.37.0 (2026-02-21)
+
+### Transport Tab — Modal Refactor
+- Transport tab now shows clean card lists only — all add/edit workflows moved into modals
+- "Add Flight" modal: upload ticket (AI extraction), lookup by flight number (AeroDataBox), or manual entry — all in one modal with section dividers
+- "Add Car Rental" modal: upload reservation for AI extraction or enter manually, with "Use extracted data" button to pre-fill the form
+- "Add Transport Booking" modal: same extraction-to-form pattern for trains, buses, and ferries
+- "+ Add" buttons moved into section headers next to the count
+- Driving flags reminder restyled as a compact warning box below rental cards
+- Fixed missing styles for select dropdowns and checkboxes in modals
+
+### Transport Bookings
+- Multiple train/bus/ferry bookings per trip on the transport tab
+- Upload a ticket (PDF or photo) and Claude Haiku auto-extracts operator, service number, stations, times, carriage, seat, and booking reference
+- Manual entry form with type selector (train/bus/ferry)
+- Edit bookings, attach/view/delete ticket documents
+- Booking references stored encrypted in the vault (AES-256-GCM)
+- Duplicate detection on extract
+- Station names link to Google Maps
+
+### Database
+- Migration 056: `transport_bookings` table with encrypted booking reference and document storage
+
 ## 0.36.0 (2026-02-21)
 
 ### Car Rental Tracking

@@ -8,6 +8,7 @@ from .flights import router as flights_router
 from .location import router as location_router
 from .photos import router as photos_router
 from .stats import router as stats_router
+from .transport_bookings import router as transport_bookings_router
 from .trips import router as trips_router
 from .upload import router as upload_router
 
@@ -20,5 +21,6 @@ router.include_router(flights_router)
 router.include_router(location_router)
 router.include_router(photos_router)
 router.include_router(stats_router)
+router.include_router(transport_bookings_router)
 router.include_router(upload_router)
 router.include_router(trips_router)
