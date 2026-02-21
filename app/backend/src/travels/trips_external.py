@@ -249,7 +249,7 @@ def _fetch_frankfurter(currency_code: str) -> dict[str, float] | None:
         rates[currency_code] = 1.0
         return rates
     except Exception:
-        log.warning("Frankfurter failed for %s", currency_code)
+        log.warning("Frankfurter API failed for %s", currency_code, exc_info=True)
         return None
 
 
@@ -272,7 +272,7 @@ def _fetch_open_er(currency_code: str) -> dict[str, float] | None:
                 result[target] = all_rates[target]
         return result if result else None
     except Exception:
-        log.warning("open.er-api failed for %s", currency_code)
+        log.warning("open.er-api failed for %s", currency_code, exc_info=True)
         return None
 
 
@@ -328,7 +328,9 @@ def _fetch_weather(lat: float, lng: float, month: int) -> dict[str, float | None
         _weather_cache[cache_key] = result
         return result
     except Exception:
-        log.warning("Failed to fetch weather for (%.2f, %.2f, %d)", lat, lng, month)
+        log.warning(
+            "Open-Meteo weather API failed for (%.2f, %.2f, %d)", lat, lng, month, exc_info=True
+        )
         fallback: dict[str, float | None | int] = {
             "avg_temp_c": None,
             "min_temp_c": None,
@@ -397,7 +399,9 @@ def _fetch_sunrise_sunset(
         _sunrise_cache[cache_key] = result
         return result
     except Exception:
-        log.warning("Failed sunrise/sunset for (%.2f, %.2f, %s)", lat, lng, date_str)
+        log.warning(
+            "Sunrise-sunset API failed for (%.2f, %.2f, %s)", lat, lng, date_str, exc_info=True
+        )
         _sunrise_cache[cache_key] = None
         return None
 
@@ -451,5 +455,6 @@ def _fetch_holidays_raw(year: int, country_code: str) -> list[dict]:
         _holidays_cache[cache_key] = data
         return data
     except Exception:
+        log.warning("Nager.Date holidays API failed for %s/%d", country_code, year, exc_info=True)
         _holidays_cache[cache_key] = []
         return []

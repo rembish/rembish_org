@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.35.1 (2026-02-21)
+
+### Improved Reliability
+- External service failures (Instagram, Nominatim, weather, currency, flights) now log full error details instead of failing silently
+- Easier to diagnose sync issues and API outages from Cloud Run logs
+
 ## 0.35.0 (2026-02-21)
 
 ### Fixer-to-Trip Integration

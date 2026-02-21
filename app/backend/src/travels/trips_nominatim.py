@@ -1,3 +1,4 @@
+import logging
 import time
 from datetime import UTC, datetime
 from typing import Annotated
@@ -10,6 +11,8 @@ from ..auth.session import get_admin_user
 from ..database import get_db
 from ..models import City, UNCountry, User
 from .models import CitySearchResponse, CitySearchResult
+
+log = logging.getLogger(__name__)
 
 # Nominatim rate limiting - track last request time
 _nominatim_last_request: float = 0.0
@@ -125,6 +128,7 @@ def _search_nominatim(
             )
         return results
     except Exception:
+        log.warning("Nominatim search failed for %r", query, exc_info=True)
         return []
 
 

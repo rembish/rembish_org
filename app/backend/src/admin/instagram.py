@@ -624,6 +624,13 @@ def _api_request_with_retry(
             return cast(dict[str, Any], response.json())
         except (httpx.TimeoutException, httpx.ConnectError) as e:
             last_error = e
+            log.warning(
+                "Instagram API request failed (attempt %d/%d): %s %s",
+                attempt + 1,
+                max_retries,
+                type(e).__name__,
+                e,
+            )
             if attempt < max_retries - 1:
                 time.sleep(2**attempt)  # Exponential backoff: 1s, 2s, 4s
                 continue
@@ -707,12 +714,13 @@ def _download_image(
             with Image.open(BytesIO(content)) as img:
                 dimensions = img.size
         except Exception:
-            pass
+            log.warning("Failed to read image dimensions for %s", filename)
 
         # Save to storage (local or GCS)
         storage_path = storage.save(filename, content)
         return storage_path, dimensions
     except Exception:
+        log.error("Failed to download image %s: %s", filename, url, exc_info=True)
         return "", None
 
 
@@ -869,7 +877,11 @@ def fetch_more_posts(
                     skipped += 1
                     continue
                 except Exception:
-                    # Other errors - rollback and continue
+                    log.error(
+                        "Failed to process post %s in fetch",
+                        post_data.get("id", "unknown"),
+                        exc_info=True,
+                    )
                     db.rollback()
                     skipped += 1
                     continue
@@ -1073,7 +1085,11 @@ def sync_new_posts(
                         )
                     continue
                 except Exception:
-                    # Other errors - rollback and continue
+                    log.error(
+                        "Failed to process post %s in sync-new",
+                        post_data.get("id", "unknown"),
+                        exc_info=True,
+                    )
                     db.rollback()
                     skipped += 1
                     continue

@@ -246,7 +246,7 @@ def lookup_flight(
         db.commit()
         return FlightLookupResponse(legs=legs)
     except httpx.HTTPError as e:
-        log.warning("AeroDataBox request failed: %s", e)
+        log.warning("AeroDataBox request failed for %s/%s: %s", fn, date, e, exc_info=True)
         return FlightLookupResponse(legs=[], error="API request failed")
 
 

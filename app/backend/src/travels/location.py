@@ -1,3 +1,4 @@
+import logging
 import time
 from datetime import UTC, date, datetime
 from math import atan2, cos, radians, sin, sqrt
@@ -22,6 +23,8 @@ from ..models import (
     UserLastLocation,
     Visit,
 )
+
+log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -171,6 +174,7 @@ def _reverse_geocode(lat: float, lng: float) -> dict | None:
             "lng": float(data.get("lon", lng)),
         }
     except Exception:
+        log.warning("Nominatim reverse geocode failed for (%.5f, %.5f)", lat, lng, exc_info=True)
         return None
 
 
