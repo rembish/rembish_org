@@ -2669,6 +2669,63 @@ a {
   gap: 1rem;
 }
 
+.country-info-tabbed {
+  flex-direction: row;
+  gap: 0;
+}
+
+.country-flag-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0;
+  border-right: 1px solid var(--color-border);
+  margin-right: 1rem;
+  padding-right: 0.75rem;
+  flex-shrink: 0;
+}
+
+.country-flag-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition:
+    opacity var(--transition-fast),
+    background var(--transition-fast);
+
+  &:hover {
+    opacity: 0.8;
+    background: var(--bg-tertiary);
+  }
+
+  &.active {
+    opacity: 1;
+    background: var(--bg-tertiary);
+  }
+}
+
+@media (width <= 480px) {
+  .country-info-tabbed {
+    flex-direction: column;
+  }
+
+  .country-flag-tabs {
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    margin-right: 0;
+    margin-bottom: 0.75rem;
+    padding-right: 0;
+    padding-bottom: 0.5rem;
+  }
+}
+
 .country-info-loading,
 .country-info-empty {
   text-align: center;

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.37.1 (2026-02-21)
+
+### Trip Info — Country Flag Tabs
+- Multi-country trips now show a flag sidebar to switch between countries one at a time
+- Desktop: vertical flag tabs on the left, mobile: horizontal flag bar on top
+- Single-country trips render unchanged (no sidebar)
+
 ## 0.37.0 (2026-02-21)
 
 ### Transport Tab — Modal Refactor
