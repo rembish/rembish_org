@@ -37,10 +37,14 @@ export default function Admin() {
     tab === "documents" && year && validDocSections.has(year)
       ? (year as DocSection)
       : "ids";
+  const readOnly = user?.role === "viewer" || !!viewAsUser;
+  const defaultPeopleSection: PeopleSection = readOnly
+    ? "fixers"
+    : "close-ones";
   const peopleSection: PeopleSection =
     tab === "people" && year && validPeopleSections.has(year)
       ? (year as PeopleSection)
-      : "close-ones";
+      : defaultPeopleSection;
 
   const setActiveTab = (newTab: AdminTab) => {
     if (newTab === "trips" && selectedYear) {
@@ -48,7 +52,7 @@ export default function Admin() {
     } else if (newTab === "documents") {
       navigate(`/admin/documents/ids`);
     } else if (newTab === "people") {
-      navigate(`/admin/people/close-ones`);
+      navigate(`/admin/people/${readOnly ? "fixers" : "close-ones"}`);
     } else {
       navigate(`/admin/${newTab}`);
     }
@@ -74,15 +78,18 @@ export default function Admin() {
     navigate(`/admin/people/${section}`, { replace: true });
   };
 
-  const readOnly = user?.role === "viewer" || !!viewAsUser;
-
   // Redirect users without any role
   if (!authLoading && !user?.role) {
     return <Navigate to="/" replace />;
   }
 
-  // Viewers can only see the Trips tab
-  if (readOnly && activeTab !== "trips" && !authLoading) {
+  // Viewers can only see Trips and People tabs
+  if (
+    readOnly &&
+    activeTab !== "trips" &&
+    activeTab !== "people" &&
+    !authLoading
+  ) {
     return <Navigate to="/admin/trips" replace />;
   }
 
@@ -94,9 +101,14 @@ export default function Admin() {
   if (activeTab === "documents" && !year) {
     return <Navigate to="/admin/documents/ids" replace />;
   }
-  // Default people to close-ones sub-tab
+  // Default people sub-tab
   if (activeTab === "people" && !year) {
-    return <Navigate to="/admin/people/close-ones" replace />;
+    return (
+      <Navigate
+        to={`/admin/people/${readOnly ? "fixers" : "close-ones"}`}
+        replace
+      />
+    );
   }
 
   if (authLoading) {
@@ -140,6 +152,12 @@ export default function Admin() {
           >
             Trips
           </button>
+          <button
+            className={`admin-tab ${activeTab === "people" ? "active" : ""}`}
+            onClick={() => setActiveTab("people")}
+          >
+            People
+          </button>
           {!readOnly && (
             <>
               <button
@@ -147,12 +165,6 @@ export default function Admin() {
                 onClick={() => setActiveTab("instagram")}
               >
                 Instagram
-              </button>
-              <button
-                className={`admin-tab ${activeTab === "people" ? "active" : ""}`}
-                onClick={() => setActiveTab("people")}
-              >
-                People
               </button>
               <button
                 className={`admin-tab ${activeTab === "documents" ? "active" : ""}`}
@@ -189,6 +201,7 @@ export default function Admin() {
             <PeopleTab
               activeSection={peopleSection}
               onSectionChange={setPeopleSection}
+              readOnly={readOnly}
             />
           )}
           {activeTab === "documents" && (

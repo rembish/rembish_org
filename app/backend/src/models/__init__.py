@@ -1,4 +1,5 @@
 from .event import PersonalEvent
+from .fixer import Fixer, FixerCountry
 from .instagram import InstagramMedia, InstagramPost
 from .location import UserLastLocation
 from .setting import AppSetting
@@ -32,6 +33,8 @@ __all__ = [
     "Airport",
     "AppSetting",
     "City",
+    "Fixer",
+    "FixerCountry",
     "Flight",
     "InstagramMedia",
     "InstagramPost",

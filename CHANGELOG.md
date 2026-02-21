@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.34.0 (2026-02-21)
+
+### Fixers UX Overhaul
+- Country selector: searchable dropdown with flag+name chips instead of manual ISO code entry
+- Link management: icon-based buttons (Instagram, Facebook, TripAdvisor, etc.) replace dropdown menus — click to add, auto-focused URL input
+- Added Facebook and NomadMania as standard link types
+- Card badges show service-specific icons (or short names for TourHQ, GetYourGuide, NomadMania) instead of generic link text
+- Country flags shown as pill badges alongside fixer type
+- WhatsApp field promoted to primary position (before phone)
+- Modal widened from 400px to 700px to accommodate new fields
+- Notes displayed as plain text without icon
+
 ## 0.33.0 (2026-02-21)
 
 ### Read-Only Viewer Access

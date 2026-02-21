@@ -80,11 +80,12 @@ export type AdminTab =
   | "documents"
   | "loyalty";
 
-export type PeopleSection = "close-ones" | "addresses";
+export type PeopleSection = "close-ones" | "addresses" | "fixers";
 
 export const PEOPLE_SECTIONS: { key: PeopleSection; label: string }[] = [
   { key: "close-ones", label: "Close Ones" },
   { key: "addresses", label: "Addresses" },
+  { key: "fixers", label: "Fixers" },
 ];
 
 export type DocSection = "ids" | "vaccinations" | "visas";
@@ -270,6 +271,55 @@ export interface ExtractedDocMetadata {
   document_id: number | null;
   error: string | null;
 }
+
+// --- Fixer types ---
+
+export interface FixerLink {
+  type: string;
+  url: string;
+}
+
+export interface Fixer {
+  id: number;
+  name: string;
+  type: "guide" | "fixer" | "driver" | "coordinator" | "agency";
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  notes: string | null;
+  rating: number | null;
+  links: FixerLink[];
+  country_codes: string[];
+}
+
+export const FIXER_TYPE_LABELS: Record<string, string> = {
+  guide: "Guide",
+  fixer: "Fixer",
+  driver: "Driver",
+  coordinator: "Coordinator",
+  agency: "Agency",
+};
+
+export const FIXER_RATING_LABELS: Record<
+  number,
+  { emoji: string; label: string }
+> = {
+  1: { emoji: "\u{1F620}", label: "Avoid" },
+  2: { emoji: "\u{1F610}", label: "Okay" },
+  3: { emoji: "\u{1F642}", label: "Good" },
+  4: { emoji: "\u{1F929}", label: "Great" },
+};
+
+export const FIXER_LINK_TYPES: Record<string, string> = {
+  website: "Website",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  tripadvisor: "TripAdvisor",
+  tourhq: "TourHQ",
+  getyourguide: "GetYourGuide",
+  nomadmania: "NomadMania",
+  other: "Other",
+};
 
 export interface CloseOneUser {
   id: number;

@@ -194,3 +194,24 @@ def test_norole_cannot_get_trips(norole_client: TestClient) -> None:
 def test_norole_cannot_access_admin_users(norole_client: TestClient) -> None:
     res = norole_client.get("/api/v1/admin/users/")
     assert res.status_code in (401, 403)
+
+
+# --- Viewer access to fixers ---
+
+
+def test_viewer_can_get_fixers(viewer_client: TestClient) -> None:
+    res = viewer_client.get("/api/v1/admin/fixers/")
+    assert res.status_code == 200
+
+
+def test_viewer_cannot_create_fixer(viewer_client: TestClient) -> None:
+    res = viewer_client.post(
+        "/api/v1/admin/fixers/",
+        json={"name": "Test", "type": "guide"},
+    )
+    assert res.status_code in (401, 403, 500)
+
+
+def test_viewer_cannot_delete_fixer(viewer_client: TestClient) -> None:
+    res = viewer_client.delete("/api/v1/admin/fixers/1")
+    assert res.status_code in (401, 403, 500)
