@@ -209,6 +209,9 @@ class Trip(Base):
     flights: Mapped[list["Flight"]] = relationship(
         back_populates="trip", cascade="all, delete-orphan"
     )
+    car_rentals: Mapped[list["CarRental"]] = relationship(
+        back_populates="trip", cascade="all, delete-orphan"
+    )
     travel_docs: Mapped[list["TripTravelDoc"]] = relationship(
         back_populates="trip", cascade="all, delete-orphan"
     )
@@ -371,6 +374,36 @@ class Flight(Base):
 
     def __repr__(self) -> str:
         return f"<Flight #{self.id}: {self.flight_number} on {self.flight_date}>"
+
+
+class CarRental(Base):
+    """Car rental reservation linked to a trip."""
+
+    __tablename__ = "car_rentals"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    trip_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    rental_company: Mapped[str] = mapped_column(String(100), nullable=False)
+    car_class: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    actual_car: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    transmission: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    pickup_location: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    dropoff_location: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    pickup_datetime: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    dropoff_datetime: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    is_paid: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    total_amount: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    confirmation_number_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    confirmation_number_masked: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Relationships
+    trip: Mapped[Trip] = relationship(back_populates="car_rentals")
+
+    def __repr__(self) -> str:
+        return f"<CarRental #{self.id}: {self.rental_company}>"
 
 
 # Import to complete relationships

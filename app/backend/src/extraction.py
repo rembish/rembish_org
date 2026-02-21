@@ -90,6 +90,53 @@ class FlightExtractionResult(BaseModel):
     error: str | None = None
 
 
+CAR_RENTAL_EXTRACTION_PROMPT = """\
+You are a car rental reservation data extractor. \
+Analyze this document (reservation confirmation, booking receipt) and extract rental details.
+
+Return ONLY a JSON object with these fields (use null for unknown values):
+{
+  "rental_company": "company name, e.g. Hertz, Europcar, Sixt",
+  "car_class": "vehicle class/category, e.g. Economy, Compact SUV, Full Size",
+  "transmission": "manual" or "automatic" or null,
+  "pickup_location": "pickup location/office name",
+  "dropoff_location": "drop-off location (same as pickup if one-way not mentioned)",
+  "pickup_datetime": "YYYY-MM-DD HH:MM",
+  "dropoff_datetime": "YYYY-MM-DD HH:MM",
+  "is_paid": true if prepaid/already charged, false if pay-on-pickup,
+  "total_amount": "amount with currency symbol, e.g. €245.00, $189.50",
+  "confirmation_number": "reservation/confirmation/booking number, or null",
+  "notes": "important details like cancellation policy, insurance, extras"
+}
+
+Rules:
+- Extract the rental company name as it appears on the document
+- For car_class, use the category name (Economy, Compact, etc.), not a specific car model
+- Use 24-hour time format for pickup/dropoff times
+- Include currency symbol in total_amount
+- Keep notes concise but include cancellation terms if visible
+- If the document is not a car rental reservation, return all null values"""
+
+
+class ExtractedCarRental(BaseModel):
+    rental_company: str | None = None
+    car_class: str | None = None
+    transmission: str | None = None
+    pickup_location: str | None = None
+    dropoff_location: str | None = None
+    pickup_datetime: str | None = None
+    dropoff_datetime: str | None = None
+    is_paid: bool | None = None
+    total_amount: str | None = None
+    confirmation_number: str | None = None
+    notes: str | None = None
+
+
+class CarRentalExtractionResult(BaseModel):
+    rental: ExtractedCarRental | None = None
+    error: str | None = None
+
+
 class ExtractedDocMetadata(BaseModel):
     doc_type: str | None = None
     label: str | None = None
@@ -241,3 +288,69 @@ def extract_flight_data(file_content: bytes, mime_type: str) -> FlightExtraction
         if "401" in msg or "auth" in msg.lower():
             return FlightExtractionResult(error="Invalid API key")
         return FlightExtractionResult(error="Extraction failed")
+
+
+def extract_car_rental_data(file_content: bytes, mime_type: str) -> CarRentalExtractionResult:
+    """Extract car rental data from a PDF or image using Claude Haiku."""
+    if not settings.anthropic_api_key:
+        return CarRentalExtractionResult(error="API key not configured")
+
+    try:
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+
+        content: list[dict[str, Any]] = []
+        if mime_type == "application/pdf":
+            content.append(
+                {
+                    "type": "document",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "application/pdf",
+                        "data": base64.b64encode(file_content).decode(),
+                    },
+                }
+            )
+        elif mime_type.startswith("image/"):
+            content.append(
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": mime_type,
+                        "data": base64.b64encode(file_content).decode(),
+                    },
+                }
+            )
+        else:
+            return CarRentalExtractionResult(error=f"Unsupported file type: {mime_type}")
+
+        content.append({"type": "text", "text": CAR_RENTAL_EXTRACTION_PROMPT})
+
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": content}],  # type: ignore[typeddict-item]
+        )
+
+        text = response.content[0].text.strip()  # type: ignore[union-attr]
+
+        # Strip markdown code fences if present
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+
+        data = json.loads(text)
+        return CarRentalExtractionResult(rental=ExtractedCarRental(**data))
+
+    except json.JSONDecodeError:
+        log.warning("Failed to parse car rental extraction response as JSON")
+        return CarRentalExtractionResult(error="Failed to parse AI response")
+    except Exception as exc:
+        log.exception("Car rental data extraction failed")
+        msg = str(exc)
+        if "credit" in msg.lower() or "balance" in msg.lower() or "402" in msg:
+            return CarRentalExtractionResult(error="Insufficient API balance")
+        if "401" in msg or "auth" in msg.lower():
+            return CarRentalExtractionResult(error="Invalid API key")
+        return CarRentalExtractionResult(error="Extraction failed")

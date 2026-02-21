@@ -484,6 +484,63 @@ class FlightsResponse(BaseModel):
     flights: list[FlightData]
 
 
+# Car rental models
+class CarRentalData(BaseModel):
+    id: int
+    trip_id: int
+    rental_company: str
+    car_class: str | None
+    actual_car: str | None
+    transmission: str | None
+    pickup_location: str | None
+    dropoff_location: str | None
+    pickup_datetime: str | None
+    dropoff_datetime: str | None
+    is_paid: bool | None
+    total_amount: str | None
+    confirmation_number: str | None
+    notes: str | None
+
+
+class CarRentalCreateRequest(BaseModel):
+    rental_company: str
+    car_class: str | None = None
+    actual_car: str | None = None
+    transmission: str | None = None
+    pickup_location: str | None = None
+    dropoff_location: str | None = None
+    pickup_datetime: str | None = None
+    dropoff_datetime: str | None = None
+    is_paid: bool | None = None
+    total_amount: str | None = None
+    confirmation_number: str | None = None
+    notes: str | None = None
+
+
+class ExtractedCarRentalResponse(BaseModel):
+    rental_company: str | None = None
+    car_class: str | None = None
+    transmission: str | None = None
+    pickup_location: str | None = None
+    dropoff_location: str | None = None
+    pickup_datetime: str | None = None
+    dropoff_datetime: str | None = None
+    is_paid: bool | None = None
+    total_amount: str | None = None
+    confirmation_number: str | None = None
+    notes: str | None = None
+    is_duplicate: bool = False
+
+
+class CarRentalExtractResponse(BaseModel):
+    rental: ExtractedCarRentalResponse | None = None
+    error: str | None = None
+
+
+class CarRentalsResponse(BaseModel):
+    car_rentals: list[CarRentalData]
+
+
 class RankedItem(BaseModel):
     name: str
     count: int

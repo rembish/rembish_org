@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.36.0 (2026-02-21)
+
+### Car Rental Tracking
+- Multiple car rentals per trip on the transport tab — same layout as flights
+- Upload a rental confirmation (PDF or photo) and Claude Haiku auto-extracts company, car class, transmission, pickup/dropoff locations and times, price, and confirmation number
+- Manual entry form for adding rentals without a document
+- Edit rentals after the trip to record the actual car received (vs. the booked class)
+- Confirmation numbers stored encrypted in the vault (AES-256-GCM), visible only when vault is unlocked
+- Pickup and dropoff locations link to Google Maps
+- Duplicate detection: re-uploading the same confirmation flags it as already added
+- Reminder note on transport tab to update driving flags on the Travels page
+- Removed legacy `rental_car` and `flights_count` fields from trip edit form (data migrated to new table)
+
+### Database
+- Migration 055: `car_rentals` table with encrypted confirmation number support
+
 ## 0.35.2 (2026-02-21)
 
 ### Open Graph Link Previews

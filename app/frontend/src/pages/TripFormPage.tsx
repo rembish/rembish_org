@@ -17,6 +17,8 @@ import {
   BiSignal5,
   BiSolidPlane,
   BiCopy,
+  BiCar,
+  BiPencil,
 } from "react-icons/bi";
 import Flag from "../components/Flag";
 import { useAuth } from "../hooks/useAuth";
@@ -242,6 +244,53 @@ interface FlightLookupLeg {
   terminal: string | null;
   arrival_terminal: string | null;
   aircraft_type: string | null;
+}
+
+interface CarRentalItem {
+  id: number;
+  trip_id: number;
+  rental_company: string;
+  car_class: string | null;
+  actual_car: string | null;
+  transmission: string | null;
+  pickup_location: string | null;
+  dropoff_location: string | null;
+  pickup_datetime: string | null;
+  dropoff_datetime: string | null;
+  is_paid: boolean | null;
+  total_amount: string | null;
+  confirmation_number: string | null;
+  notes: string | null;
+}
+
+interface ExtractedCarRentalData {
+  rental_company: string | null;
+  car_class: string | null;
+  transmission: string | null;
+  pickup_location: string | null;
+  dropoff_location: string | null;
+  pickup_datetime: string | null;
+  dropoff_datetime: string | null;
+  is_paid: boolean | null;
+  total_amount: string | null;
+  confirmation_number: string | null;
+  notes: string | null;
+  is_duplicate: boolean;
+}
+
+function formatRentalDatetime(dt: string): string {
+  // Input: "YYYY-MM-DD HH:MM" or "YYYY-MM-DDTHH:MM"
+  const normalized = dt.replace("T", " ");
+  const [datePart, timePart] = normalized.split(" ");
+  if (!datePart) return dt;
+  const [y, m, d] = datePart.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  const formatted = date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  return timePart ? `${formatted}, ${timePart}` : formatted;
 }
 
 // Parse date string (YYYY-MM-DD) as local date, not UTC
@@ -477,6 +526,33 @@ export default function TripFormPage() {
   );
   const extractInputRef = useRef<HTMLInputElement>(null);
   const [vaultUnlocked, setVaultUnlocked] = useState(false);
+
+  // Car rental state
+  const [carRentals, setCarRentals] = useState<CarRentalItem[]>([]);
+  const [extractedRental, setExtractedRental] =
+    useState<ExtractedCarRentalData | null>(null);
+  const [extractingRental, setExtractingRental] = useState(false);
+  const [extractRentalError, setExtractRentalError] = useState<string | null>(
+    null,
+  );
+  const rentalExtractInputRef = useRef<HTMLInputElement>(null);
+  const [showManualRentalForm, setShowManualRentalForm] = useState(false);
+  const [addingRental, setAddingRental] = useState(false);
+  const [editingRentalId, setEditingRentalId] = useState<number | null>(null);
+  const [manualRentalForm, setManualRentalForm] = useState({
+    rental_company: "",
+    car_class: "",
+    actual_car: "",
+    transmission: "",
+    pickup_location: "",
+    dropoff_location: "",
+    pickup_datetime: "",
+    dropoff_datetime: "",
+    is_paid: false,
+    total_amount: "",
+    confirmation_number: "",
+    notes: "",
+  });
   const [tripCitiesDisplay, setTripCitiesDisplay] = useState<
     { name: string; country_code: string | null }[]
   >([]);
@@ -595,13 +671,17 @@ export default function TripFormPage() {
     if (activeTab !== "transport" || !isEdit) return;
 
     setLoadingFlights(true);
-    apiFetch(`/api/v1/travels/trips/${tripId}/flights`)
-      .then((r) => {
-        if (!r.ok) throw new Error("Failed to load flights");
-        return r.json();
+    Promise.all([
+      apiFetch(`/api/v1/travels/trips/${tripId}/flights`).then((r) => r.json()),
+      apiFetch(`/api/v1/travels/trips/${tripId}/car-rentals`).then((r) =>
+        r.json(),
+      ),
+    ])
+      .then(([flightsData, rentalsData]) => {
+        setFlights(flightsData.flights || []);
+        setCarRentals(rentalsData.car_rentals || []);
       })
-      .then((data) => setFlights(data.flights || []))
-      .catch((err) => console.error("Failed to load flights:", err))
+      .catch((err) => console.error("Failed to load transport data:", err))
       .finally(() => setLoadingFlights(false));
 
     apiFetch("/api/auth/vault/status")
@@ -1174,6 +1254,196 @@ export default function TripFormPage() {
     });
   };
 
+  // Car rental handlers
+  const handleRentalExtractUpload = async (file: File) => {
+    setExtractingRental(true);
+    setExtractRentalError(null);
+    setExtractedRental(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await apiFetch(
+        `/api/v1/travels/trips/${tripId}/car-rentals/extract`,
+        { method: "POST", body: form },
+      );
+      const data = await res.json();
+      if (data.error) {
+        setExtractRentalError(data.error);
+        return;
+      }
+      if (data.rental) {
+        setExtractedRental(data.rental);
+      }
+    } catch {
+      setExtractRentalError("Upload failed. Try again.");
+    } finally {
+      setExtractingRental(false);
+      if (rentalExtractInputRef.current)
+        rentalExtractInputRef.current.value = "";
+    }
+  };
+
+  const handleAddExtractedRental = async () => {
+    if (!extractedRental || !extractedRental.rental_company) return;
+    setAddingRental(true);
+    try {
+      await apiFetch(`/api/v1/travels/trips/${tripId}/car-rentals`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rental_company: extractedRental.rental_company,
+          car_class: extractedRental.car_class,
+          transmission: extractedRental.transmission,
+          pickup_location: extractedRental.pickup_location,
+          dropoff_location: extractedRental.dropoff_location,
+          pickup_datetime: extractedRental.pickup_datetime,
+          dropoff_datetime: extractedRental.dropoff_datetime,
+          is_paid: extractedRental.is_paid,
+          total_amount: extractedRental.total_amount,
+          confirmation_number: extractedRental.confirmation_number,
+          notes: extractedRental.notes,
+        }),
+      });
+      const res = await apiFetch(`/api/v1/travels/trips/${tripId}/car-rentals`);
+      const data = await res.json();
+      setCarRentals(data.car_rentals || []);
+      setExtractedRental(null);
+    } catch (err) {
+      console.error("Failed to add rental:", err);
+    } finally {
+      setAddingRental(false);
+    }
+  };
+
+  const resetManualRentalForm = () => {
+    setManualRentalForm({
+      rental_company: "",
+      car_class: "",
+      actual_car: "",
+      transmission: "",
+      pickup_location: "",
+      dropoff_location: "",
+      pickup_datetime: "",
+      dropoff_datetime: "",
+      is_paid: false,
+      total_amount: "",
+      confirmation_number: "",
+      notes: "",
+    });
+  };
+
+  const handleManualRentalAdd = async () => {
+    if (!manualRentalForm.rental_company) return;
+    setAddingRental(true);
+    try {
+      const res = await apiFetch(
+        `/api/v1/travels/trips/${tripId}/car-rentals`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rental_company: manualRentalForm.rental_company,
+            car_class: manualRentalForm.car_class || null,
+            actual_car: manualRentalForm.actual_car || null,
+            transmission: manualRentalForm.transmission || null,
+            pickup_location: manualRentalForm.pickup_location || null,
+            dropoff_location: manualRentalForm.dropoff_location || null,
+            pickup_datetime: manualRentalForm.pickup_datetime || null,
+            dropoff_datetime: manualRentalForm.dropoff_datetime || null,
+            is_paid: manualRentalForm.is_paid,
+            total_amount: manualRentalForm.total_amount || null,
+            confirmation_number: manualRentalForm.confirmation_number || null,
+            notes: manualRentalForm.notes || null,
+          }),
+        },
+      );
+      if (!res.ok) throw new Error("Failed to add rental");
+      const listRes = await apiFetch(
+        `/api/v1/travels/trips/${tripId}/car-rentals`,
+      );
+      const data = await listRes.json();
+      setCarRentals(data.car_rentals || []);
+      resetManualRentalForm();
+      setShowManualRentalForm(false);
+    } catch (err) {
+      console.error("Failed to add rental:", err);
+    } finally {
+      setAddingRental(false);
+    }
+  };
+
+  const handleEditRental = (rental: CarRentalItem) => {
+    setEditingRentalId(rental.id);
+    setManualRentalForm({
+      rental_company: rental.rental_company,
+      car_class: rental.car_class || "",
+      actual_car: rental.actual_car || "",
+      transmission: rental.transmission || "",
+      pickup_location: rental.pickup_location || "",
+      dropoff_location: rental.dropoff_location || "",
+      pickup_datetime: rental.pickup_datetime || "",
+      dropoff_datetime: rental.dropoff_datetime || "",
+      is_paid: rental.is_paid || false,
+      total_amount: rental.total_amount || "",
+      confirmation_number: "",
+      notes: rental.notes || "",
+    });
+    setShowManualRentalForm(true);
+  };
+
+  const handleUpdateRental = async () => {
+    if (!editingRentalId || !manualRentalForm.rental_company) return;
+    setAddingRental(true);
+    try {
+      const res = await apiFetch(
+        `/api/v1/travels/car-rentals/${editingRentalId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rental_company: manualRentalForm.rental_company,
+            car_class: manualRentalForm.car_class || null,
+            actual_car: manualRentalForm.actual_car || null,
+            transmission: manualRentalForm.transmission || null,
+            pickup_location: manualRentalForm.pickup_location || null,
+            dropoff_location: manualRentalForm.dropoff_location || null,
+            pickup_datetime: manualRentalForm.pickup_datetime || null,
+            dropoff_datetime: manualRentalForm.dropoff_datetime || null,
+            is_paid: manualRentalForm.is_paid,
+            total_amount: manualRentalForm.total_amount || null,
+            confirmation_number: manualRentalForm.confirmation_number || null,
+            notes: manualRentalForm.notes || null,
+          }),
+        },
+      );
+      if (!res.ok) throw new Error("Failed to update rental");
+      const listRes = await apiFetch(
+        `/api/v1/travels/trips/${tripId}/car-rentals`,
+      );
+      const data = await listRes.json();
+      setCarRentals(data.car_rentals || []);
+      resetManualRentalForm();
+      setShowManualRentalForm(false);
+      setEditingRentalId(null);
+    } catch (err) {
+      console.error("Failed to update rental:", err);
+    } finally {
+      setAddingRental(false);
+    }
+  };
+
+  const handleDeleteRental = async (rentalId: number) => {
+    if (!confirm("Delete this car rental?")) return;
+    try {
+      await apiFetch(`/api/v1/travels/car-rentals/${rentalId}`, {
+        method: "DELETE",
+      });
+      setCarRentals((prev) => prev.filter((r) => r.id !== rentalId));
+    } catch (err) {
+      console.error("Failed to delete rental:", err);
+    }
+  };
+
   const renderTransportTab = () => {
     if (loadingFlights) {
       return (
@@ -1713,6 +1983,457 @@ export default function TripFormPage() {
                     }
                   >
                     {addingFlights ? "Adding..." : "Add Flight"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Car Rentals section */}
+        <div className="form-section">
+          <h3>
+            <BiCar style={{ verticalAlign: "middle", marginRight: 6 }} />
+            Car Rentals ({carRentals.length})
+          </h3>
+          {carRentals.length > 0 && (
+            <p className="flight-empty" style={{ marginBottom: "0.5rem" }}>
+              Remember to update{" "}
+              <a href="/travels" style={{ color: "var(--color-primary)" }}>
+                driving flags
+              </a>{" "}
+              for countries on this trip.
+            </p>
+          )}
+          {carRentals.length === 0 ? (
+            <p className="flight-empty">No car rentals added yet.</p>
+          ) : (
+            <div className="car-rental-list">
+              {carRentals.map((r) => (
+                <div key={r.id} className="car-rental-card">
+                  <div className="car-rental-main">
+                    <div className="car-rental-header">
+                      <span className="car-rental-company">
+                        {r.rental_company}
+                      </span>
+                      {r.car_class && (
+                        <span className="car-rental-class">{r.car_class}</span>
+                      )}
+                    </div>
+                    {(r.pickup_location ||
+                      r.dropoff_location ||
+                      r.pickup_datetime ||
+                      r.dropoff_datetime) && (
+                      <div className="car-rental-route">
+                        {(r.pickup_location || r.pickup_datetime) && (
+                          <div className="car-rental-route-row">
+                            <span className="car-rental-route-label">
+                              Pickup
+                            </span>
+                            {r.pickup_location && (
+                              <a
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.pickup_location)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="car-rental-location-link"
+                              >
+                                {r.pickup_location}
+                              </a>
+                            )}
+                            {r.pickup_datetime && (
+                              <span className="car-rental-datetime">
+                                {formatRentalDatetime(r.pickup_datetime)}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {(r.dropoff_location || r.dropoff_datetime) && (
+                          <div className="car-rental-route-row">
+                            <span className="car-rental-route-label">
+                              Return
+                            </span>
+                            {r.dropoff_location && (
+                              <a
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.dropoff_location)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="car-rental-location-link"
+                              >
+                                {r.dropoff_location}
+                              </a>
+                            )}
+                            {r.dropoff_datetime && (
+                              <span className="car-rental-datetime">
+                                {formatRentalDatetime(r.dropoff_datetime)}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="car-rental-details">
+                      {r.actual_car && (
+                        <span className="flight-badge">{r.actual_car}</span>
+                      )}
+                      {r.transmission && (
+                        <span className="flight-badge">
+                          {r.transmission === "automatic"
+                            ? "Automatic"
+                            : "Manual"}
+                        </span>
+                      )}
+                      {r.total_amount && (
+                        <span className="flight-badge">{r.total_amount}</span>
+                      )}
+                      {r.is_paid !== null && (
+                        <span className="flight-badge">
+                          {r.is_paid ? "Prepaid" : "Pay on pickup"}
+                        </span>
+                      )}
+                      {r.confirmation_number && vaultUnlocked && (
+                        <span className="flight-badge">
+                          {r.confirmation_number}
+                          <button
+                            className="btn-icon-inline"
+                            title="Copy"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(
+                                r.confirmation_number!,
+                              );
+                            }}
+                          >
+                            <BiCopy />
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {!readOnly && (
+                    <div className="car-rental-actions">
+                      <button
+                        className="flight-delete-btn"
+                        onClick={() => handleEditRental(r)}
+                        title="Edit rental"
+                      >
+                        <BiPencil />
+                      </button>
+                      <button
+                        className="flight-delete-btn"
+                        onClick={() => handleDeleteRental(r.id)}
+                        title="Delete rental"
+                      >
+                        <BiTrash />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Add car rental section (admin only) */}
+        {!readOnly && (
+          <div className="form-section">
+            <h3>Add Car Rental</h3>
+
+            {/* PDF upload for AI extraction */}
+            <div className="flight-extract-row">
+              <label className="btn-save flight-extract-btn">
+                {extractingRental ? "Extracting..." : "Upload reservation PDF"}
+                <input
+                  ref={rentalExtractInputRef}
+                  type="file"
+                  accept=".pdf,image/*"
+                  style={{ display: "none" }}
+                  disabled={extractingRental}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleRentalExtractUpload(file);
+                  }}
+                />
+              </label>
+              <span className="flight-extract-hint">
+                PDF or photo — AI extracts rental details
+              </span>
+            </div>
+
+            {extractRentalError && (
+              <p className="flight-lookup-error">{extractRentalError}</p>
+            )}
+
+            {extractedRental && (
+              <div className="flight-lookup-results">
+                <div
+                  className={`flight-lookup-leg${extractedRental.is_duplicate ? " flight-extracted-duplicate" : ""}`}
+                >
+                  <div className="flight-leg-info">
+                    <span className="flight-leg-route">
+                      <strong>{extractedRental.rental_company}</strong>
+                      {extractedRental.car_class &&
+                        ` — ${extractedRental.car_class}`}
+                      {extractedRental.is_duplicate && (
+                        <span className="flight-extracted-dup-label">
+                          (already exists)
+                        </span>
+                      )}
+                    </span>
+                    <span className="flight-leg-details">
+                      {[
+                        extractedRental.pickup_location,
+                        extractedRental.pickup_datetime,
+                        extractedRental.transmission,
+                        extractedRental.total_amount,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn-save"
+                  onClick={handleAddExtractedRental}
+                  disabled={
+                    extractedRental.is_duplicate ||
+                    !extractedRental.rental_company ||
+                    addingRental
+                  }
+                >
+                  {addingRental ? "Adding..." : "Add rental"}
+                </button>
+              </div>
+            )}
+
+            {!showManualRentalForm && (
+              <button
+                type="button"
+                className="flight-manual-link"
+                onClick={() => {
+                  setEditingRentalId(null);
+                  resetManualRentalForm();
+                  setShowManualRentalForm(true);
+                }}
+              >
+                Manual entry
+              </button>
+            )}
+
+            {showManualRentalForm && (
+              <div className="flight-manual-form">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Rental Company *</label>
+                    <input
+                      type="text"
+                      value={manualRentalForm.rental_company}
+                      onChange={(e) =>
+                        setManualRentalForm((prev) => ({
+                          ...prev,
+                          rental_company: e.target.value,
+                        }))
+                      }
+                      placeholder="Hertz"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Car Class</label>
+                    <input
+                      type="text"
+                      value={manualRentalForm.car_class}
+                      onChange={(e) =>
+                        setManualRentalForm((prev) => ({
+                          ...prev,
+                          car_class: e.target.value,
+                        }))
+                      }
+                      placeholder="Compact SUV"
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Actual Car</label>
+                    <input
+                      type="text"
+                      value={manualRentalForm.actual_car}
+                      onChange={(e) =>
+                        setManualRentalForm((prev) => ({
+                          ...prev,
+                          actual_car: e.target.value,
+                        }))
+                      }
+                      placeholder="Toyota Corolla"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Transmission</label>
+                    <select
+                      value={manualRentalForm.transmission}
+                      onChange={(e) =>
+                        setManualRentalForm((prev) => ({
+                          ...prev,
+                          transmission: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">—</option>
+                      <option value="automatic">Automatic</option>
+                      <option value="manual">Manual</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Pickup Location</label>
+                    <input
+                      type="text"
+                      value={manualRentalForm.pickup_location}
+                      onChange={(e) =>
+                        setManualRentalForm((prev) => ({
+                          ...prev,
+                          pickup_location: e.target.value,
+                        }))
+                      }
+                      placeholder="Keflavik Airport"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Dropoff Location</label>
+                    <input
+                      type="text"
+                      value={manualRentalForm.dropoff_location}
+                      onChange={(e) =>
+                        setManualRentalForm((prev) => ({
+                          ...prev,
+                          dropoff_location: e.target.value,
+                        }))
+                      }
+                      placeholder="Keflavik Airport"
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Pickup Date/Time</label>
+                    <input
+                      type="datetime-local"
+                      value={manualRentalForm.pickup_datetime}
+                      onChange={(e) =>
+                        setManualRentalForm((prev) => ({
+                          ...prev,
+                          pickup_datetime: e.target.value
+                            ? e.target.value.replace("T", " ")
+                            : "",
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Dropoff Date/Time</label>
+                    <input
+                      type="datetime-local"
+                      value={manualRentalForm.dropoff_datetime}
+                      onChange={(e) =>
+                        setManualRentalForm((prev) => ({
+                          ...prev,
+                          dropoff_datetime: e.target.value
+                            ? e.target.value.replace("T", " ")
+                            : "",
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Total Amount</label>
+                    <input
+                      type="text"
+                      value={manualRentalForm.total_amount}
+                      onChange={(e) =>
+                        setManualRentalForm((prev) => ({
+                          ...prev,
+                          total_amount: e.target.value,
+                        }))
+                      }
+                      placeholder="€245.00"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Confirmation #</label>
+                    <input
+                      type="text"
+                      value={manualRentalForm.confirmation_number}
+                      onChange={(e) =>
+                        setManualRentalForm((prev) => ({
+                          ...prev,
+                          confirmation_number: e.target.value,
+                        }))
+                      }
+                      placeholder="L2912369773"
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={manualRentalForm.is_paid}
+                        onChange={(e) =>
+                          setManualRentalForm((prev) => ({
+                            ...prev,
+                            is_paid: e.target.checked,
+                          }))
+                        }
+                      />
+                      Prepaid
+                    </label>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Notes</label>
+                  <textarea
+                    value={manualRentalForm.notes}
+                    onChange={(e) =>
+                      setManualRentalForm((prev) => ({
+                        ...prev,
+                        notes: e.target.value,
+                      }))
+                    }
+                    placeholder="Free cancellation until 48h before pickup"
+                    rows={2}
+                  />
+                </div>
+                <div className="flight-manual-actions">
+                  <button
+                    type="button"
+                    className="btn-cancel"
+                    onClick={() => {
+                      setShowManualRentalForm(false);
+                      setEditingRentalId(null);
+                      resetManualRentalForm();
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-save"
+                    onClick={
+                      editingRentalId
+                        ? handleUpdateRental
+                        : handleManualRentalAdd
+                    }
+                    disabled={addingRental || !manualRentalForm.rental_company}
+                  >
+                    {addingRental
+                      ? "Saving..."
+                      : editingRentalId
+                        ? "Update Rental"
+                        : "Add Rental"}
                   </button>
                 </div>
               </div>
@@ -2639,23 +3360,6 @@ export default function TripFormPage() {
             <h3>Details</h3>
             <div className="form-row">
               <div className="form-group">
-                <label>Flights</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.flights_count || ""}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      flights_count: e.target.value
-                        ? parseInt(e.target.value)
-                        : null,
-                    }))
-                  }
-                  placeholder="0"
-                />
-              </div>
-              <div className="form-group">
                 <label>Working Days</label>
                 <input
                   type="number"
@@ -2670,20 +3374,6 @@ export default function TripFormPage() {
                     }))
                   }
                   placeholder="0"
-                />
-              </div>
-              <div className="form-group">
-                <label>Rental Car</label>
-                <input
-                  type="text"
-                  value={formData.rental_car || ""}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      rental_car: e.target.value || null,
-                    }))
-                  }
-                  placeholder="e.g., Toyota Corolla"
                 />
               </div>
             </div>

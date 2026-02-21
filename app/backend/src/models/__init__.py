@@ -5,6 +5,7 @@ from .location import UserLastLocation
 from .setting import AppSetting
 from .travel import (
     Airport,
+    CarRental,
     City,
     Flight,
     Microstate,
@@ -32,6 +33,7 @@ from .vault import (
 __all__ = [
     "Airport",
     "AppSetting",
+    "CarRental",
     "City",
     "Fixer",
     "FixerCountry",
