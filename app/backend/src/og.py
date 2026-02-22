@@ -42,7 +42,7 @@ STATIC_PAGES: dict[str, tuple[str, str | None]] = {
     ),
     "/projects": (
         "Projects \u2014 Alex Rembish",
-        "rembish.org, TextAtAnyCost, Am I Free?, fit, cfb, Miette \u2014 "
+        "TCC TopoJSON, TextAtAnyCost, Am I Free?, fit, cfb, Miette \u2014 "
         "open-source tools and personal projects",
     ),
     "/contact": ("Contact \u2014 Alex Rembish", None),

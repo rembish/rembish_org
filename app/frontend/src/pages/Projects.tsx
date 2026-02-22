@@ -77,6 +77,27 @@ const projects: Project[] = [
     ],
   },
   {
+    title: "TCC TopoJSON",
+    description:
+      "An open-source TopoJSON world map with 330 polygons matching the Travelers' Century Club destination list. Nothing like this existed before — NomadMania's regions are proprietary, TCC has no polygon data, and existing world atlases only cover countries. Built from Natural Earth 10m shapefiles with transcontinental splits, island extractions, and Antarctic claim sectors.",
+    features: [
+      "330 TCC destinations as individual polygons",
+      "Transcontinental splits (Russia, Turkey, Egypt at precise boundaries)",
+      "All 7 UAE emirates, Indonesian island groups, disputed territories",
+      "Antarctic claim wedges and remote island extractions",
+      "Available via npm or jsDelivr CDN",
+    ],
+    techStack: ["Python", "Shapely", "GeoPandas", "mapshaper", "TopoJSON"],
+    status: "active",
+    links: [
+      {
+        label: "GitHub",
+        url: "https://github.com/rembish/tcc-topojson",
+        icon: BiLogoGithub,
+      },
+    ],
+  },
+  {
     title: "TextAtAnyCost",
     description:
       "One of my oldest and most popular open source projects. A PHP library that pulls plain text out of old document formats — Word files, PDFs, PowerPoint slides, RTF, and more. Born in 2009 and finally given a proper v1.0.0 release in 2026.",

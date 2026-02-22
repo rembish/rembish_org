@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.38.5 (2026-02-22)
+
+### Projects Page
+- Added TCC TopoJSON project — open-source TopoJSON world map with 330 Travelers' Century Club destination polygons
+
 ## 0.38.4 (2026-02-22)
 
 ### SEO
