@@ -51,10 +51,6 @@ def test_vault_storage_save_read_delete() -> None:
         # Read nonexistent
         assert storage.read("1/nonexistent.pdf") is None
 
-        # Signed URL (local = path)
-        url = storage.get_signed_url(key)
-        assert url == f"/vault-files/{key}"
-
         # Delete
         assert storage.delete(key) is True
         assert storage.exists(key) is False

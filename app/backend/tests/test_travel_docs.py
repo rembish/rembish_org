@@ -365,7 +365,7 @@ def test_multiple_files_sort_order(
 
 
 @patch("src.vault_storage.get_vault_storage")
-def test_get_file_signed_url(
+def test_get_file_content(
     mock_storage_fn: MagicMock,
     vault_client: TestClient,
     admin_user: User,
@@ -373,7 +373,7 @@ def test_get_file_signed_url(
 ) -> None:
     from src.models.vault import VaultFile, VaultTravelDoc
 
-    td = VaultTravelDoc(user_id=admin_user.id, doc_type="eta", label="URL Test")
+    td = VaultTravelDoc(user_id=admin_user.id, doc_type="eta", label="Content Test")
     db_session.add(td)
     db_session.flush()
     vf = VaultFile(
@@ -388,16 +388,17 @@ def test_get_file_signed_url(
     db_session.refresh(vf)
 
     mock_storage = MagicMock()
-    mock_storage.get_signed_url.return_value = "/vault-files/1/abc.pdf"
+    mock_storage.read.return_value = b"%PDF-fake-content"
     mock_storage_fn.return_value = mock_storage
 
-    res = vault_client.get(f"/api/v1/admin/vault/files/{vf.id}/url")
+    res = vault_client.get(f"/api/v1/admin/vault/files/{vf.id}/content")
     assert res.status_code == 200
-    assert res.json()["url"] == "/vault-files/1/abc.pdf"
+    assert res.headers["content-type"] == "application/pdf"
+    assert res.content == b"%PDF-fake-content"
 
 
 def test_file_not_found(vault_client: TestClient) -> None:
-    res = vault_client.get("/api/v1/admin/vault/files/999/url")
+    res = vault_client.get("/api/v1/admin/vault/files/999/content")
     assert res.status_code == 404
 
     res = vault_client.delete("/api/v1/admin/vault/files/999")

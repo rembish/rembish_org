@@ -104,16 +104,8 @@ export default function StaysTab({
     }
   };
 
-  const handleViewAccommodationDoc = async (accId: number) => {
-    try {
-      const res = await apiFetch(
-        `/api/v1/travels/accommodations/${accId}/document`,
-      );
-      const data = await res.json();
-      if (data.url) window.open(data.url, "_blank");
-    } catch (err) {
-      console.error("Failed to get document URL:", err);
-    }
+  const handleViewAccommodationDoc = (accId: number) => {
+    window.open(`/api/v1/travels/accommodations/${accId}/document`, "_blank");
   };
 
   const handleDeleteAccommodationDoc = async (accId: number) => {

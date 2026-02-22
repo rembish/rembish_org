@@ -1,7 +1,7 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from sqlalchemy.orm import Session
 
 from ..auth.session import (
@@ -343,12 +343,12 @@ async def upload_accommodation_document(
 
 
 @router.get("/accommodations/{accommodation_id}/document")
-def get_accommodation_document_url(
+def get_accommodation_document(
     accommodation_id: int,
     viewer: Annotated[User, Depends(get_trips_viewer)],
     db: Session = Depends(get_db),
-) -> dict[str, str]:
-    """Get a signed URL for the accommodation's document."""
+) -> Response:
+    """Stream accommodation document content through the backend."""
     from ..vault_storage import get_vault_storage
 
     acc = db.query(Accommodation).filter(Accommodation.id == accommodation_id).first()
@@ -358,8 +358,12 @@ def get_accommodation_document_url(
         raise HTTPException(status_code=404, detail="No document attached")
 
     storage = get_vault_storage()
-    url = storage.get_signed_url(acc.document_path)
-    return {"url": url}
+    content = storage.read(acc.document_path)
+    if content is None:
+        raise HTTPException(status_code=404, detail="Document not found in storage")
+    return Response(
+        content=content, media_type=acc.document_mime_type or "application/octet-stream"
+    )
 
 
 @router.delete("/accommodations/{accommodation_id}/document", status_code=204)

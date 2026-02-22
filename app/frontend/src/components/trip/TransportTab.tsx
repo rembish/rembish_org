@@ -170,16 +170,11 @@ export default function TransportTab({
     }
   };
 
-  const handleViewTransportDoc = async (bookingId: number) => {
-    try {
-      const res = await apiFetch(
-        `/api/v1/travels/transport-bookings/${bookingId}/document`,
-      );
-      const data = await res.json();
-      if (data.url) window.open(data.url, "_blank");
-    } catch (err) {
-      console.error("Failed to get document URL:", err);
-    }
+  const handleViewTransportDoc = (bookingId: number) => {
+    window.open(
+      `/api/v1/travels/transport-bookings/${bookingId}/document`,
+      "_blank",
+    );
   };
 
   const handleDeleteTransportDoc = async (bookingId: number) => {

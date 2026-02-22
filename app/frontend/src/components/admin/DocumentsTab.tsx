@@ -162,16 +162,8 @@ export default function DocumentsTab({
     if (res?.ok) fetchData();
   };
 
-  const handleViewFile = async (fileId: number) => {
-    const w = window.open("about:blank", "_blank");
-    const res = await vaultFetch(`/api/v1/admin/vault/files/${fileId}/url`);
-    if (res?.ok) {
-      const data = await res.json();
-      if (w) w.location.href = data.url;
-      else window.location.href = data.url;
-    } else {
-      w?.close();
-    }
+  const handleViewFile = (fileId: number) => {
+    window.open(`/api/v1/admin/vault/files/${fileId}/content`, "_blank");
   };
 
   // Document handlers

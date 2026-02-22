@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.38.3 (2026-02-22)
+
+### Security
+- Vault files (passport scans, visa PDFs, booking confirmations) now stream through authenticated backend endpoints instead of using GCS signed URLs
+- Locking the vault immediately cuts off all file access — signed URLs could previously be used after vault auto-lock
+- Same change applies to accommodation and transport booking document downloads
+
 ## 0.38.2 (2026-02-22)
 
 ### Error Pages

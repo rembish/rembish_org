@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
 from sqlalchemy.orm import Session, joinedload
 
 from ..auth.session import get_vault_user
@@ -123,21 +123,23 @@ def upload_file(
     )
 
 
-@router.get("/files/{file_id}/url")
-def get_file_url(
+@router.get("/files/{file_id}/content")
+def get_file_content(
     file_id: int,
     admin: Annotated[User, Depends(get_vault_user)],
     db: Session = Depends(get_db),
-) -> dict[str, str]:
-    """Get a signed URL for a vault file."""
+) -> Response:
+    """Stream vault file content through the backend."""
     from ..vault_storage import get_vault_storage
 
     vf = db.query(VaultFile).filter(VaultFile.id == file_id).first()
     if not vf:
         raise HTTPException(status_code=404, detail="File not found")
     storage = get_vault_storage()
-    url = storage.get_signed_url(vf.file_path)
-    return {"url": url}
+    content = storage.read(vf.file_path)
+    if content is None:
+        raise HTTPException(status_code=404, detail="File not found in storage")
+    return Response(content=content, media_type=vf.mime_type)
 
 
 @router.delete("/files/{file_id}", status_code=status.HTTP_204_NO_CONTENT)

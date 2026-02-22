@@ -1,4 +1,4 @@
-"""Private vault file storage with signed URL support."""
+"""Private vault file storage."""
 
 import uuid
 from abc import ABC, abstractmethod
@@ -13,10 +13,6 @@ class VaultStorageBackend(ABC):
     @abstractmethod
     def save(self, user_id: int, filename: str, content: bytes, content_type: str) -> str:
         """Save content and return storage key."""
-
-    @abstractmethod
-    def get_signed_url(self, key: str, expires_minutes: int = 15) -> str:
-        """Get a time-limited signed URL for accessing the file."""
 
     @abstractmethod
     def delete(self, key: str) -> bool:
@@ -52,9 +48,6 @@ class LocalVaultStorage(VaultStorageBackend):
         file_path.write_bytes(content)
         return key
 
-    def get_signed_url(self, key: str, expires_minutes: int = 15) -> str:
-        return f"/vault-files/{key}"
-
     def delete(self, key: str) -> bool:
         file_path = self.base_path / key
         if file_path.exists():
@@ -73,31 +66,13 @@ class LocalVaultStorage(VaultStorageBackend):
 
 
 class GCSVaultStorage(VaultStorageBackend):
-    """Google Cloud Storage backend (private bucket with signed URLs).
-
-    On Cloud Run, credentials are metadata-server tokens without a private key.
-    We pass service_account_email + access_token to generate_signed_url(),
-    which uses the IAM signBlob API instead of local signing.
-    Requires roles/iam.serviceAccountTokenCreator on the SA.
-    """
+    """Google Cloud Storage backend (private bucket, streamed through backend)."""
 
     def __init__(self, bucket_name: str):
         import google.auth
-        from google.auth import compute_engine
-        from google.auth.transport import requests as google_requests
         from google.cloud import storage
 
         self._credentials, project = google.auth.default()
-        self._auth_request = google_requests.Request()
-
-        # Detect Cloud Run (compute engine credentials without private key)
-        if isinstance(self._credentials, compute_engine.Credentials):
-            # Refresh to populate service_account_email (is "default" before refresh)
-            self._credentials.refresh(self._auth_request)
-            self._sa_email: str | None = self._credentials.service_account_email
-        else:
-            self._sa_email = None
-
         self.client = storage.Client(credentials=self._credentials, project=project)
         self.bucket = self.client.bucket(bucket_name)
         self.bucket_name = bucket_name
@@ -107,33 +82,6 @@ class GCSVaultStorage(VaultStorageBackend):
         blob = self.bucket.blob(key)
         blob.upload_from_string(content, content_type=content_type)
         return key
-
-    def get_signed_url(self, key: str, expires_minutes: int = 15) -> str:
-        import datetime
-
-        blob = self.bucket.blob(key)
-
-        if self._sa_email:
-            # Cloud Run: use IAM signBlob API via access_token
-            self._credentials.refresh(self._auth_request)
-            return str(
-                blob.generate_signed_url(
-                    version="v4",
-                    expiration=datetime.timedelta(minutes=expires_minutes),
-                    method="GET",
-                    service_account_email=self._sa_email,
-                    access_token=self._credentials.token,
-                )
-            )
-        else:
-            # Local with service account key file
-            return str(
-                blob.generate_signed_url(
-                    version="v4",
-                    expiration=datetime.timedelta(minutes=expires_minutes),
-                    method="GET",
-                )
-            )
 
     def delete(self, key: str) -> bool:
         blob = self.bucket.blob(key)

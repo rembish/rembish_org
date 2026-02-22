@@ -342,8 +342,10 @@ def test_transport_booking_document_upload(admin_client: TestClient, db_session:
         mock_storage.save.assert_called_once()
 
 
-def test_transport_booking_document_get_url(admin_client: TestClient, db_session: Session) -> None:
-    """Get signed URL for a transport booking document."""
+def test_transport_booking_document_get_content(
+    admin_client: TestClient, db_session: Session
+) -> None:
+    """Get document content streamed through the backend."""
     trip = _create_trip(db_session)
 
     booking = TransportBooking(
@@ -361,13 +363,13 @@ def test_transport_booking_document_get_url(admin_client: TestClient, db_session
 
     with patch("src.vault_storage.get_vault_storage") as mock_storage_fn:
         mock_storage = MagicMock()
-        mock_storage.get_signed_url.return_value = "https://example.com/signed-url"
+        mock_storage.read.return_value = b"%PDF-fake-content"
         mock_storage_fn.return_value = mock_storage
 
         res = admin_client.get(f"/api/v1/travels/transport-bookings/{booking.id}/document")
         assert res.status_code == 200
-        data = res.json()
-        assert data["url"] == "https://example.com/signed-url"
+        assert res.headers["content-type"] == "application/pdf"
+        assert res.content == b"%PDF-fake-content"
 
 
 def test_transport_booking_document_delete(admin_client: TestClient, db_session: Session) -> None:
