@@ -8,6 +8,18 @@
 - Runtime crashes (ErrorBoundary) now show a styled 500 page with the same design
 - "Take me home" button on all error pages
 
+### Open Graph Improvements
+- CV link previews now show a role summary instead of the generic tagline
+- Projects link previews list all project names
+
+### Projects Page
+- Updated rembish.org project description and features to reflect current scope: travel management platform with flight tracking, encrypted vault, photo gallery, and more
+
+### Security
+- Fixed SPF DNS record — removed invalid comma and Google include, set to `v=spf1 -all` (no email sent from this domain)
+- Added DMARC DNS record (`v=DMARC1; p=reject`) to prevent email spoofing
+- Submitted rembish.org to HSTS preload list
+
 ## 0.38.1 (2026-02-22)
 
 ### License Change
