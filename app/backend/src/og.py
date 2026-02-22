@@ -2,9 +2,11 @@
 
 import html
 import re
+from datetime import date
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import HTMLResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from .database import get_db
@@ -15,6 +17,7 @@ from .models import (
     Trip,
     TripDestination,
     UNCountry,
+    Visit,
 )
 
 router = APIRouter(tags=["og"])
@@ -26,17 +29,27 @@ DEFAULT_TITLE = "Alex Rembish \u2014 Software Engineer"
 DEFAULT_DESCRIPTION = "Alex Rembish - Software Engineer"
 IMAGE_WIDTH = "1920"
 IMAGE_HEIGHT = "1053"
+MAP_IMAGE_WIDTH = "1200"
+MAP_IMAGE_HEIGHT = "630"
 
-# Static page titles
-STATIC_PAGES: dict[str, str] = {
-    "/": DEFAULT_TITLE,
-    "/cv": "CV / Resume \u2014 Alex Rembish",
-    "/projects": "Projects \u2014 Alex Rembish",
-    "/contact": "Contact \u2014 Alex Rembish",
-    "/changelog": f"Changelog \u2014 {SITE_NAME}",
-    "/travels": "Travels \u2014 Alex Rembish",
-    "/photos/albums": "Photo Gallery \u2014 Alex Rembish",
-    "/photos/map": "Photos Map \u2014 Alex Rembish",
+# Static page metadata: title, description (None = use DEFAULT_DESCRIPTION)
+STATIC_PAGES: dict[str, tuple[str, str | None]] = {
+    "/": (DEFAULT_TITLE, None),
+    "/cv": (
+        "CV / Resume \u2014 Alex Rembish",
+        "Software engineer since 2005. Python expert, test infrastructure, "
+        "team leadership up to 75 engineers. Based in Prague.",
+    ),
+    "/projects": (
+        "Projects \u2014 Alex Rembish",
+        "rembish.org, TextAtAnyCost, Am I Free?, fit, cfb, Miette \u2014 "
+        "open-source tools and personal projects",
+    ),
+    "/contact": ("Contact \u2014 Alex Rembish", None),
+    "/changelog": (f"Changelog \u2014 {SITE_NAME}", None),
+    "/travels": ("Travels \u2014 Alex Rembish", None),
+    "/photos/albums": ("Photo Gallery \u2014 Alex Rembish", None),
+    "/photos/map": ("Photos Map \u2014 Alex Rembish", None),
 }
 
 # Patterns for dynamic pages
@@ -205,18 +218,48 @@ def _render_og_html(
 </html>"""
 
 
-def _resolve_path(path: str, db: Session) -> tuple[str, str, str]:
-    """Resolve a path to (title, description, image_url)."""
+def _get_travels_og(
+    db: Session,
+) -> tuple[str, str, str, str, str]:
+    """Build OG data for /travels with dynamic stats and map image."""
+    today = date.today()
+
+    un_total = db.query(func.count(UNCountry.id)).scalar() or 0
+    un_visited = (
+        db.query(func.count(func.distinct(TCCDestination.un_country_id)))
+        .join(Visit, Visit.tcc_destination_id == TCCDestination.id)
+        .filter(TCCDestination.un_country_id.isnot(None))
+        .filter(Visit.first_visit_date <= today)
+        .scalar()
+        or 0
+    )
+    tcc_total = db.query(func.count(TCCDestination.id)).scalar() or 0
+    tcc_visited = (
+        db.query(func.count(Visit.id)).filter(Visit.first_visit_date <= today).scalar() or 0
+    )
+
+    title = STATIC_PAGES["/travels"][0]
+    description = (
+        f"{un_visited} of {un_total} UN countries "
+        f"\u00b7 {tcc_visited} of {tcc_total} TCC destinations"
+    )
+    image = f"{BASE_URL}/api/v1/travels/og/map.png"
+    return title, description, image, MAP_IMAGE_WIDTH, MAP_IMAGE_HEIGHT
+
+
+def _resolve_path(path: str, db: Session) -> tuple[str, str, str, str, str]:
+    """Resolve a path to (title, description, image_url, width, height)."""
     # Normalize path
     path = path.rstrip("/") or "/"
 
-    # Static pages
-    if path in STATIC_PAGES:
-        return STATIC_PAGES[path], DEFAULT_DESCRIPTION, DEFAULT_IMAGE
+    # Static pages (except /travels which gets special handling)
+    if path in STATIC_PAGES and path != "/travels":
+        title, desc = STATIC_PAGES[path]
+        return title, desc or DEFAULT_DESCRIPTION, DEFAULT_IMAGE, IMAGE_WIDTH, IMAGE_HEIGHT
 
-    # Travels sub-paths (e.g. /travels/42)
+    # Travels paths: /travels and /travels/*
     if path.startswith("/travels"):
-        return STATIC_PAGES["/travels"], DEFAULT_DESCRIPTION, DEFAULT_IMAGE
+        return _get_travels_og(db)
 
     # Trip album: /photos/albums/:id
     match = TRIP_ALBUM_RE.match(path)
@@ -241,9 +284,9 @@ def _resolve_path(path: str, db: Session) -> tuple[str, str, str]:
             image = (
                 f"{BASE_URL}/api/v1/travels/photos/media/{media_id}" if media_id else DEFAULT_IMAGE
             )
-            return title, description, image
+            return title, description, image, IMAGE_WIDTH, IMAGE_HEIGHT
 
-        return DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_IMAGE
+        return DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_IMAGE, IMAGE_WIDTH, IMAGE_HEIGHT
 
     # Country photos: /photos/map/:id
     match = COUNTRY_PHOTOS_RE.match(path)
@@ -258,18 +301,18 @@ def _resolve_path(path: str, db: Session) -> tuple[str, str, str]:
             image = (
                 f"{BASE_URL}/api/v1/travels/photos/media/{media_id}" if media_id else DEFAULT_IMAGE
             )
-            return title, description, image
+            return title, description, image, IMAGE_WIDTH, IMAGE_HEIGHT
 
-        return DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_IMAGE
+        return DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_IMAGE, IMAGE_WIDTH, IMAGE_HEIGHT
 
     # Fallback
-    return DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_IMAGE
+    return DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_IMAGE, IMAGE_WIDTH, IMAGE_HEIGHT
 
 
 @router.get("/og")
 def get_og_tags(path: str = "/", db: Session = Depends(get_db)) -> HTMLResponse:
     """Return minimal HTML with Open Graph meta tags for link preview bots."""
-    title, description, image = _resolve_path(path, db)
+    title, description, image, img_w, img_h = _resolve_path(path, db)
     canonical_url = f"{BASE_URL}{path.rstrip('/') or '/'}"
 
     content = _render_og_html(
@@ -277,5 +320,7 @@ def get_og_tags(path: str = "/", db: Session = Depends(get_db)) -> HTMLResponse:
         description=description,
         image=image,
         url=canonical_url,
+        image_width=img_w,
+        image_height=img_h,
     )
     return HTMLResponse(content=content)

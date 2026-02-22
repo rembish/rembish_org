@@ -21,14 +21,14 @@ const projects: Project[] = [
   {
     title: "rembish.org",
     description:
-      "This very website! A personal portfolio and contact page built from scratch with modern web technologies and AI assistance.",
+      "This very website! What started as a simple portfolio page grew into a full travel management platform — trip planning, flight tracking, encrypted document vault, photo gallery, and more. Built entirely with Claude AI.",
     features: [
-      "Interactive map with Leaflet",
-      "Type animation effects",
-      "Contact form with Cloudflare Turnstile",
-      "Google OAuth authentication",
-      "Fully responsive design",
-      "Built entirely with Claude AI",
+      "Interactive travel map with 193 UN countries and 330 TCC destinations",
+      "Flight tracking with AeroDataBox lookup and statistics",
+      "Encrypted vault for passports, visas, and travel documents",
+      "Instagram photo gallery with country-based world map",
+      "Trip planner with country info, weather, holidays, and vacation balance",
+      "Car rental, transport booking, and accommodation management",
     ],
     techStack: [
       "React",
