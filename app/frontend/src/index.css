@@ -6591,6 +6591,16 @@ a {
   text-align: center;
   padding: 2rem;
 
+  & .error-code {
+    font-family: var(--font-heading);
+    font-size: clamp(6rem, 15vw, 10rem);
+    font-weight: 700;
+    line-height: 1;
+    color: var(--color-primary);
+    opacity: 0.15;
+    margin-block-end: 0.25rem;
+  }
+
   & h2 {
     margin: 0 0 0.5rem;
     font-family: var(--font-heading);
@@ -6601,7 +6611,9 @@ a {
     color: var(--color-text-secondary);
   }
 
-  & button {
+  & button,
+  & .error-home-link {
+    display: inline-block;
     padding: 0.5rem 1.5rem;
     background: var(--color-primary);
     color: white;
@@ -6609,6 +6621,7 @@ a {
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.9rem;
+    text-decoration: none;
 
     &:hover {
       background: var(--color-primary-hover);

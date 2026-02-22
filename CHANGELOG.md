@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.38.2 (2026-02-22)
+
+### Error Pages
+- Unknown routes now show a styled 404 page with rotating travel + dev humor messages instead of a blank content area
+- Sidebar navigation stays visible on error pages
+- Runtime crashes (ErrorBoundary) now show a styled 500 page with the same design
+- "Take me home" button on all error pages
+
 ## 0.38.1 (2026-02-22)
 
 ### License Change

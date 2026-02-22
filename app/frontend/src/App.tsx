@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary";
+import ErrorPage from "./components/ErrorPage";
 import Layout from "./components/Layout";
 import { ViewAsProvider } from "./hooks/useViewAs";
 import Home from "./pages/Home";
@@ -64,6 +65,7 @@ function App() {
               <Route path="/admin/:tab/:year" element={<Admin />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/changelog" element={<Changelog />} />
+              <Route path="*" element={<ErrorPage />} />
             </Routes>
           </Suspense>
         </Layout>
