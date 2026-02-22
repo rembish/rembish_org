@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.38.1 (2026-02-22)
+
+### License Change
+- Switched from CC BY-NC-ND 4.0 to GNU Affero General Public License v3.0 (AGPL-3.0)
+
+### README Rewrite
+- Updated README to reflect current project scope: travel management platform with 6 public pages, 10+ admin features, AI document extraction, encrypted vault, and role-based access
+
+### Code Quality
+- Split TripFormPage.tsx (5,303 lines) into 10 focused modules + 304-line orchestrator
+  - `components/trip/`: types, helpers, EditTab, InfoTab, TransportTab, StaysTab, FlightModal, CarRentalModal, TransportBookingModal, AccommodationModal
+  - Each tab fetches its own data, manages own vault state
+  - No behavioral changes — pure refactor
+
 ## 0.38.0 (2026-02-21)
 
 ### Accommodation Bookings — "Stays" Tab
