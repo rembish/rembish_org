@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.38.4 (2026-02-22)
+
+### SEO
+- Added `robots.txt` — search engines (Google, Bing, DuckDuckGo, Yandex) allowed on public pages only; AI training crawlers blocked; AI search crawlers allowed on public pages
+- Added `sitemap.xml` with home, CV, and projects pages
+
+### Backend
+- Added map image generation endpoint (server-side travel map rendering)
+
 ## 0.38.3 (2026-02-22)
 
 ### Security
