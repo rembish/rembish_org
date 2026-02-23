@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.38.7 (2026-02-23)
+
+### Flight Tracking
+- Airports created from ticket extraction or manual entry now auto-enrich with name, city, country, coordinates, and timezone from an offline dataset (7,864 IATA airports)
+- Previously, airports without AeroDataBox lookup had only a bare IATA code — causing missing flags on calendar, invisible markers on map, and no country info on trip pages
+
+### Dependencies
+- Added `airportsdata` package for offline airport enrichment
+
 ## 0.38.6 (2026-02-23)
 
 ### Projects Page

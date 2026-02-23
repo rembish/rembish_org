@@ -1,7 +1,8 @@
 import logging
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Any
 
+import airportsdata
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session, joinedload
@@ -29,6 +30,16 @@ from .models import (
 )
 
 log = logging.getLogger(__name__)
+
+_AIRPORTS_DB: dict[str, Any] | None = None
+
+
+def _get_airports_db() -> dict[str, Any]:
+    global _AIRPORTS_DB
+    if _AIRPORTS_DB is None:
+        _AIRPORTS_DB = airportsdata.load("IATA")
+    return _AIRPORTS_DB
+
 
 router = APIRouter()
 
@@ -72,6 +83,24 @@ def _upsert_airport(
         )
         db.add(airport)
         db.flush()
+
+    # Fill gaps from offline dataset when key fields are missing
+    if not airport.country_code or not airport.name:
+        ref = _get_airports_db().get(iata)
+        if ref:
+            if not airport.name:
+                airport.name = str(ref.get("name", ""))
+            if not airport.city:
+                airport.city = str(ref.get("city", ""))
+            if not airport.country_code:
+                airport.country_code = str(ref.get("country", ""))
+            if airport.latitude is None:
+                airport.latitude = float(ref["lat"])
+            if airport.longitude is None:
+                airport.longitude = float(ref["lon"])
+            if not airport.timezone:
+                airport.timezone = str(ref.get("tz", ""))
+
     return airport
 
 

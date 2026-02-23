@@ -2,6 +2,8 @@
 #    uv pip compile pyproject.toml -o requirements.lock --no-cache
 aiomysql==0.3.2
     # via rembish-org-backend (pyproject.toml)
+airportsdata==20260208
+    # via rembish-org-backend (pyproject.toml)
 alembic==1.18.4
     # via rembish-org-backend (pyproject.toml)
 annotated-doc==0.0.4

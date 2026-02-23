@@ -626,6 +626,52 @@ def test_extract_flights_dedup(
     assert data["flights"][1]["is_duplicate"] is False
 
 
+def test_upsert_airport_enriches_from_airportsdata(db_session: Session) -> None:
+    """_upsert_airport fills missing fields from offline airportsdata package."""
+    from src.travels.flights import _upsert_airport
+
+    airport = _upsert_airport(db_session, "BLR")
+    db_session.commit()
+
+    assert airport.iata_code == "BLR"
+    assert airport.country_code == "IN"
+    assert airport.name is not None and len(airport.name) > 0
+    assert airport.city is not None and len(airport.city) > 0
+    assert airport.latitude is not None
+    assert airport.longitude is not None
+    assert airport.timezone is not None and len(airport.timezone) > 0
+
+
+def test_upsert_airport_preserves_existing_data(db_session: Session) -> None:
+    """_upsert_airport does not overwrite data already present."""
+    from src.travels.flights import _upsert_airport
+
+    # First create with full data
+    airport = _upsert_airport(
+        db_session,
+        "DOH",
+        name="Custom Name",
+        city="Custom City",
+        country_code="QA",
+        latitude=25.0,
+        longitude=51.0,
+        timezone="Asia/Qatar",
+    )
+    db_session.commit()
+
+    # Upsert again with no data — existing values should be preserved
+    airport2 = _upsert_airport(db_session, "DOH")
+    db_session.commit()
+
+    assert airport2.id == airport.id
+    assert airport2.name == "Custom Name"
+    assert airport2.city == "Custom City"
+    assert airport2.country_code == "QA"
+    assert airport2.latitude == 25.0
+    assert airport2.longitude == 51.0
+    assert airport2.timezone == "Asia/Qatar"
+
+
 def test_extract_flights_trip_not_found(admin_client: TestClient) -> None:
     """Extract endpoint returns 404 for non-existent trip."""
     res = admin_client.post(
