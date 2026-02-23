@@ -5,6 +5,7 @@ import {
   BiLogoGithub,
   BiSolidStar,
 } from "react-icons/bi";
+import { SiNpm } from "react-icons/si";
 
 interface Project {
   title: string;
@@ -79,13 +80,13 @@ const projects: Project[] = [
   {
     title: "TCC TopoJSON",
     description:
-      "An open-source TopoJSON world map with 330 polygons matching the Travelers' Century Club destination list. Nothing like this existed before — NomadMania's regions are proprietary, TCC has no polygon data, and existing world atlases only cover countries. Built from Natural Earth 10m shapefiles with transcontinental splits, island extractions, and Antarctic claim sectors.",
+      "An open-source TopoJSON world map with 330 polygons matching the Travelers' Century Club destination list. Nothing like this existed before — TCC has no polygon data and existing world atlases only cover countries. Built from Natural Earth 10m shapefiles with transcontinental splits, island extractions, and Antarctic claim sectors.",
     features: [
-      "330 TCC destinations as individual polygons",
+      "330 TCC destinations — full polygons and point-marker variants",
       "Transcontinental splits (Russia, Turkey, Egypt at precise boundaries)",
       "All 7 UAE emirates, Indonesian island groups, disputed territories",
       "Antarctic claim wedges and remote island extractions",
-      "Available via npm or jsDelivr CDN",
+      "Published on npm, available via jsDelivr CDN",
     ],
     techStack: ["Python", "Shapely", "GeoPandas", "mapshaper", "TopoJSON"],
     status: "active",
@@ -94,6 +95,36 @@ const projects: Project[] = [
         label: "GitHub",
         url: "https://github.com/rembish/tcc-topojson",
         icon: BiLogoGithub,
+      },
+      {
+        label: "npm",
+        url: "https://www.npmjs.com/package/tcc-topojson",
+        icon: SiNpm,
+      },
+    ],
+  },
+  {
+    title: "NM UN+ TopoJSON",
+    description:
+      "A companion to TCC TopoJSON — a TopoJSON world map with 265 polygons matching the NomadMania UN+ region list. Same build pipeline, same quality: Natural Earth 10m base data, proper polygon dissolves, and a point-marker variant for tiny territories.",
+    features: [
+      "265 NomadMania UN+ regions as individual polygons",
+      "Full and markers variants (tiny territories as point markers)",
+      "Per-feature properties: index, name, region, ISO codes, sovereign state",
+      "Interactive viewer included for visual testing",
+    ],
+    techStack: ["Python", "Shapely", "GeoPandas", "mapshaper", "TopoJSON"],
+    status: "active",
+    links: [
+      {
+        label: "GitHub",
+        url: "https://github.com/rembish/nm-unp-topojson",
+        icon: BiLogoGithub,
+      },
+      {
+        label: "npm",
+        url: "https://www.npmjs.com/package/@rembish/nm-unp-topojson",
+        icon: SiNpm,
       },
     ],
   },

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.38.6 (2026-02-23)
+
+### Projects Page
+- Added NM UN+ TopoJSON project — 265 NomadMania UN+ regions as TopoJSON polygons
+- Updated TCC TopoJSON project card to reflect v1.1.0 (markers variant, npm published)
+- Added npm package links to both TopoJSON projects
+
+### CV
+- Updated employer: Pure Storage renamed to Everpure
+
 ## 0.38.5 (2026-02-22)
 
 ### Projects Page

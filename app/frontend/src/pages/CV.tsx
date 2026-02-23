@@ -201,8 +201,8 @@ export default function CV() {
               <h5>Feb 2023 - Present</h5>
               <p>
                 <em>
-                  <a href="https://www.purestorage.com">Pure Storage</a> |
-                  Prague
+                  <a href="https://everpuredata.com">Everpure</a> (formerly Pure
+                  Storage) | Prague
                 </em>
               </p>
               <p>
