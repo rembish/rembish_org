@@ -4,17 +4,24 @@ import { useViewAs } from "../hooks/useViewAs";
 import type {
   AdminTab,
   DocSection,
+  DroneSubTab,
   PeopleSection,
 } from "../components/admin/types";
-import { DOC_SECTIONS, PEOPLE_SECTIONS } from "../components/admin/types";
+import {
+  DOC_SECTIONS,
+  DRONE_SUB_TABS,
+  PEOPLE_SECTIONS,
+} from "../components/admin/types";
 import TripsTab from "../components/admin/TripsTab";
 import InstagramTab from "../components/admin/InstagramTab";
 import PeopleTab from "../components/admin/PeopleTab";
 import DocumentsTab from "../components/admin/DocumentsTab";
 import LoyaltyTab from "../components/admin/LoyaltyTab";
+import DronesTab from "../components/admin/DronesTab";
 
 const validDocSections = new Set<string>(DOC_SECTIONS.map((s) => s.key));
 const validPeopleSections = new Set<string>(PEOPLE_SECTIONS.map((s) => s.key));
+const validDroneSubTabs = new Set<string>(DRONE_SUB_TABS.map((s) => s.key));
 
 export default function Admin() {
   const { user, loading: authLoading } = useAuth();
@@ -27,7 +34,10 @@ export default function Admin() {
   // For documents tab, 'year' is the doc section (ids/vaccinations/visas)
   // For people tab, 'year' is the people section (close-ones/addresses)
   const selectedYear =
-    tab === "instagram" || tab === "documents" || tab === "people"
+    tab === "instagram" ||
+    tab === "documents" ||
+    tab === "people" ||
+    tab === "drones"
       ? null
       : year
         ? Number(year)
@@ -45,6 +55,10 @@ export default function Admin() {
     tab === "people" && year && validPeopleSections.has(year)
       ? (year as PeopleSection)
       : defaultPeopleSection;
+  const droneSubTab: DroneSubTab =
+    tab === "drones" && year && validDroneSubTabs.has(year)
+      ? (year as DroneSubTab)
+      : "flights";
 
   const setActiveTab = (newTab: AdminTab) => {
     if (newTab === "trips" && selectedYear) {
@@ -53,6 +67,8 @@ export default function Admin() {
       navigate(`/admin/documents/ids`);
     } else if (newTab === "people") {
       navigate(`/admin/people/${readOnly ? "fixers" : "close-ones"}`);
+    } else if (newTab === "drones") {
+      navigate(`/admin/drones/flights`);
     } else {
       navigate(`/admin/${newTab}`);
     }
@@ -78,16 +94,21 @@ export default function Admin() {
     navigate(`/admin/people/${section}`, { replace: true });
   };
 
+  const setDroneSubTab = (sub: DroneSubTab) => {
+    navigate(`/admin/drones/${sub}`, { replace: true });
+  };
+
   // Redirect users without any role
   if (!authLoading && !user?.role) {
     return <Navigate to="/" replace />;
   }
 
-  // Viewers can only see Trips and People tabs
+  // Viewers can only see Trips, People, and Drones tabs
   if (
     readOnly &&
     activeTab !== "trips" &&
     activeTab !== "people" &&
+    activeTab !== "drones" &&
     !authLoading
   ) {
     return <Navigate to="/admin/trips" replace />;
@@ -96,6 +117,10 @@ export default function Admin() {
   // Remove year from URL for tabs that don't use it
   if (activeTab === "loyalty" && year) {
     return <Navigate to="/admin/loyalty" replace />;
+  }
+  // Default drones to flights sub-tab
+  if (activeTab === "drones" && !year) {
+    return <Navigate to="/admin/drones/flights" replace />;
   }
   // Default documents to ids sub-tab
   if (activeTab === "documents" && !year) {
@@ -158,6 +183,12 @@ export default function Admin() {
           >
             People
           </button>
+          <button
+            className={`admin-tab ${activeTab === "drones" ? "active" : ""}`}
+            onClick={() => setActiveTab("drones")}
+          >
+            Drones
+          </button>
           {!readOnly && (
             <>
               <button
@@ -211,6 +242,13 @@ export default function Admin() {
             />
           )}
           {activeTab === "loyalty" && <LoyaltyTab />}
+          {activeTab === "drones" && (
+            <DronesTab
+              activeSubTab={droneSubTab}
+              onSubTabChange={setDroneSubTab}
+              readOnly={readOnly}
+            />
+          )}
         </div>
       </div>
     </section>

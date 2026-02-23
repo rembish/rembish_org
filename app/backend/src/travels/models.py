@@ -685,3 +685,111 @@ class AccommodationExtractResponse(BaseModel):
 
 class AccommodationsResponse(BaseModel):
     accommodations: list[AccommodationData]
+
+
+# Drone models
+class DroneData(BaseModel):
+    id: int
+    name: str
+    model: str
+    serial_number: str | None
+    acquired_date: str | None
+    retired_date: str | None
+    notes: str | None
+    flights_count: int
+
+
+class DroneCreateRequest(BaseModel):
+    name: str
+    model: str
+    serial_number: str | None = None
+    acquired_date: str | None = None
+    retired_date: str | None = None
+    notes: str | None = None
+
+
+class DronesResponse(BaseModel):
+    drones: list[DroneData]
+
+
+class DroneFlightData(BaseModel):
+    id: int
+    drone_id: int | None
+    trip_id: int | None
+    flight_date: str
+    takeoff_time: str | None
+    latitude: float | None
+    longitude: float | None
+    duration_sec: float | None
+    distance_km: float | None
+    max_speed_ms: float | None
+    photos: int
+    video_sec: int
+    country: str | None
+    city: str | None
+    is_hidden: bool
+    source_file: str | None
+    drone_name: str | None
+    drone_model: str | None
+
+
+class DroneFlightCreateRequest(BaseModel):
+    drone_id: int | None = None
+    trip_id: int | None = None
+    flight_date: str
+    takeoff_time: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    duration_sec: float | None = None
+    distance_km: float | None = None
+    max_speed_ms: float | None = None
+    photos: int = 0
+    video_sec: int = 0
+    country: str | None = None
+    city: str | None = None
+    is_hidden: bool = False
+    source_file: str | None = None
+
+
+class DroneFlightsResponse(BaseModel):
+    flights: list[DroneFlightData]
+    total: int
+
+
+class DroneFlightYearStats(BaseModel):
+    year: int
+    flights_count: int
+    total_distance_km: float
+    total_duration_sec: float
+    countries: list[str]
+
+
+class DroneStatsPerDrone(BaseModel):
+    drone_id: int
+    drone_name: str
+    drone_model: str
+    flights_count: int
+    total_distance_km: float
+    total_duration_sec: float
+
+
+class DroneStatsResponse(BaseModel):
+    total_flights: int
+    total_distance_km: float
+    total_duration_sec: float
+    total_countries: int
+    total_photos: int
+    total_video_sec: int
+    first_flight_date: str | None
+    last_flight_date: str | None
+    by_year: list[DroneFlightYearStats]
+    by_drone: list[DroneStatsPerDrone]
+
+
+class DroneFlightMapPoint(BaseModel):
+    lat: float
+    lng: float
+    drone_model: str | None
+    country: str | None
+    date: str
+    flight_path: list[list[float]] | None = None

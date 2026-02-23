@@ -60,6 +60,10 @@ function App() {
                 path="/admin/trips/:tripId/stays"
                 element={<TripFormPage />}
               />
+              <Route
+                path="/admin/trips/:tripId/drone-flights"
+                element={<TripFormPage />}
+              />
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin/:tab" element={<Admin />} />
               <Route path="/admin/:tab/:year" element={<Admin />} />

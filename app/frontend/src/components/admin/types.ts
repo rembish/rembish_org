@@ -78,7 +78,8 @@ export type AdminTab =
   | "instagram"
   | "people"
   | "documents"
-  | "loyalty";
+  | "loyalty"
+  | "drones";
 
 export type PeopleSection = "close-ones" | "addresses" | "fixers";
 
@@ -332,6 +333,78 @@ export interface CloseOneUser {
   is_active: boolean;
   role: string | null;
   trips_count: number;
+}
+
+// --- Drone types ---
+
+export type DroneSubTab = "flights" | "my-drones" | "stats";
+
+export const DRONE_SUB_TABS: { key: DroneSubTab; label: string }[] = [
+  { key: "flights", label: "Flights" },
+  { key: "my-drones", label: "My Drones" },
+  { key: "stats", label: "Stats" },
+];
+
+export interface DroneItem {
+  id: number;
+  name: string;
+  model: string;
+  serial_number: string | null;
+  acquired_date: string | null;
+  retired_date: string | null;
+  notes: string | null;
+  flights_count: number;
+}
+
+export interface DroneFlightItem {
+  id: number;
+  drone_id: number | null;
+  trip_id: number | null;
+  flight_date: string;
+  takeoff_time: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  duration_sec: number | null;
+  distance_km: number | null;
+  max_speed_ms: number | null;
+  photos: number;
+  video_sec: number;
+  country: string | null;
+  city: string | null;
+  is_hidden: boolean;
+  source_file: string | null;
+  drone_name: string | null;
+  drone_model: string | null;
+}
+
+export interface DroneFlightYearStats {
+  year: number;
+  flights_count: number;
+  total_distance_km: number;
+  total_duration_sec: number;
+  countries: string[];
+}
+
+export interface DroneStatsPerDrone {
+  drone_id: number;
+  drone_name: string;
+  drone_model: string;
+  flights_count: number;
+  total_distance_km: number;
+  total_duration_sec: number;
+}
+
+export interface DroneStatsData {
+  total_flights: number;
+  total_distance_km: number;
+  total_duration_sec: number;
+  total_countries: number;
+  total_photos: number;
+  total_video_sec: number;
+  first_flight_date: string | null;
+  last_flight_date: string | null;
+  by_year: DroneFlightYearStats[];
+  by_drone: DroneStatsPerDrone[];
 }
 
 // --- Shared constants ---

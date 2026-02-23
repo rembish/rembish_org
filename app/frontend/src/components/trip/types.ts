@@ -1,4 +1,4 @@
-export type TripTab = "edit" | "info" | "transport" | "stays";
+export type TripTab = "edit" | "info" | "transport" | "stays" | "drone-flights";
 
 export interface TCCDestinationOption {
   id: number;

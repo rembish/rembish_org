@@ -30,6 +30,7 @@ services:
       - ../rembish_org_ops/data/instagram:/app/data/instagram
       - ../rembish_org_ops/data/vault-docs:/app/data/vault-docs
       - ../rembish_org_ops/scripts:/ops/scripts:ro
+      - ../rembish_org_ops/flights/geojson:/ops/flights/geojson:ro
     env_file:
       - ./app/backend/.env.dev
     environment:

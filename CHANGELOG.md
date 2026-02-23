@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.39.0 (2026-02-23)
+
+### Drone Flights
+- New "Drone Flights" tab on trip detail pages — shows drone flights linked to each trip
+- Read-only cards with date, time, drone model, location (flag + city), duration, distance, photo/video counts
+- Drone flight trip links now navigate to the trip's drone flights tab
+- Czech Republic drone flights no longer paired to trips (home country)
+
 ## 0.38.7 (2026-02-23)
 
 ### Flight Tracking

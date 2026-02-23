@@ -4,6 +4,7 @@ from .accommodations import router as accommodations_router
 from .calendar import router as calendar_router
 from .car_rentals import router as car_rentals_router
 from .data import router as data_router
+from .drones import router as drones_router
 from .events import router as events_router
 from .flights import router as flights_router
 from .location import router as location_router
@@ -19,6 +20,7 @@ router.include_router(accommodations_router)
 router.include_router(calendar_router)
 router.include_router(car_rentals_router)
 router.include_router(data_router)
+router.include_router(drones_router)
 router.include_router(events_router)
 router.include_router(flights_router)
 router.include_router(location_router)
