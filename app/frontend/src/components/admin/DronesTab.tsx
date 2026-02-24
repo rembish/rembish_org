@@ -4,7 +4,6 @@ import type { DroneSubTab } from "./types";
 import { DRONE_SUB_TABS } from "./types";
 import DroneFlightsList from "./DroneFlightsList";
 import MyDrones from "./MyDrones";
-import DroneStats from "./DroneStats";
 
 export default function DronesTab({
   activeSubTab,
@@ -46,7 +45,6 @@ export default function DronesTab({
       {activeSubTab === "my-drones" && (
         <MyDrones readOnly={readOnly} addTrigger={addTrigger} />
       )}
-      {activeSubTab === "stats" && <DroneStats />}
     </div>
   );
 }

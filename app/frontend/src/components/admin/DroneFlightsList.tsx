@@ -123,7 +123,7 @@ export default function DroneFlightsList({ readOnly }: { readOnly?: boolean }) {
   // Build year options from flight dates
   const years = [
     ...new Set(flights.map((f) => f.flight_date.slice(0, 4))),
-  ].sort();
+  ].sort((a, b) => b.localeCompare(a));
   const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
   const countries = [
     ...new Set(flights.map((f) => f.country).filter(Boolean)),

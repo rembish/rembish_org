@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { BiTimeFive } from "react-icons/bi";
+import { BiTimeFive, BiX } from "react-icons/bi";
+import { MapContainer, TileLayer, Polyline, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { apiFetch } from "../../lib/api";
 import Flag from "../Flag";
 import type { DroneFlightItem } from "../admin/types";
@@ -36,6 +39,17 @@ function fmtTime(iso: string | null): string {
   }
 }
 
+function FitPath({ path }: { path: [number, number][] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (path.length > 0) {
+      const bounds = L.latLngBounds(path);
+      map.fitBounds(bounds, { padding: [30, 30] });
+    }
+  }, [map, path]);
+  return null;
+}
+
 interface TripDroneFlightsTabProps {
   tripId: string;
   readOnly: boolean;
@@ -46,6 +60,10 @@ export default function TripDroneFlightsTab({
 }: TripDroneFlightsTabProps) {
   const [flights, setFlights] = useState<DroneFlightItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mapFlight, setMapFlight] = useState<DroneFlightItem | null>(null);
+
+  const mapPath: [number, number][] =
+    mapFlight?.flight_path?.map(([lng, lat]) => [lat, lng]) ?? [];
 
   useEffect(() => {
     setLoading(true);
@@ -78,7 +96,14 @@ export default function TripDroneFlightsTab({
         ) : (
           <div className="transport-booking-list">
             {flights.map((f) => (
-              <div key={f.id} className="transport-booking-card">
+              <div
+                key={f.id}
+                className="transport-booking-card"
+                style={{
+                  cursor: f.flight_path ? "pointer" : undefined,
+                }}
+                onClick={() => f.flight_path && setMapFlight(f)}
+              >
                 <div className="transport-booking-main">
                   <div className="transport-booking-header">
                     <span className="transport-booking-operator">
@@ -111,11 +136,6 @@ export default function TripDroneFlightsTab({
                         {f.photos} photo{f.photos !== 1 ? "s" : ""}
                       </span>
                     )}
-                    {f.video_sec > 0 && (
-                      <span className="flight-badge">
-                        {Math.round(f.video_sec / 60)}m video
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>
@@ -123,6 +143,77 @@ export default function TripDroneFlightsTab({
           </div>
         )}
       </div>
+
+      {mapFlight && mapPath.length >= 2 && (
+        <div className="modal-overlay" onClick={() => setMapFlight(null)}>
+          <div
+            className="modal-content drone-map-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2>
+                {fmtDate(mapFlight.flight_date)}
+                {mapFlight.takeoff_time
+                  ? ` ${fmtTime(mapFlight.takeoff_time)}`
+                  : ""}
+                {mapFlight.city
+                  ? ` — ${mapFlight.city}`
+                  : mapFlight.country
+                    ? ` — ${mapFlight.country}`
+                    : ""}
+              </h2>
+              <button
+                className="modal-close"
+                onClick={() => setMapFlight(null)}
+              >
+                <BiX />
+              </button>
+            </div>
+            <div className="drone-map-container">
+              <MapContainer
+                center={mapPath[0]}
+                zoom={15}
+                scrollWheelZoom={true}
+                style={{ height: "100%", width: "100%" }}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <FitPath path={mapPath} />
+                <Polyline
+                  positions={mapPath}
+                  pathOptions={{
+                    color: "#0563bb",
+                    weight: 3,
+                    opacity: 0.8,
+                  }}
+                />
+              </MapContainer>
+            </div>
+            <div className="drone-map-details">
+              {mapFlight.drone_model && (
+                <span className="flight-badge">{mapFlight.drone_model}</span>
+              )}
+              {mapFlight.duration_sec != null && mapFlight.duration_sec > 0 && (
+                <span className="flight-badge">
+                  {fmtDuration(mapFlight.duration_sec)}
+                </span>
+              )}
+              {mapFlight.distance_km != null && mapFlight.distance_km > 0 && (
+                <span className="flight-badge">
+                  {fmtDistance(mapFlight.distance_km)}
+                </span>
+              )}
+              {mapFlight.photos > 0 && (
+                <span className="flight-badge">
+                  {mapFlight.photos} photo{mapFlight.photos !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

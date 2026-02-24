@@ -1014,9 +1014,13 @@ a {
 
 .travel-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.75rem;
   margin-block-end: 1.5rem;
+
+  @media (width <= 900px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
 
   @media (width <= 600px) {
     display: block;
@@ -7317,6 +7321,62 @@ a {
   cursor: help;
 }
 
+.flight-stats-stacked-bar {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.flight-stats-bar-segment {
+  border-radius: 0;
+  padding-inline: 0;
+}
+
+.flight-stats-bar-segment:first-child {
+  border-radius: 3px 0 0 3px;
+}
+
+.flight-stats-bar-segment:last-of-type {
+  border-radius: 0 3px 3px 0;
+}
+
+.flight-stats-bar-segment:only-of-type {
+  border-radius: 3px;
+}
+
+.flight-stats-stacked-value {
+  margin-inline-start: 0.375rem;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.flight-stats-legend {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  padding-inline-start: calc(8rem + 0.5rem);
+
+  @media (width <= 600px) {
+    padding-inline-start: calc(5rem + 0.5rem);
+  }
+}
+
+.flight-stats-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.flight-stats-legend-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
 /* ===== Vault ===== */
 
 .vault-locked {
@@ -8673,56 +8733,9 @@ a {
   overflow: hidden;
 }
 
-/* Drone Stats */
-
-.drone-stats-summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 0.75rem;
-  margin-block-end: 1rem;
-}
-
-.drone-stats-card {
-  background: var(--color-bg);
-  border-radius: 8px;
-  padding: 1rem;
-  text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.drone-stats-icon {
-  font-size: 1.25rem;
-  color: #0563bb;
-  margin-block-end: 0.25rem;
-}
-
-.drone-stats-card-value {
-  font-size: 1.375rem;
-  font-weight: 700;
-  color: var(--color-text);
-}
-
-.drone-stats-card-label {
-  font-size: 0.75rem;
-  color: #888;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.drone-stats-date-range {
-  font-size: 0.8125rem;
-  color: #888;
-  text-align: center;
-  margin-block-end: 0.5rem;
-}
-
 @media (width <= 600px) {
   .drone-flights-table th:nth-child(2),
   .drone-flights-table td:nth-child(2) {
     display: none;
-  }
-
-  .drone-stats-summary {
-    grid-template-columns: repeat(3, 1fr);
   }
 }

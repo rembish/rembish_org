@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.40.1 (2026-02-24)
+
+### Drone Flights
+- Drone city markers on the travels map — purple dots on the drone map view with "Show cities" toggle
+- Trip drone flights: click a flight card to see the flight path on a map modal
+- Removed video length from trip drone flight cards (data was inaccurate)
+- Years dropdown in admin drone flights list now sorted descending
+- Removed admin drone stats page (stats moved to public travels page)
+
+### Travels Page
+- New "Drone" stat card: flight count, total flight time, distance, countries flown
+- "Flights by Year" chart now shows drone flights as a stacked purple segment alongside plane flights
+- New "Drone Flights by Model" chart on flight statistics page
+- Stat cards now display in a 4-column grid on desktop (was 3)
+
 ## 0.40.0 (2026-02-24)
 
 ### Drone Flights

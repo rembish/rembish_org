@@ -128,6 +128,27 @@ interface FlightStatsData {
   flights_by_year: YearFlightCount[];
 }
 
+interface DroneYearStats {
+  year: number;
+  flights_count: number;
+}
+
+interface DronePerModel {
+  drone_model: string;
+  flights_count: number;
+  total_distance_km: number;
+  total_duration_sec: number;
+}
+
+interface DroneStatsData {
+  total_flights: number;
+  total_distance_km: number;
+  total_duration_sec: number;
+  total_countries: number;
+  by_year: DroneYearStats[];
+  by_drone: DronePerModel[];
+}
+
 // Calculate color based on visit count (hue) and visit date (lightness)
 // Hue: 1 visit = blue, many visits = warm colors (green -> yellow -> orange)
 // Lightness: older visits = lighter, recent = darker
@@ -293,6 +314,9 @@ export default function Travels() {
   // Split state for progressive loading
   const [mapData, setMapData] = useState<MapData | null>(null);
   const [cityMarkers, setCityMarkers] = useState<CityMarkerData[]>([]);
+  const [droneCityMarkers, setDroneCityMarkers] = useState<CityMarkerData[]>(
+    [],
+  );
   const [unData, setUnData] = useState<UNCountryData[] | null>(null);
   const [tccData, setTccData] = useState<TCCDestinationData[] | null>(null);
   const [statsData, setStatsData] = useState<TravelStatsData | null>(null);
@@ -327,11 +351,14 @@ export default function Travels() {
   );
   const [flightStatsData, setFlightStatsData] =
     useState<FlightStatsData | null>(null);
+  const [droneStatsData, setDroneStatsData] = useState<DroneStatsData | null>(
+    null,
+  );
   const [statCarouselIndex, setStatCarouselIndex] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
 
   const handleCarouselSwipe = (direction: "left" | "right") => {
-    const totalItems = 6;
+    const totalItems = 7;
     if (direction === "left") {
       setStatCarouselIndex((prev) => (prev + 1) % totalItems);
     } else {
@@ -359,7 +386,7 @@ export default function Travels() {
     if (!isMobile) return;
 
     const interval = setInterval(() => {
-      setStatCarouselIndex((prev) => (prev + 1) % 6);
+      setStatCarouselIndex((prev) => (prev + 1) % 7);
     }, 5000);
 
     return () => clearInterval(interval);
@@ -387,15 +414,25 @@ export default function Travels() {
       setMapLoading(false);
 
       // Fetch UN, TCC, stats, city, flight, and flight-stats data in parallel
-      const [unRes, tccRes, statsRes, citiesRes, flightsRes, flightStatsRes] =
-        await Promise.all([
-          apiFetch("/api/v1/travels/un-countries"),
-          apiFetch("/api/v1/travels/tcc-destinations"),
-          apiFetch("/api/v1/travels/stats"),
-          apiFetch("/api/v1/travels/map-cities"),
-          apiFetch("/api/v1/travels/map-flights"),
-          apiFetch("/api/v1/travels/flight-stats"),
-        ]);
+      const [
+        unRes,
+        tccRes,
+        statsRes,
+        citiesRes,
+        flightsRes,
+        flightStatsRes,
+        droneCitiesRes,
+        droneStatsRes,
+      ] = await Promise.all([
+        apiFetch("/api/v1/travels/un-countries"),
+        apiFetch("/api/v1/travels/tcc-destinations"),
+        apiFetch("/api/v1/travels/stats"),
+        apiFetch("/api/v1/travels/map-cities"),
+        apiFetch("/api/v1/travels/map-flights"),
+        apiFetch("/api/v1/travels/flight-stats"),
+        apiFetch("/api/v1/travels/drone-flights/map-cities"),
+        apiFetch("/api/v1/travels/drone-stats"),
+      ]);
 
       if (unRes.ok) {
         const unResult = await unRes.json();
@@ -428,6 +465,16 @@ export default function Travels() {
       if (flightStatsRes.ok) {
         const flightStatsResult: FlightStatsData = await flightStatsRes.json();
         setFlightStatsData(flightStatsResult);
+      }
+
+      if (droneCitiesRes.ok) {
+        const droneCitiesResult = await droneCitiesRes.json();
+        setDroneCityMarkers(droneCitiesResult.cities || []);
+      }
+
+      if (droneStatsRes.ok) {
+        const droneStatsResult: DroneStatsData = await droneStatsRes.json();
+        setDroneStatsData(droneStatsResult);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -592,6 +639,21 @@ export default function Travels() {
             />
             <span className="map-legend-label">Flew drone</span>
           </div>
+          <label className="map-legend-toggle" title="Show cities">
+            <input
+              type="checkbox"
+              checked={showCities}
+              onChange={(e) => {
+                setShowCities(e.target.checked);
+                localStorage.setItem(
+                  "travels-show-cities",
+                  String(e.target.checked),
+                );
+              }}
+            />
+            <span className="map-legend-toggle-label">Show cities</span>
+            <BiBuildings className="map-legend-toggle-icon" />
+          </label>
         </div>
       );
     }
@@ -787,6 +849,31 @@ export default function Travels() {
                         name: city.is_partial
                           ? `${city.name} (partial)`
                           : city.name,
+                        x: e.clientX,
+                        y: e.clientY,
+                      });
+                    }}
+                    onMouseLeave={() => setTooltip(null)}
+                  />
+                </Marker>
+              ))}
+            {/* Drone city markers - purple dots for drone flight cities */}
+            {mapViewMode === "drone" &&
+              showCities &&
+              droneCityMarkers.map((city, idx) => (
+                <Marker
+                  key={`drone-city-${idx}`}
+                  coordinates={[city.lng, city.lat]}
+                >
+                  <circle
+                    r={0.5}
+                    fill="#d4a5e5"
+                    stroke="#7b2d8e"
+                    strokeWidth={0.15}
+                    style={{ cursor: "pointer" }}
+                    onMouseEnter={(e) => {
+                      setTooltip({
+                        name: city.name,
                         x: e.clientX,
                         y: e.clientY,
                       });
@@ -1461,13 +1548,114 @@ export default function Travels() {
     );
   };
 
+  const renderFlightsByYear = () => {
+    if (!flightStatsData) return null;
+
+    // Build drone year lookup
+    const droneByYear = new Map(
+      (droneStatsData?.by_year ?? []).map((y) => [y.year, y.flights_count]),
+    );
+
+    // Merge years from both sources
+    const allYears = new Set([
+      ...flightStatsData.flights_by_year.map((y) => y.year),
+      ...(droneStatsData?.by_year ?? []).map((y) => y.year),
+    ]);
+    const years = [...allYears].sort((a, b) => a - b);
+
+    const planeByYear = new Map(
+      flightStatsData.flights_by_year.map((y) => [y.year, y.count]),
+    );
+
+    const yearData = years.map((year) => ({
+      year,
+      plane: planeByYear.get(year) ?? 0,
+      drone: droneByYear.get(year) ?? 0,
+    }));
+
+    const yearMax = Math.max(...yearData.map((y) => y.plane + y.drone), 1);
+
+    return (
+      <div className="flight-stats-section">
+        <h3 className="flight-stats-title">Flights by Year</h3>
+        {yearData.map((y) => {
+          const total = y.plane + y.drone;
+          const planeW = (y.plane / yearMax) * 100;
+          const droneW = (y.drone / yearMax) * 100;
+          return (
+            <div key={y.year} className="flight-stats-bar-row">
+              <span className="flight-stats-label">{y.year}</span>
+              <div className="flight-stats-stacked-bar">
+                {y.plane > 0 && (
+                  <div
+                    className="flight-stats-bar flight-stats-bar-segment"
+                    style={{
+                      width: `${Math.max(planeW, 1.5)}%`,
+                      background: "#0563bb",
+                    }}
+                    title={`${y.plane} plane flights`}
+                  />
+                )}
+                {y.drone > 0 && (
+                  <div
+                    className="flight-stats-bar flight-stats-bar-segment"
+                    style={{
+                      width: `${Math.max(droneW, 1.5)}%`,
+                      background: "#9b59b6",
+                    }}
+                    title={`${y.drone} drone flights`}
+                  />
+                )}
+                <span className="flight-stats-bar-value flight-stats-stacked-value">
+                  {total}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+        <div className="flight-stats-legend">
+          <span className="flight-stats-legend-item">
+            <span
+              className="flight-stats-legend-swatch"
+              style={{ background: "#0563bb" }}
+            />
+            Plane
+          </span>
+          <span className="flight-stats-legend-item">
+            <span
+              className="flight-stats-legend-swatch"
+              style={{ background: "#9b59b6" }}
+            />
+            Drone
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  const renderDroneByModel = () => {
+    if (!droneStatsData || droneStatsData.by_drone.length === 0) return null;
+
+    const modelMax = Math.max(
+      ...droneStatsData.by_drone.map((d) => d.flights_count),
+      1,
+    );
+
+    return renderFlightStatsSection(
+      "Drone Flights by Model",
+      droneStatsData.by_drone.map((d) => ({
+        name: d.drone_model,
+        count: d.flights_count,
+        extra: `${Math.round(d.total_duration_sec / 3600)}h, ${Math.round(d.total_distance_km)} km`,
+      })),
+      modelMax,
+      "#9b59b6",
+    );
+  };
+
   const renderFlightStats = () => {
     if (!flightStatsData) return null;
 
-    const yearMax = Math.max(
-      ...flightStatsData.flights_by_year.map((y) => y.count),
-      1,
-    );
     const airlineMax = Math.max(
       ...flightStatsData.top_airlines.map((a) => a.count),
       1,
@@ -1487,15 +1675,8 @@ export default function Travels() {
 
     return (
       <>
-        {renderFlightStatsSection(
-          "Flights by Year",
-          flightStatsData.flights_by_year.map((y) => ({
-            name: String(y.year),
-            count: y.count,
-          })),
-          yearMax,
-          "#0563bb",
-        )}
+        {renderFlightsByYear()}
+        {renderDroneByModel()}
         {renderFlightStatsSection(
           "Top Airlines",
           flightStatsData.top_airlines,
@@ -1759,7 +1940,7 @@ export default function Travels() {
               </span>
             </div>
           </div>
-          {/* Driving/Drone */}
+          {/* Driving */}
           <div
             className={`stat-card stat-carousel-item ${statCarouselIndex === 4 ? "active" : ""}`}
             data-index={4}
@@ -1771,15 +1952,37 @@ export default function Travels() {
                 <span className="stat-total"> countries driven</span>
               </span>
               <span className="stat-label">
-                {unData?.filter((c) => c.drone_flown).length ?? "..."} countries
-                droned
+                {unData?.filter((c) => c.driving_type === "rental").length ??
+                  "..."}{" "}
+                rental,{" "}
+                {unData?.filter((c) => c.driving_type === "own").length ??
+                  "..."}{" "}
+                own car
+              </span>
+            </div>
+          </div>
+          {/* Drone */}
+          <div
+            className={`stat-card stat-carousel-item ${statCarouselIndex === 5 ? "active" : ""}`}
+            data-index={5}
+          >
+            <TbDrone className="stat-icon" />
+            <div className="stat-content">
+              <span className="stat-number">
+                {droneStatsData?.total_flights ?? "..."}
+                <span className="stat-total"> drone flights</span>
+              </span>
+              <span className="stat-label">
+                {droneStatsData
+                  ? `${Math.round(droneStatsData.total_duration_sec / 3600)}h, ${Math.round(droneStatsData.total_distance_km)} km, ${unData?.filter((c) => c.drone_flown).length ?? "..."} countries`
+                  : "..."}
               </span>
             </div>
           </div>
           {/* Flights */}
           <div
-            className={`stat-card stat-carousel-item ${statCarouselIndex === 5 ? "active" : ""}`}
-            data-index={5}
+            className={`stat-card stat-carousel-item ${statCarouselIndex === 6 ? "active" : ""}`}
+            data-index={6}
           >
             <BiSolidPlaneAlt className="stat-icon" />
             <div className="stat-content">
@@ -1800,7 +2003,7 @@ export default function Travels() {
           </div>
           {/* Carousel dots for mobile */}
           <div className="stat-carousel-dots">
-            {[0, 1, 2, 3, 4, 5].map((i) => (
+            {[0, 1, 2, 3, 4, 5, 6].map((i) => (
               <button
                 key={i}
                 className={`stat-carousel-dot ${statCarouselIndex === i ? "active" : ""}`}

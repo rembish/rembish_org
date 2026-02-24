@@ -337,12 +337,11 @@ export interface CloseOneUser {
 
 // --- Drone types ---
 
-export type DroneSubTab = "flights" | "my-drones" | "stats";
+export type DroneSubTab = "flights" | "my-drones";
 
 export const DRONE_SUB_TABS: { key: DroneSubTab; label: string }[] = [
   { key: "flights", label: "Flights" },
   { key: "my-drones", label: "My Drones" },
-  { key: "stats", label: "Stats" },
 ];
 
 export interface DroneItem {
@@ -376,36 +375,6 @@ export interface DroneFlightItem {
   drone_name: string | null;
   drone_model: string | null;
   flight_path: number[][] | null;
-}
-
-export interface DroneFlightYearStats {
-  year: number;
-  flights_count: number;
-  total_distance_km: number;
-  total_duration_sec: number;
-  countries: string[];
-}
-
-export interface DroneStatsPerDrone {
-  drone_id: number;
-  drone_name: string;
-  drone_model: string;
-  flights_count: number;
-  total_distance_km: number;
-  total_duration_sec: number;
-}
-
-export interface DroneStatsData {
-  total_flights: number;
-  total_distance_km: number;
-  total_duration_sec: number;
-  total_countries: number;
-  total_photos: number;
-  total_video_sec: number;
-  first_flight_date: string | null;
-  last_flight_date: string | null;
-  by_year: DroneFlightYearStats[];
-  by_drone: DroneStatsPerDrone[];
 }
 
 // --- Shared constants ---

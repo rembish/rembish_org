@@ -12,6 +12,7 @@ from ..auth.session import get_admin_user, get_trips_viewer
 from ..database import get_db
 from ..models import Drone, DroneFlight, Trip, User
 from .models import (
+    CityMarkerData,
     DroneCreateRequest,
     DroneData,
     DroneFlightCreateRequest,
@@ -22,6 +23,7 @@ from .models import (
     DronesResponse,
     DroneStatsPerDrone,
     DroneStatsResponse,
+    MapCitiesResponse,
 )
 
 router = APIRouter()
@@ -443,6 +445,33 @@ def get_drone_stats(
 # ---------------------------------------------------------------------------
 # Map data (viewer only)
 # ---------------------------------------------------------------------------
+
+
+@router.get("/drone-flights/map-cities", response_model=MapCitiesResponse)
+def get_drone_flight_cities(
+    viewer: Annotated[User, Depends(get_trips_viewer)],
+    db: Session = Depends(get_db),
+) -> MapCitiesResponse:
+    """Return city markers aggregated from drone flights."""
+    is_admin = viewer.role == "admin"
+    q = db.query(
+        DroneFlight.city,
+        func.avg(DroneFlight.latitude).label("avg_lat"),
+        func.avg(DroneFlight.longitude).label("avg_lng"),
+    ).filter(
+        DroneFlight.is_deleted == False,  # noqa: E712
+        DroneFlight.city.isnot(None),
+        DroneFlight.latitude.isnot(None),
+        DroneFlight.longitude.isnot(None),
+    )
+    if not is_admin:
+        q = q.filter(DroneFlight.is_hidden == False)  # noqa: E712
+    rows = q.group_by(DroneFlight.city, DroneFlight.country).all()
+    cities = [
+        CityMarkerData(name=row.city, lat=float(row.avg_lat), lng=float(row.avg_lng))
+        for row in rows
+    ]
+    return MapCitiesResponse(cities=cities)
 
 
 @router.get("/drone-flights/map", response_model=list[DroneFlightMapPoint])
