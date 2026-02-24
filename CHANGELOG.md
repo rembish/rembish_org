@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.40.3 (2026-02-24)
+
+### Projects
+- Added pydjirecord to the projects page — DJI drone flight log parser (Python 3.12+, multi-format output, AES decryption)
+
 ## 0.40.2 (2026-02-24)
 
 ### Drone Flights

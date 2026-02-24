@@ -78,6 +78,27 @@ const projects: Project[] = [
     ],
   },
   {
+    title: "pydjirecord",
+    description:
+      "A Python 3.12+ parser for DJI drone flight log files (.txt binary format). Handles format versions 1–14 with XOR and AES-256-CBC decryption. Built as a rewrite of the Rust dji-log-parser, with improvements: zero-coordinate backfill from OSD GPS frames, accurate video/photo/distance stats from raw telemetry, and local keychain caching for the DJI API.",
+    features: [
+      "Parse DJI flight logs across format versions 1–14",
+      "XOR + AES-256-CBC decryption with DJI API keychain fetching",
+      "Multiple output formats: JSON, GeoJSON, KML, CSV",
+      "Zero-coordinate backfill from OSD GPS telemetry frames",
+      "Accurate photo count, video time, and distance from raw records",
+    ],
+    techStack: ["Python 3.12+", "PyCryptodome", "httpx"],
+    status: "active",
+    links: [
+      {
+        label: "GitHub",
+        url: "https://github.com/rembish/pydjirecord",
+        icon: BiLogoGithub,
+      },
+    ],
+  },
+  {
     title: "TCC TopoJSON",
     description:
       "An open-source TopoJSON world map with 330 polygons matching the Travelers' Century Club destination list. Nothing like this existed before — TCC has no polygon data and existing world atlases only cover countries. Built from Natural Earth 10m shapefiles with transcontinental splits, island extractions, and Antarctic claim sectors.",
