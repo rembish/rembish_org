@@ -7456,6 +7456,11 @@ a {
   }
 }
 
+.btn-icon-danger:hover {
+  background: #d32f2f;
+  border-color: #d32f2f;
+}
+
 .vault-section {
   display: flex;
   flex-direction: column;
@@ -8514,17 +8519,39 @@ a {
   background: rgba(0, 0, 0, 0.02);
 }
 
+.drone-flight-clickable {
+  cursor: pointer;
+}
+
 .drone-flight-hidden {
   opacity: 0.4;
 }
 
+.drone-flight-date-cell > div,
+.drone-flight-stats-cell > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  line-height: 1.3;
+}
+
 .drone-flight-time {
   color: #888;
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
 }
 
-.drone-flight-location {
-  & > span {
+.drone-col-location {
+  width: 100%;
+}
+
+.drone-flight-location > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  line-height: 1.3;
+
+  & > span:first-child {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
@@ -8532,6 +8559,7 @@ a {
 }
 
 .drone-badge {
+  align-self: flex-start;
   display: inline-block;
   font-size: 0.6875rem;
   font-weight: 600;
@@ -8564,6 +8592,37 @@ a {
 .drone-flights-badge {
   font-size: 0.75rem;
   color: #888;
+}
+
+.drone-flight-actions > div {
+  display: flex;
+  gap: 0.125rem;
+  justify-content: flex-end;
+}
+
+/* Drone flight path map modal */
+
+.drone-map-modal {
+  max-width: 800px;
+}
+
+.drone-map-container {
+  height: 400px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 0 1rem;
+
+  & .leaflet-container {
+    height: 100%;
+    width: 100%;
+  }
+}
+
+.drone-map-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  padding: 0.75rem 1rem;
 }
 
 /* My Drones */
@@ -8658,8 +8717,8 @@ a {
 }
 
 @media (width <= 600px) {
-  .drone-flights-table th:nth-child(n + 5),
-  .drone-flights-table td:nth-child(n + 5) {
+  .drone-flights-table th:nth-child(2),
+  .drone-flights-table td:nth-child(2) {
     display: none;
   }
 

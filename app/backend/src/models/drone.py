@@ -52,6 +52,7 @@ class DroneFlight(Base):
     country: Mapped[str | None] = mapped_column(String(2), nullable=True)
     city: Mapped[str | None] = mapped_column(String(200), nullable=True)
     is_hidden: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     source_file: Mapped[str | None] = mapped_column(String(200), nullable=True)
     flight_path: Mapped[list[list[float]] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

@@ -65,6 +65,7 @@ def _flight_to_data(f: DroneFlight) -> DroneFlightData:
         source_file=f.source_file,
         drone_name=f.drone.name if f.drone else None,
         drone_model=f.drone.model if f.drone else None,
+        flight_path=f.flight_path,
     )
 
 
@@ -83,7 +84,10 @@ def list_drones(
     counts: dict[int, int] = {}
     for drone_id, cnt in (
         db.query(DroneFlight.drone_id, func.count(DroneFlight.id))
-        .filter(DroneFlight.drone_id.isnot(None))
+        .filter(
+            DroneFlight.drone_id.isnot(None),
+            DroneFlight.is_deleted == False,  # noqa: E712
+        )
         .group_by(DroneFlight.drone_id)
         .all()
     ):
@@ -131,7 +135,11 @@ def update_drone(
     drone.notes = body.notes
     db.commit()
     db.refresh(drone)
-    cnt = db.query(DroneFlight).filter(DroneFlight.drone_id == drone_id).count()
+    cnt = (
+        db.query(DroneFlight)
+        .filter(DroneFlight.drone_id == drone_id, DroneFlight.is_deleted == False)  # noqa: E712
+        .count()
+    )
     return _drone_to_data(drone, cnt)
 
 
@@ -168,7 +176,7 @@ def list_drone_flights(
     trip_id: int | None = Query(None),
 ) -> DroneFlightsResponse:
     """List drone flights with optional filters. Viewers see non-hidden only."""
-    q = db.query(DroneFlight)
+    q = db.query(DroneFlight).filter(DroneFlight.is_deleted == False)  # noqa: E712
     is_admin = viewer.role == "admin"
     if not is_admin:
         q = q.filter(DroneFlight.is_hidden == False)  # noqa: E712
@@ -258,11 +266,11 @@ def delete_drone_flight(
     admin: Annotated[User, Depends(get_admin_user)],
     db: Session = Depends(get_db),
 ) -> None:
-    """Delete a drone flight."""
+    """Soft-delete a drone flight (keeps record to prevent reimport)."""
     f = db.query(DroneFlight).filter(DroneFlight.id == flight_id).first()
     if not f:
         raise HTTPException(status_code=404, detail="Drone flight not found")
-    db.delete(f)
+    f.is_deleted = True
     db.commit()
 
 
@@ -319,7 +327,10 @@ def get_trip_drone_flights(
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
 
-    q = db.query(DroneFlight).filter(DroneFlight.trip_id == trip_id)
+    q = db.query(DroneFlight).filter(
+        DroneFlight.trip_id == trip_id,
+        DroneFlight.is_deleted == False,  # noqa: E712
+    )
     if viewer.role != "admin":
         q = q.filter(DroneFlight.is_hidden == False)  # noqa: E712
     flights = q.order_by(DroneFlight.flight_date, DroneFlight.takeoff_time).all()
@@ -335,8 +346,11 @@ def get_trip_drone_flights(
 def get_drone_stats(
     db: Session = Depends(get_db),
 ) -> DroneStatsResponse:
-    """Public drone flight statistics (excludes hidden flights)."""
-    visible = db.query(DroneFlight).filter(DroneFlight.is_hidden == False)  # noqa: E712
+    """Public drone flight statistics (excludes hidden and deleted flights)."""
+    visible = db.query(DroneFlight).filter(
+        DroneFlight.is_hidden == False,  # noqa: E712
+        DroneFlight.is_deleted == False,  # noqa: E712
+    )
 
     flights = visible.all()
     if not flights:
@@ -441,6 +455,7 @@ def get_drone_flights_map(
     q = db.query(DroneFlight).filter(
         DroneFlight.latitude.isnot(None),
         DroneFlight.longitude.isnot(None),
+        DroneFlight.is_deleted == False,  # noqa: E712
     )
     if not is_admin:
         q = q.filter(DroneFlight.is_hidden == False)  # noqa: E712

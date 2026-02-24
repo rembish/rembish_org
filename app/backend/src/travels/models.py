@@ -731,6 +731,7 @@ class DroneFlightData(BaseModel):
     source_file: str | None
     drone_name: str | None
     drone_model: str | None
+    flight_path: list[list[float]] | None = None
 
 
 class DroneFlightCreateRequest(BaseModel):

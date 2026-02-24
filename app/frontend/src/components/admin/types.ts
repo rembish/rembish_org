@@ -375,6 +375,7 @@ export interface DroneFlightItem {
   source_file: string | null;
   drone_name: string | null;
   drone_model: string | null;
+  flight_path: number[][] | null;
 }
 
 export interface DroneFlightYearStats {

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { BiHide, BiLink, BiShow, BiTimeFive } from "react-icons/bi";
+import { BiHide, BiLink, BiShow, BiTrash, BiX } from "react-icons/bi";
+import { MapContainer, TileLayer, Polyline, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { apiFetch } from "../../lib/api";
 import Flag from "../Flag";
 import type { DroneFlightItem, DroneItem } from "./types";
@@ -36,11 +39,24 @@ function fmtTime(iso: string | null): string {
   }
 }
 
+// Fit map bounds to the flight path polyline
+function FitPath({ path }: { path: [number, number][] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (path.length > 0) {
+      const bounds = L.latLngBounds(path);
+      map.fitBounds(bounds, { padding: [30, 30] });
+    }
+  }, [map, path]);
+  return null;
+}
+
 export default function DroneFlightsList({ readOnly }: { readOnly?: boolean }) {
   const [flights, setFlights] = useState<DroneFlightItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [drones, setDrones] = useState<DroneItem[]>([]);
+  const [mapFlight, setMapFlight] = useState<DroneFlightItem | null>(null);
 
   // Filters
   const [filterDrone, setFilterDrone] = useState<string>("");
@@ -95,13 +111,35 @@ export default function DroneFlightsList({ readOnly }: { readOnly?: boolean }) {
     if (res.ok) fetchFlights();
   };
 
+  const deleteFlight = async (f: DroneFlightItem) => {
+    const label = `${fmtDate(f.flight_date)}${f.city ? ` — ${f.city}` : ""}`;
+    if (!confirm(`Delete flight ${label}? This cannot be undone.`)) return;
+    const res = await apiFetch(`/api/v1/travels/drone-flights/${f.id}`, {
+      method: "DELETE",
+    });
+    if (res.ok) fetchFlights();
+  };
+
   // Build year options from flight dates
   const years = [
     ...new Set(flights.map((f) => f.flight_date.slice(0, 4))),
   ].sort();
+  const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
   const countries = [
     ...new Set(flights.map((f) => f.country).filter(Boolean)),
-  ].sort();
+  ].sort((a, b) => {
+    const na = regionNames.of(a!) ?? a!;
+    const nb = regionNames.of(b!) ?? b!;
+    return na.localeCompare(nb);
+  });
+
+  const openMap = (f: DroneFlightItem) => {
+    if (f.flight_path && f.flight_path.length >= 2) setMapFlight(f);
+  };
+
+  // Convert flight_path [[lng, lat], ...] to leaflet [[lat, lng], ...]
+  const mapPath: [number, number][] =
+    mapFlight?.flight_path?.map(([lng, lat]) => [lat, lng]) ?? [];
 
   return (
     <div className="drone-flights-list">
@@ -135,7 +173,7 @@ export default function DroneFlightsList({ readOnly }: { readOnly?: boolean }) {
           <option value="">All countries</option>
           {countries.map((c) => (
             <option key={c} value={c!}>
-              {c}
+              {regionNames.of(c!) ?? c}
             </option>
           ))}
         </select>
@@ -152,12 +190,8 @@ export default function DroneFlightsList({ readOnly }: { readOnly?: boolean }) {
             <thead>
               <tr>
                 <th>Date</th>
-                <th>Time</th>
-                <th>Drone</th>
-                <th>Location</th>
-                <th>Duration</th>
-                <th>Distance</th>
-                {!readOnly && <th>Trip</th>}
+                <th>Flight</th>
+                <th className="drone-col-location">Location</th>
                 {!readOnly && <th></th>}
               </tr>
             </thead>
@@ -165,57 +199,153 @@ export default function DroneFlightsList({ readOnly }: { readOnly?: boolean }) {
               {flights.map((f) => (
                 <tr
                   key={f.id}
-                  className={`drone-flight-row${f.is_hidden ? " drone-flight-hidden" : ""}`}
+                  className={`drone-flight-row${f.is_hidden ? " drone-flight-hidden" : ""}${f.flight_path && f.flight_path.length >= 2 ? " drone-flight-clickable" : ""}`}
+                  onClick={() => openMap(f)}
                 >
-                  <td>{fmtDate(f.flight_date)}</td>
-                  <td className="drone-flight-time">
-                    {fmtTime(f.takeoff_time)}
+                  <td className="drone-flight-date-cell">
+                    <div>
+                      <span>{fmtDate(f.flight_date)}</span>
+                      {f.takeoff_time && (
+                        <span className="drone-flight-time">
+                          {fmtTime(f.takeoff_time)}
+                        </span>
+                      )}
+                    </div>
                   </td>
-                  <td>
-                    <span className="drone-badge">{f.drone_model || "?"}</span>
+                  <td className="drone-flight-stats-cell">
+                    <div>
+                      <span>{fmtDuration(f.duration_sec)}</span>
+                      <span className="drone-flight-time">
+                        {fmtDistance(f.distance_km)}
+                      </span>
+                    </div>
                   </td>
                   <td className="drone-flight-location">
-                    <span>
-                      {f.country && (
-                        <Flag code={f.country.toLowerCase()} size={16} />
-                      )}
-                      {f.city || f.country || "-"}
-                    </span>
+                    <div>
+                      <span>
+                        {f.country && (
+                          <Flag code={f.country.toLowerCase()} size={16} />
+                        )}
+                        {f.city || f.country || "-"}
+                      </span>
+                      <span className="drone-badge">
+                        {f.drone_model || "?"}
+                      </span>
+                    </div>
                   </td>
-                  <td>
-                    <BiTimeFive className="drone-icon-muted" />{" "}
-                    {fmtDuration(f.duration_sec)}
-                  </td>
-                  <td>{fmtDistance(f.distance_km)}</td>
                   {!readOnly && (
-                    <td>
-                      {f.trip_id ? (
-                        <a
-                          href={`/admin/trips/${f.trip_id}/drone-flights`}
-                          className="drone-trip-link"
+                    <td
+                      className="drone-flight-actions"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div>
+                        {f.trip_id && (
+                          <a
+                            className="btn-icon"
+                            href={`/admin/trips/${f.trip_id}/drone-flights`}
+                            title={`Trip #${f.trip_id}`}
+                          >
+                            <BiLink />
+                          </a>
+                        )}
+                        <button
+                          className="btn-icon"
+                          onClick={() => toggleHide(f.id)}
+                          title={f.is_hidden ? "Unhide" : "Hide"}
                         >
-                          <BiLink /> #{f.trip_id}
-                        </a>
-                      ) : (
-                        <span className="text-muted">-</span>
-                      )}
-                    </td>
-                  )}
-                  {!readOnly && (
-                    <td>
-                      <button
-                        className="btn-icon"
-                        onClick={() => toggleHide(f.id)}
-                        title={f.is_hidden ? "Unhide" : "Hide"}
-                      >
-                        {f.is_hidden ? <BiHide /> : <BiShow />}
-                      </button>
+                          {f.is_hidden ? <BiHide /> : <BiShow />}
+                        </button>
+                        <button
+                          className="btn-icon btn-icon-danger"
+                          onClick={() => deleteFlight(f)}
+                          title="Delete"
+                        >
+                          <BiTrash />
+                        </button>
+                      </div>
                     </td>
                   )}
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Flight path map modal */}
+      {mapFlight && mapPath.length >= 2 && (
+        <div className="modal-overlay" onClick={() => setMapFlight(null)}>
+          <div
+            className="modal-content drone-map-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2>
+                {fmtDate(mapFlight.flight_date)}
+                {mapFlight.takeoff_time
+                  ? ` ${fmtTime(mapFlight.takeoff_time)}`
+                  : ""}
+                {mapFlight.city
+                  ? ` — ${mapFlight.city}`
+                  : mapFlight.country
+                    ? ` — ${mapFlight.country}`
+                    : ""}
+              </h2>
+              <button
+                className="modal-close"
+                onClick={() => setMapFlight(null)}
+              >
+                <BiX />
+              </button>
+            </div>
+            <div className="drone-map-container">
+              <MapContainer
+                center={mapPath[0]}
+                zoom={15}
+                scrollWheelZoom={true}
+                style={{ height: "100%", width: "100%" }}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <FitPath path={mapPath} />
+                <Polyline
+                  positions={mapPath}
+                  pathOptions={{
+                    color: "#0563bb",
+                    weight: 3,
+                    opacity: 0.8,
+                  }}
+                />
+              </MapContainer>
+            </div>
+            <div className="drone-map-details">
+              {mapFlight.drone_model && (
+                <span className="flight-badge">{mapFlight.drone_model}</span>
+              )}
+              {mapFlight.duration_sec != null && mapFlight.duration_sec > 0 && (
+                <span className="flight-badge">
+                  {fmtDuration(mapFlight.duration_sec)}
+                </span>
+              )}
+              {mapFlight.distance_km != null && mapFlight.distance_km > 0 && (
+                <span className="flight-badge">
+                  {fmtDistance(mapFlight.distance_km)}
+                </span>
+              )}
+              {mapFlight.photos > 0 && (
+                <span className="flight-badge">
+                  {mapFlight.photos} photo{mapFlight.photos !== 1 ? "s" : ""}
+                </span>
+              )}
+              {mapFlight.video_sec > 0 && (
+                <span className="flight-badge">
+                  {Math.round(mapFlight.video_sec / 60)}m video
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

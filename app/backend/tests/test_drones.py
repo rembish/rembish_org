@@ -166,7 +166,10 @@ def test_delete_drone_flight(admin_client: TestClient, db_session: Session) -> N
     f = _create_flight(db_session)
     res = admin_client.delete(f"/api/v1/travels/drone-flights/{f.id}")
     assert res.status_code == 204
-    assert db_session.query(DroneFlight).filter(DroneFlight.id == f.id).first() is None
+    db_session.expire_all()
+    deleted = db_session.query(DroneFlight).filter(DroneFlight.id == f.id).first()
+    assert deleted is not None
+    assert deleted.is_deleted is True
 
 
 # ---------------------------------------------------------------------------

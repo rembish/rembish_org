@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.40.0 (2026-02-24)
+
+### Drone Flights
+- Drone flight locations now geocoded to canonical city names via Nominatim (e.g. "Praha 12" becomes "Prague", "Dongnae" becomes "Busan")
+- ~200 new cities added to the cities database from drone flight locations
+- Trips with drone flights automatically gain missing cities as partial visits on the trip itinerary
+
 ## 0.39.0 (2026-02-23)
 
 ### Drone Flights
