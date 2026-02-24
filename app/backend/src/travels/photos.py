@@ -344,6 +344,7 @@ def get_photos_index(
 
 @router.get("/map", response_model=PhotoMapResponse)
 def get_photo_map(
+    aerial: bool = False,
     db: Session = Depends(get_db),
 ) -> PhotoMapResponse:
     """Get photo counts per UN country for the map view.
@@ -352,7 +353,7 @@ def get_photo_map(
     since un_country_id on instagram_posts is not populated.
     """
     # Count non-video media per UN country (via tcc_destination)
-    country_counts = (
+    country_counts_q = (
         db.query(
             TCCDestination.un_country_id,
             func.count(InstagramMedia.id).label("photo_count"),
@@ -365,9 +366,10 @@ def get_photo_map(
             TCCDestination.un_country_id.isnot(None),
             InstagramMedia.media_type != "VIDEO",
         )
-        .group_by(TCCDestination.un_country_id)
-        .all()
     )
+    if aerial:
+        country_counts_q = country_counts_q.filter(InstagramPost.is_aerial.is_(True))
+    country_counts = country_counts_q.group_by(TCCDestination.un_country_id).all()
 
     if not country_counts:
         return PhotoMapResponse(countries=[], microstates=[], total_photos=0)
@@ -383,7 +385,7 @@ def get_photo_map(
     thumbnail_map: dict[int, int] = {}
 
     # 1) Cover posts per country
-    cover_posts = (
+    cover_posts_q = (
         db.query(InstagramPost, TCCDestination.un_country_id)
         .join(TCCDestination, InstagramPost.tcc_destination_id == TCCDestination.id)
         .join(InstagramMedia, InstagramMedia.post_id == InstagramPost.id)
@@ -394,9 +396,10 @@ def get_photo_map(
             InstagramPost.skipped.is_(False),
             InstagramMedia.media_type != "VIDEO",
         )
-        .order_by(InstagramPost.posted_at.desc())
-        .all()
     )
+    if aerial:
+        cover_posts_q = cover_posts_q.filter(InstagramPost.is_aerial.is_(True))
+    cover_posts = cover_posts_q.order_by(InstagramPost.posted_at.desc()).all()
     for post, un_cid in cover_posts:
         if un_cid and un_cid not in thumbnail_map:
             if post.cover_media_id:
@@ -417,7 +420,7 @@ def get_photo_map(
     # 2) Fallback: most recent post per remaining country
     remaining_ids = [cid for cid in country_ids if cid not in thumbnail_map]
     if remaining_ids:
-        recent_posts = (
+        recent_posts_q = (
             db.query(InstagramPost, TCCDestination.un_country_id)
             .join(
                 TCCDestination,
@@ -430,9 +433,10 @@ def get_photo_map(
                 InstagramPost.skipped.is_(False),
                 InstagramMedia.media_type != "VIDEO",
             )
-            .order_by(InstagramPost.posted_at.desc())
-            .all()
         )
+        if aerial:
+            recent_posts_q = recent_posts_q.filter(InstagramPost.is_aerial.is_(True))
+        recent_posts = recent_posts_q.order_by(InstagramPost.posted_at.desc()).all()
         for post, un_cid in recent_posts:
             if un_cid and un_cid not in thumbnail_map:
                 first_media = (
@@ -489,6 +493,7 @@ def get_photo_map(
 @router.get("/country/{un_country_id}", response_model=CountryPhotosResponse)
 def get_country_photos(
     un_country_id: int,
+    aerial: bool = False,
     db: Session = Depends(get_db),
 ) -> CountryPhotosResponse:
     """Get all photos for a specific UN country, grouped by trip.
@@ -517,7 +522,7 @@ def get_country_photos(
         )
 
     # Get all labeled posts for these TCC destinations
-    posts = (
+    posts_q = (
         db.query(InstagramPost)
         .options(
             joinedload(InstagramPost.media),
@@ -531,9 +536,10 @@ def get_country_photos(
             InstagramPost.labeled_at.isnot(None),
             InstagramPost.skipped.is_(False),
         )
-        .order_by(InstagramPost.posted_at.desc())
-        .all()
     )
+    if aerial:
+        posts_q = posts_q.filter(InstagramPost.is_aerial.is_(True))
+    posts = posts_q.order_by(InstagramPost.posted_at.desc()).all()
 
     # Group photos by trip (0 = no trip)
     trip_groups: dict[int, list[PhotoData]] = {}

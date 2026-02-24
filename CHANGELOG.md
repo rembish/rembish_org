@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.40.2 (2026-02-24)
+
+### Drone Flights
+- Reimported all 584 drone flights using pydjirecord — fixes zero-coordinate backfill, accurate photo/video counts, corrected distances
+- 120+ flights that previously had 0/0 coordinates now show correct GPS locations
+
+### Photos
+- Aerial photo filter on the photo map — toggle between "All" and "Drone" to see only drone aerial photos
+- Filter persists across country clicks and navigation
+
 ## 0.40.1 (2026-02-24)
 
 ### Drone Flights

@@ -263,6 +263,9 @@ export default function Photos() {
   const [showCaption, setShowCaption] = useState(() => {
     return localStorage.getItem("photos-show-caption") !== "false";
   });
+  const [aerialOnly, setAerialOnly] = useState(() => {
+    return searchParams.get("aerial") === "true";
+  });
 
   // Persist showHidden to localStorage
   useEffect(() => {
@@ -287,7 +290,9 @@ export default function Photos() {
 
     if (isMapTab && countryId) {
       // Country album view
-      apiFetch(`/api/v1/travels/photos/country/${countryId}`)
+      apiFetch(
+        `/api/v1/travels/photos/country/${countryId}${aerialOnly ? "?aerial=true" : ""}`,
+      )
         .then((res) => {
           if (!res.ok) throw new Error("Failed to load country photos");
           return res.json();
@@ -305,7 +310,7 @@ export default function Photos() {
         });
     } else if (isMapTab) {
       // Map view
-      apiFetch("/api/v1/travels/photos/map")
+      apiFetch(`/api/v1/travels/photos/map${aerialOnly ? "?aerial=true" : ""}`)
         .then((res) => {
           if (!res.ok) throw new Error("Failed to load photo map");
           return res.json();
@@ -369,7 +374,7 @@ export default function Photos() {
         });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tripId, showHidden, isMapTab, countryId]);
+  }, [tripId, showHidden, isMapTab, countryId, aerialOnly]);
 
   // Open lightbox from URL param (for cross-trip navigation)
   useEffect(() => {
@@ -810,7 +815,9 @@ export default function Photos() {
             <div className="photos-trip-nav">
               <button
                 className="photos-back-btn"
-                onClick={() => navigate("/photos/map")}
+                onClick={() =>
+                  navigate(`/photos/map${aerialOnly ? "?aerial=true" : ""}`)
+                }
               >
                 <BiArrowBack /> Back to Map
               </button>
@@ -919,6 +926,27 @@ export default function Photos() {
           </div>
 
           <div className="photo-map-container">
+            <div className="photos-aerial-toggle">
+              <button
+                className={aerialOnly ? "" : "active"}
+                onClick={() => {
+                  setAerialOnly(false);
+                  setSearchParams({}, { replace: true });
+                }}
+              >
+                All
+              </button>
+              <button
+                className={aerialOnly ? "active" : ""}
+                onClick={() => {
+                  setAerialOnly(true);
+                  setSearchParams({ aerial: "true" }, { replace: true });
+                }}
+              >
+                <TbDrone />
+                Drone
+              </button>
+            </div>
             {(() => {
               // Build lookup: geo region code -> country for highlighting + clicks
               const regionToCountry = new Map<string, PhotoMapCountry>();
@@ -973,7 +1001,7 @@ export default function Photos() {
                                 hasPhotos
                                   ? () =>
                                       navigate(
-                                        `/photos/map/${countrySlug(country)}`,
+                                        `/photos/map/${countrySlug(country)}${aerialOnly ? "?aerial=true" : ""}`,
                                       )
                                   : undefined
                               }
@@ -1009,7 +1037,7 @@ export default function Photos() {
                             hasPhotos
                               ? () =>
                                   navigate(
-                                    `/photos/map/${countrySlug(country)}`,
+                                    `/photos/map/${countrySlug(country)}${aerialOnly ? "?aerial=true" : ""}`,
                                   )
                               : undefined
                           }
@@ -1048,7 +1076,9 @@ export default function Photos() {
                   key={country.un_country_id}
                   className="photo-map-legend-item"
                   onClick={() =>
-                    navigate(`/photos/map/${countrySlug(country)}`)
+                    navigate(
+                      `/photos/map/${countrySlug(country)}${aerialOnly ? "?aerial=true" : ""}`,
+                    )
                   }
                 >
                   <span className="photo-map-legend-flag">
