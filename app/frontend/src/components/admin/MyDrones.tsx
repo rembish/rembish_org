@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { BiPencil, BiTrash } from "react-icons/bi";
+import { BiArchiveIn, BiArchiveOut, BiPencil } from "react-icons/bi";
 import { apiFetch } from "../../lib/api";
 import type { DroneItem } from "./types";
 import { fmtDate } from "./types";
@@ -7,9 +7,11 @@ import { fmtDate } from "./types";
 export default function MyDrones({
   readOnly,
   addTrigger,
+  onRetire,
 }: {
   readOnly?: boolean;
   addTrigger?: number;
+  onRetire?: () => void;
 }) {
   const [drones, setDrones] = useState<DroneItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,12 +100,17 @@ export default function MyDrones({
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Delete this drone? Flights will be unlinked.")) return;
-    const res = await apiFetch(`/api/v1/travels/drones/${id}`, {
-      method: "DELETE",
+  const handleRetire = async (d: DroneItem) => {
+    const action = d.retired_date ? "reactivate" : "retire";
+    if (!confirm(`${action === "retire" ? "Retire" : "Reactivate"} ${d.name}?`))
+      return;
+    const res = await apiFetch(`/api/v1/travels/drones/${d.id}/retire`, {
+      method: "PUT",
     });
-    if (res.ok) fetchDrones();
+    if (res.ok) {
+      fetchDrones();
+      onRetire?.();
+    }
   };
 
   if (loading) return <p>Loading...</p>;
@@ -114,55 +121,65 @@ export default function MyDrones({
         <p className="empty-state">No drones registered.</p>
       ) : (
         <div className="drone-cards">
-          {drones.map((d) => (
-            <div key={d.id} className="drone-card">
-              <div className="drone-card-header">
-                <strong>{d.name}</strong>
-                {!readOnly && (
-                  <span className="drone-card-actions">
-                    <button
-                      className="btn-icon"
-                      onClick={() => openEdit(d)}
-                      title="Edit"
-                    >
-                      <BiPencil />
-                    </button>
-                    <button
-                      className="btn-icon btn-danger"
-                      onClick={() => handleDelete(d.id)}
-                      title="Delete"
-                    >
-                      <BiTrash />
-                    </button>
+          {[...drones]
+            .sort((a, b) => (a.retired_date ? 1 : 0) - (b.retired_date ? 1 : 0))
+            .map((d) => (
+              <div
+                key={d.id}
+                className={`drone-card${d.retired_date ? " drone-card-retired" : ""}`}
+              >
+                {d.retired_date && (
+                  <div className="drone-card-ribbon">Retired</div>
+                )}
+                <div className="drone-card-header">
+                  <strong>{d.name}</strong>
+                  {!readOnly && (
+                    <span className="drone-card-actions">
+                      <button
+                        className="btn-icon"
+                        onClick={() => openEdit(d)}
+                        title="Edit"
+                      >
+                        <BiPencil />
+                      </button>
+                      <button
+                        className="btn-icon"
+                        onClick={() => handleRetire(d)}
+                        title={d.retired_date ? "Reactivate" : "Retire"}
+                      >
+                        {d.retired_date ? <BiArchiveOut /> : <BiArchiveIn />}
+                      </button>
+                    </span>
+                  )}
+                </div>
+                <div className="drone-card-body">
+                  <span className="drone-badge">{d.model}</span>
+                  <span className="drone-flights-badge">
+                    {d.flights_count} flights
                   </span>
+                </div>
+                {d.serial_number && (
+                  <div className="drone-card-detail">
+                    S/N: {d.serial_number}
+                  </div>
+                )}
+                {d.acquired_date && (
+                  <div className="drone-card-detail">
+                    Acquired: {fmtDate(d.acquired_date)}
+                  </div>
+                )}
+                {d.retired_date && (
+                  <div className="drone-card-detail">
+                    Retired: {fmtDate(d.retired_date)}
+                  </div>
+                )}
+                {d.notes && (
+                  <div className="drone-card-detail drone-card-notes">
+                    {d.notes}
+                  </div>
                 )}
               </div>
-              <div className="drone-card-body">
-                <span className="drone-badge">{d.model}</span>
-                <span className="drone-flights-badge">
-                  {d.flights_count} flights
-                </span>
-              </div>
-              {d.serial_number && (
-                <div className="drone-card-detail">S/N: {d.serial_number}</div>
-              )}
-              {d.acquired_date && (
-                <div className="drone-card-detail">
-                  Acquired: {fmtDate(d.acquired_date)}
-                </div>
-              )}
-              {d.retired_date && (
-                <div className="drone-card-detail">
-                  Retired: {fmtDate(d.retired_date)}
-                </div>
-              )}
-              {d.notes && (
-                <div className="drone-card-detail drone-card-notes">
-                  {d.notes}
-                </div>
-              )}
-            </div>
-          ))}
+            ))}
         </div>
       )}
 

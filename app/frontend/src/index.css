@@ -8633,6 +8633,12 @@ a {
     align-items: center;
     gap: 0.25rem;
   }
+
+  & > span:last-child {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
 }
 
 .drone-badge {
@@ -8748,6 +8754,133 @@ a {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.drone-card-retired {
+  opacity: 0.55;
+  position: relative;
+  overflow: hidden;
+}
+
+.drone-card-retired:hover {
+  opacity: 0.8;
+}
+
+.drone-card-ribbon {
+  position: absolute;
+  top: 10px;
+  right: -28px;
+  background: #b71c1c;
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 32px;
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+/* Hardware sections (drones + batteries on same tab) */
+
+.hardware-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.hardware-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.hardware-section-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Battery & anomaly indicators */
+
+.anomaly-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-inline-end: 0.25rem;
+  vertical-align: middle;
+}
+
+.anomaly-amber {
+  background: #f9a825;
+}
+
+.anomaly-red {
+  background: #d32f2f;
+}
+
+.drone-badge-battery {
+  background: #f3e8fd;
+  color: #7c3aed;
+}
+
+.drone-badge-media {
+  background: #f0f0f0;
+  color: #555;
+}
+
+.battery-health-good {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.battery-health-warn {
+  background: #fff8e1;
+  color: #f57f17;
+}
+
+.battery-health-bad {
+  background: #fbe9e7;
+  color: #c62828;
+}
+
+.battery-color-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.battery-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.color-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.color-picker-input {
+  width: 48px;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  background: none;
+}
+
+.btn-small {
+  padding: 2px 8px;
+  font-size: 0.8rem;
 }
 
 @media (width <= 600px) {

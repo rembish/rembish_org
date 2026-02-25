@@ -22,10 +22,39 @@ class Drone(Base):
         DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )
 
+    batteries: Mapped[list["Battery"]] = relationship(back_populates="drone")
     flights: Mapped[list["DroneFlight"]] = relationship(back_populates="drone")
 
     def __repr__(self) -> str:
         return f"<Drone #{self.id}: {self.name} ({self.model})>"
+
+
+class Battery(Base):
+    """Drone battery registry."""
+
+    __tablename__ = "batteries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    drone_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("drones.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    serial_number: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    color: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    design_capacity_mah: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cell_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    acquired_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    retired_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+    )
+
+    drone: Mapped[Drone | None] = relationship(back_populates="batteries")
+    flights: Mapped[list["DroneFlight"]] = relationship(back_populates="battery")
+
+    def __repr__(self) -> str:
+        return f"<Battery #{self.id}: {self.serial_number}>"
 
 
 class DroneFlight(Base):
@@ -39,6 +68,9 @@ class DroneFlight(Base):
     )
     trip_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("trips.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    battery_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("batteries.id", ondelete="SET NULL"), nullable=True, index=True
     )
     flight_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     takeoff_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -55,11 +87,19 @@ class DroneFlight(Base):
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     source_file: Mapped[str | None] = mapped_column(String(200), nullable=True)
     flight_path: Mapped[list[list[float]] | None] = mapped_column(JSON, nullable=True)
+    anomaly_severity: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    anomaly_actions: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    battery_charge_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    battery_charge_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    battery_health_pct: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    battery_cycles: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    battery_temp_max: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )
 
     drone: Mapped[Drone | None] = relationship(back_populates="flights")
+    battery: Mapped[Battery | None] = relationship(back_populates="flights")
     trip: Mapped["Trip | None"] = relationship(back_populates="drone_flights")
 
     def __repr__(self) -> str:

@@ -5,7 +5,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { apiFetch } from "../../lib/api";
 import Flag from "../Flag";
-import type { DroneFlightItem, DroneItem } from "./types";
+import type { BatteryItem, DroneFlightItem, DroneItem } from "./types";
 import { fmtDate } from "./types";
 
 function fmtDuration(sec: number | null): string {
@@ -56,12 +56,14 @@ export default function DroneFlightsList({ readOnly }: { readOnly?: boolean }) {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [drones, setDrones] = useState<DroneItem[]>([]);
+  const [batteries, setBatteries] = useState<BatteryItem[]>([]);
   const [mapFlight, setMapFlight] = useState<DroneFlightItem | null>(null);
 
   // Filters
   const [filterDrone, setFilterDrone] = useState<string>("");
   const [filterYear, setFilterYear] = useState<string>("");
   const [filterCountry, setFilterCountry] = useState<string>("");
+  const [filterBattery, setFilterBattery] = useState<string>("");
 
   const fetchFlights = useCallback(async () => {
     setLoading(true);
@@ -69,6 +71,7 @@ export default function DroneFlightsList({ readOnly }: { readOnly?: boolean }) {
     if (filterDrone) params.set("drone_id", filterDrone);
     if (filterYear) params.set("year", filterYear);
     if (filterCountry) params.set("country", filterCountry);
+    if (filterBattery) params.set("battery_id", filterBattery);
     const qs = params.toString();
     try {
       const res = await apiFetch(
@@ -82,7 +85,7 @@ export default function DroneFlightsList({ readOnly }: { readOnly?: boolean }) {
     } finally {
       setLoading(false);
     }
-  }, [filterDrone, filterYear, filterCountry]);
+  }, [filterDrone, filterYear, filterCountry, filterBattery]);
 
   const fetchDrones = useCallback(async () => {
     try {
@@ -96,9 +99,22 @@ export default function DroneFlightsList({ readOnly }: { readOnly?: boolean }) {
     }
   }, []);
 
+  const fetchBatteries = useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/v1/travels/batteries");
+      if (res.ok) {
+        const data = await res.json();
+        setBatteries(data.batteries);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     fetchDrones();
-  }, [fetchDrones]);
+    fetchBatteries();
+  }, [fetchDrones, fetchBatteries]);
 
   useEffect(() => {
     fetchFlights();
@@ -177,6 +193,19 @@ export default function DroneFlightsList({ readOnly }: { readOnly?: boolean }) {
             </option>
           ))}
         </select>
+        {batteries.length > 0 && (
+          <select
+            value={filterBattery}
+            onChange={(e) => setFilterBattery(e.target.value)}
+          >
+            <option value="">All batteries</option>
+            {batteries.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.serial_number}
+              </option>
+            ))}
+          </select>
+        )}
         <span className="drone-flights-count">{total} flights</span>
       </div>
 
@@ -204,7 +233,15 @@ export default function DroneFlightsList({ readOnly }: { readOnly?: boolean }) {
                 >
                   <td className="drone-flight-date-cell">
                     <div>
-                      <span>{fmtDate(f.flight_date)}</span>
+                      <span>
+                        {f.anomaly_severity && (
+                          <span
+                            className={`anomaly-dot anomaly-${f.anomaly_severity.toLowerCase()}`}
+                            title={`Anomaly: ${f.anomaly_severity}${f.anomaly_actions ? ` (${f.anomaly_actions})` : ""}`}
+                          />
+                        )}
+                        {fmtDate(f.flight_date)}
+                      </span>
                       {f.takeoff_time && (
                         <span className="drone-flight-time">
                           {fmtTime(f.takeoff_time)}
@@ -228,8 +265,30 @@ export default function DroneFlightsList({ readOnly }: { readOnly?: boolean }) {
                         )}
                         {f.city || f.country || "-"}
                       </span>
-                      <span className="drone-badge">
-                        {f.drone_model || "?"}
+                      <span>
+                        <span
+                          className="drone-badge"
+                          style={
+                            f.battery_color
+                              ? {
+                                  background: `${f.battery_color}25`,
+                                  color: f.battery_color,
+                                }
+                              : undefined
+                          }
+                        >
+                          {f.drone_model || "?"}
+                        </span>
+                        {f.photos > 0 && (
+                          <span className="drone-badge drone-badge-media">
+                            {f.photos} photo{f.photos !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                        {f.video_sec > 0 && (
+                          <span className="drone-badge drone-badge-media">
+                            {fmtDuration(f.video_sec)}
+                          </span>
+                        )}
                       </span>
                     </div>
                   </td>

@@ -1,4 +1,4 @@
-"""Drone and drone flight CRUD + public stats."""
+"""Drone, battery, and drone flight CRUD + public stats."""
 
 from collections import defaultdict
 from datetime import date, datetime
@@ -10,8 +10,12 @@ from sqlalchemy.orm import Session
 
 from ..auth.session import get_admin_user, get_trips_viewer
 from ..database import get_db
-from ..models import Drone, DroneFlight, Trip, User
+from ..models import Battery, Drone, DroneFlight, Trip, User
 from .models import (
+    BatteriesResponse,
+    BatteryCreateRequest,
+    BatteryData,
+    BatteryUpdateRequest,
     CityMarkerData,
     DroneCreateRequest,
     DroneData,
@@ -52,6 +56,7 @@ def _flight_to_data(f: DroneFlight) -> DroneFlightData:
         id=f.id,
         drone_id=f.drone_id,
         trip_id=f.trip_id,
+        battery_id=f.battery_id,
         flight_date=f.flight_date.isoformat(),
         takeoff_time=f.takeoff_time.isoformat() if f.takeoff_time else None,
         latitude=f.latitude,
@@ -67,7 +72,53 @@ def _flight_to_data(f: DroneFlight) -> DroneFlightData:
         source_file=f.source_file,
         drone_name=f.drone.name if f.drone else None,
         drone_model=f.drone.model if f.drone else None,
+        battery_color=f.battery.color if f.battery else None,
+        anomaly_severity=f.anomaly_severity,
+        anomaly_actions=f.anomaly_actions,
+        battery_charge_start=f.battery_charge_start,
+        battery_charge_end=f.battery_charge_end,
+        battery_health_pct=f.battery_health_pct,
+        battery_cycles=f.battery_cycles,
+        battery_temp_max=f.battery_temp_max,
         flight_path=f.flight_path,
+    )
+
+
+def _battery_to_data(b: Battery, db: Session) -> BatteryData:
+    """Convert a Battery ORM object to BatteryData with computed stats."""
+    flights_q = db.query(DroneFlight).filter(
+        DroneFlight.battery_id == b.id,
+        DroneFlight.is_deleted == False,  # noqa: E712
+    )
+    flights_count = flights_q.count()
+    total_flight_time = (
+        db.query(func.coalesce(func.sum(DroneFlight.duration_sec), 0.0))
+        .filter(
+            DroneFlight.battery_id == b.id,
+            DroneFlight.is_deleted == False,  # noqa: E712
+        )
+        .scalar()
+    )
+    # Most recent flight for this battery
+    latest = flights_q.order_by(
+        DroneFlight.flight_date.desc(), DroneFlight.takeoff_time.desc()
+    ).first()
+    return BatteryData(
+        id=b.id,
+        drone_id=b.drone_id,
+        serial_number=b.serial_number,
+        model=b.model,
+        color=b.color,
+        design_capacity_mah=b.design_capacity_mah,
+        cell_count=b.cell_count,
+        acquired_date=b.acquired_date.isoformat() if b.acquired_date else None,
+        retired_date=b.retired_date.isoformat() if b.retired_date else None,
+        notes=b.notes,
+        drone_name=b.drone.name if b.drone else None,
+        flights_count=flights_count,
+        last_health_pct=latest.battery_health_pct if latest else None,
+        last_cycles=latest.battery_cycles if latest else None,
+        total_flight_time_sec=float(total_flight_time),
     )
 
 
@@ -145,22 +196,138 @@ def update_drone(
     return _drone_to_data(drone, cnt)
 
 
+@router.put("/drones/{drone_id}/retire", response_model=DroneData)
+def retire_drone(
+    drone_id: int,
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+) -> DroneData:
+    """Toggle retired status on a drone. Retiring cascades to its batteries."""
+    drone = db.query(Drone).filter(Drone.id == drone_id).first()
+    if not drone:
+        raise HTTPException(status_code=404, detail="Drone not found")
+    if drone.retired_date:
+        # Reactivate drone (batteries stay as-is — reactivate individually)
+        drone.retired_date = None
+    else:
+        # Retire drone + all its active batteries
+        today = date.today()
+        drone.retired_date = today
+        db.query(Battery).filter(
+            Battery.drone_id == drone_id,
+            Battery.retired_date.is_(None),
+        ).update({Battery.retired_date: today})
+    db.commit()
+    db.refresh(drone)
+    cnt = (
+        db.query(DroneFlight)
+        .filter(DroneFlight.drone_id == drone_id, DroneFlight.is_deleted == False)  # noqa: E712
+        .count()
+    )
+    return _drone_to_data(drone, cnt)
+
+
 @router.delete("/drones/{drone_id}", status_code=204)
 def delete_drone(
     drone_id: int,
     admin: Annotated[User, Depends(get_admin_user)],
     db: Session = Depends(get_db),
 ) -> None:
-    """Delete a drone (sets flights' drone_id to NULL)."""
+    """Delete a drone. Nullifies drone_id on associated flights and batteries."""
     drone = db.query(Drone).filter(Drone.id == drone_id).first()
     if not drone:
         raise HTTPException(status_code=404, detail="Drone not found")
-    # Detach flights from this drone
+    # Detach flights and batteries before deleting
     db.query(DroneFlight).filter(DroneFlight.drone_id == drone_id).update(
         {DroneFlight.drone_id: None}
     )
+    db.query(Battery).filter(Battery.drone_id == drone_id).update({Battery.drone_id: None})
     db.delete(drone)
     db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Batteries CRUD (admin only)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/batteries", response_model=BatteriesResponse)
+def list_batteries(
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+) -> BatteriesResponse:
+    """List all batteries with computed stats."""
+    batteries = db.query(Battery).order_by(Battery.serial_number).all()
+    return BatteriesResponse(batteries=[_battery_to_data(b, db) for b in batteries])
+
+
+@router.post("/batteries", response_model=BatteryData)
+def create_battery(
+    body: BatteryCreateRequest,
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+) -> BatteryData:
+    """Create a new battery."""
+    existing = db.query(Battery).filter(Battery.serial_number == body.serial_number).first()
+    if existing:
+        raise HTTPException(
+            status_code=409, detail="Battery with this serial number already exists"
+        )
+    b = Battery(
+        drone_id=body.drone_id,
+        serial_number=body.serial_number,
+        model=body.model,
+        color=body.color,
+        design_capacity_mah=body.design_capacity_mah,
+        cell_count=body.cell_count,
+        acquired_date=date.fromisoformat(body.acquired_date) if body.acquired_date else None,
+        retired_date=date.fromisoformat(body.retired_date) if body.retired_date else None,
+        notes=body.notes,
+    )
+    db.add(b)
+    db.commit()
+    db.refresh(b)
+    return _battery_to_data(b, db)
+
+
+@router.put("/batteries/{battery_id}", response_model=BatteryData)
+def update_battery(
+    battery_id: int,
+    body: BatteryUpdateRequest,
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+) -> BatteryData:
+    """Update a battery."""
+    b = db.query(Battery).filter(Battery.id == battery_id).first()
+    if not b:
+        raise HTTPException(status_code=404, detail="Battery not found")
+    b.drone_id = body.drone_id
+    b.model = body.model
+    b.color = body.color
+    b.design_capacity_mah = body.design_capacity_mah
+    b.cell_count = body.cell_count
+    b.acquired_date = date.fromisoformat(body.acquired_date) if body.acquired_date else None
+    b.retired_date = date.fromisoformat(body.retired_date) if body.retired_date else None
+    b.notes = body.notes
+    db.commit()
+    db.refresh(b)
+    return _battery_to_data(b, db)
+
+
+@router.put("/batteries/{battery_id}/retire", response_model=BatteryData)
+def retire_battery(
+    battery_id: int,
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+) -> BatteryData:
+    """Toggle retired status on a battery."""
+    b = db.query(Battery).filter(Battery.id == battery_id).first()
+    if not b:
+        raise HTTPException(status_code=404, detail="Battery not found")
+    b.retired_date = None if b.retired_date else date.today()
+    db.commit()
+    db.refresh(b)
+    return _battery_to_data(b, db)
 
 
 # ---------------------------------------------------------------------------
@@ -176,6 +343,7 @@ def list_drone_flights(
     year: int | None = Query(None),
     country: str | None = Query(None),
     trip_id: int | None = Query(None),
+    battery_id: int | None = Query(None),
 ) -> DroneFlightsResponse:
     """List drone flights with optional filters. Viewers see non-hidden only."""
     q = db.query(DroneFlight).filter(DroneFlight.is_deleted == False)  # noqa: E712
@@ -193,6 +361,8 @@ def list_drone_flights(
         q = q.filter(DroneFlight.country == country.upper())
     if trip_id is not None:
         q = q.filter(DroneFlight.trip_id == trip_id)
+    if battery_id is not None:
+        q = q.filter(DroneFlight.battery_id == battery_id)
     total = q.count()
     flights = q.order_by(DroneFlight.flight_date.desc(), DroneFlight.takeoff_time.desc()).all()
     return DroneFlightsResponse(
@@ -211,6 +381,7 @@ def create_drone_flight(
     f = DroneFlight(
         drone_id=body.drone_id,
         trip_id=body.trip_id,
+        battery_id=body.battery_id,
         flight_date=date.fromisoformat(body.flight_date),
         takeoff_time=(datetime.fromisoformat(body.takeoff_time) if body.takeoff_time else None),
         latitude=body.latitude,
@@ -224,6 +395,13 @@ def create_drone_flight(
         city=body.city,
         is_hidden=body.is_hidden,
         source_file=body.source_file,
+        anomaly_severity=body.anomaly_severity,
+        anomaly_actions=body.anomaly_actions,
+        battery_charge_start=body.battery_charge_start,
+        battery_charge_end=body.battery_charge_end,
+        battery_health_pct=body.battery_health_pct,
+        battery_cycles=body.battery_cycles,
+        battery_temp_max=body.battery_temp_max,
     )
     db.add(f)
     db.commit()
@@ -244,6 +422,7 @@ def update_drone_flight(
         raise HTTPException(status_code=404, detail="Drone flight not found")
     f.drone_id = body.drone_id
     f.trip_id = body.trip_id
+    f.battery_id = body.battery_id
     f.flight_date = date.fromisoformat(body.flight_date)
     f.takeoff_time = datetime.fromisoformat(body.takeoff_time) if body.takeoff_time else None
     f.latitude = body.latitude
@@ -257,6 +436,13 @@ def update_drone_flight(
     f.city = body.city
     f.is_hidden = body.is_hidden
     f.source_file = body.source_file
+    f.anomaly_severity = body.anomaly_severity
+    f.anomaly_actions = body.anomaly_actions
+    f.battery_charge_start = body.battery_charge_start
+    f.battery_charge_end = body.battery_charge_end
+    f.battery_health_pct = body.battery_health_pct
+    f.battery_cycles = body.battery_cycles
+    f.battery_temp_max = body.battery_temp_max
     db.commit()
     db.refresh(f)
     return _flight_to_data(f)

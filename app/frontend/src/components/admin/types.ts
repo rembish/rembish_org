@@ -337,11 +337,11 @@ export interface CloseOneUser {
 
 // --- Drone types ---
 
-export type DroneSubTab = "flights" | "my-drones";
+export type DroneSubTab = "flights" | "hardware";
 
 export const DRONE_SUB_TABS: { key: DroneSubTab; label: string }[] = [
   { key: "flights", label: "Flights" },
-  { key: "my-drones", label: "My Drones" },
+  { key: "hardware", label: "Hardware" },
 ];
 
 export interface DroneItem {
@@ -355,10 +355,29 @@ export interface DroneItem {
   flights_count: number;
 }
 
+export interface BatteryItem {
+  id: number;
+  drone_id: number | null;
+  serial_number: string;
+  model: string | null;
+  color: string | null;
+  design_capacity_mah: number | null;
+  cell_count: number | null;
+  acquired_date: string | null;
+  retired_date: string | null;
+  notes: string | null;
+  drone_name: string | null;
+  flights_count: number;
+  last_health_pct: number | null;
+  last_cycles: number | null;
+  total_flight_time_sec: number;
+}
+
 export interface DroneFlightItem {
   id: number;
   drone_id: number | null;
   trip_id: number | null;
+  battery_id: number | null;
   flight_date: string;
   takeoff_time: string | null;
   latitude: number | null;
@@ -374,6 +393,14 @@ export interface DroneFlightItem {
   source_file: string | null;
   drone_name: string | null;
   drone_model: string | null;
+  battery_color: string | null;
+  anomaly_severity: string | null;
+  anomaly_actions: string | null;
+  battery_charge_start: number | null;
+  battery_charge_end: number | null;
+  battery_health_pct: number | null;
+  battery_cycles: number | null;
+  battery_temp_max: number | null;
   flight_path: number[][] | null;
 }
 

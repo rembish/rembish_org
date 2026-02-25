@@ -712,10 +712,56 @@ class DronesResponse(BaseModel):
     drones: list[DroneData]
 
 
+class BatteryData(BaseModel):
+    id: int
+    drone_id: int | None
+    serial_number: str
+    model: str | None
+    color: str | None
+    design_capacity_mah: int | None
+    cell_count: int | None
+    acquired_date: str | None
+    retired_date: str | None
+    notes: str | None
+    drone_name: str | None
+    flights_count: int
+    last_health_pct: int | None
+    last_cycles: int | None
+    total_flight_time_sec: float
+
+
+class BatteryCreateRequest(BaseModel):
+    drone_id: int | None = None
+    serial_number: str
+    model: str | None = None
+    color: str | None = None
+    design_capacity_mah: int | None = None
+    cell_count: int | None = None
+    acquired_date: str | None = None
+    retired_date: str | None = None
+    notes: str | None = None
+
+
+class BatteryUpdateRequest(BaseModel):
+    drone_id: int | None = None
+    model: str | None = None
+    color: str | None = None
+    design_capacity_mah: int | None = None
+    cell_count: int | None = None
+    acquired_date: str | None = None
+    retired_date: str | None = None
+    notes: str | None = None
+
+
+class BatteriesResponse(BaseModel):
+    batteries: list[BatteryData]
+
+
 class DroneFlightData(BaseModel):
     id: int
     drone_id: int | None
     trip_id: int | None
+    battery_id: int | None
     flight_date: str
     takeoff_time: str | None
     latitude: float | None
@@ -731,12 +777,21 @@ class DroneFlightData(BaseModel):
     source_file: str | None
     drone_name: str | None
     drone_model: str | None
+    battery_color: str | None = None
+    anomaly_severity: str | None = None
+    anomaly_actions: str | None = None
+    battery_charge_start: int | None = None
+    battery_charge_end: int | None = None
+    battery_health_pct: int | None = None
+    battery_cycles: int | None = None
+    battery_temp_max: float | None = None
     flight_path: list[list[float]] | None = None
 
 
 class DroneFlightCreateRequest(BaseModel):
     drone_id: int | None = None
     trip_id: int | None = None
+    battery_id: int | None = None
     flight_date: str
     takeoff_time: str | None = None
     latitude: float | None = None
@@ -750,6 +805,13 @@ class DroneFlightCreateRequest(BaseModel):
     city: str | None = None
     is_hidden: bool = False
     source_file: str | None = None
+    anomaly_severity: str | None = None
+    anomaly_actions: str | None = None
+    battery_charge_start: int | None = None
+    battery_charge_end: int | None = None
+    battery_health_pct: int | None = None
+    battery_cycles: int | None = None
+    battery_temp_max: float | None = None
 
 
 class DroneFlightsResponse(BaseModel):

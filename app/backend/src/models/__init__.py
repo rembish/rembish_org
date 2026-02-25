@@ -1,4 +1,4 @@
-from .drone import Drone, DroneFlight
+from .drone import Battery, Drone, DroneFlight
 from .event import PersonalEvent
 from .fixer import Fixer, FixerCountry, TripFixer
 from .instagram import InstagramMedia, InstagramPost
@@ -37,6 +37,7 @@ __all__ = [
     "Accommodation",
     "Airport",
     "AppSetting",
+    "Battery",
     "CarRental",
     "Drone",
     "DroneFlight",

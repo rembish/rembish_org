@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..log_config import get_logger
-from ..models import Drone, DroneFlight, Trip, UNCountry
+from ..models import Battery, Drone, DroneFlight, Trip, UNCountry
 
 log = get_logger(__name__)
 
@@ -137,10 +137,21 @@ def process_flight_record(data: bytes, filename: str, db: Session) -> str:
     # source_file for dedup (use original filename without extension)
     source_file = re.sub(r"\.txt$", "", filename, flags=re.IGNORECASE)
 
-    # 3. Dedup
+    # 3. Dedup — by exact source_file, then by date+time from filename
     existing = db.query(DroneFlight).filter(DroneFlight.source_file == source_file).first()
     if existing:
         return f"Already imported: {filename} (flight #{existing.id})"
+    # Filename contains local time: (DJI)FlightRecord_YYYY-MM-DD_[HH-MM-SS].txt
+    # Original bulk import stored source_file as YYYY-MM-DD_HHMMSS_DRONE_TYPE
+    time_match = re.search(r"(\d{4}-\d{2}-\d{2})_\[(\d{2})-(\d{2})-(\d{2})\]", filename)
+    if time_match:
+        date_str = time_match.group(1)
+        time_prefix = f"{date_str}_{time_match.group(2)}{time_match.group(3)}{time_match.group(4)}"
+        existing = (
+            db.query(DroneFlight).filter(DroneFlight.source_file.like(f"{time_prefix}%")).first()
+        )
+        if existing:
+            return f"Already imported: {filename} (flight #{existing.id}, matched by date+time)"
 
     # 4. Skip flights without GPS
     if lat == 0.0 and lon == 0.0:
@@ -173,19 +184,90 @@ def process_flight_record(data: bytes, filename: str, db: Session) -> str:
             db.flush()
         drone_id = drone.id
 
-    # 8. Trip matching (skip for CZ — home country)
+    # 8. Battery identification and telemetry
+    battery_id: int | None = None
+    battery_charge_start: int | None = None
+    battery_charge_end: int | None = None
+    battery_health_pct: int | None = None
+    battery_cycles: int | None = None
+    battery_temp_max: float | None = None
+    battery_sn: str | None = getattr(dji_log.details, "battery_sn", None)
+
+    if battery_sn:
+        battery = db.query(Battery).filter(Battery.serial_number == battery_sn).first()
+        if not battery:
+            # Auto-create battery from first frame data
+            design_cap: int | None = None
+            cell_count: int | None = None
+            if frames:
+                first_bat = frames[0].battery
+                if first_bat.design_capacity > 0:
+                    design_cap = first_bat.design_capacity
+                if first_bat.cell_voltages:
+                    cell_count = len(first_bat.cell_voltages)
+            battery = Battery(
+                drone_id=drone_id,
+                serial_number=battery_sn,
+                design_capacity_mah=design_cap,
+                cell_count=cell_count,
+            )
+            db.add(battery)
+            db.flush()
+        elif battery.drone_id is None and drone_id is not None:
+            # Auto-assign battery to drone if not yet assigned
+            battery.drone_id = drone_id
+        battery_id = battery.id
+
+    # Extract battery telemetry from frames
+    if frames:
+        first_bat = frames[0].battery
+        last_bat = frames[-1].battery
+        if first_bat.charge_level > 0:
+            battery_charge_start = first_bat.charge_level
+        if last_bat.charge_level > 0:
+            battery_charge_end = last_bat.charge_level
+        if last_bat.design_capacity > 0 and last_bat.full_capacity > 0:
+            battery_health_pct = round(last_bat.full_capacity / last_bat.design_capacity * 100)
+        if last_bat.number_of_discharges > 0:
+            battery_cycles = last_bat.number_of_discharges
+        # Max temperature across all frames
+        temps = [f.battery.temperature for f in frames if f.battery.temperature > 0]
+        if temps:
+            battery_temp_max = round(max(temps), 1)
+
+    # 9. Anomaly extraction
+    anomaly_severity: str | None = None
+    anomaly_actions: str | None = None
+    anomaly_label = ""
+    if fd.anomaly is not None:
+        severity_name = fd.anomaly.severity.name  # GREEN, AMBER, RED
+        if severity_name != "GREEN":
+            anomaly_severity = severity_name
+            actions_list = [a.name.replace("_", " ").title() for a in fd.anomaly.actions]
+            if actions_list:
+                anomaly_actions = ",".join(a.name for a in fd.anomaly.actions)
+            if severity_name == "RED":
+                anomaly_label = "RED"
+                actions_display = ", ".join(actions_list)
+                if actions_display:
+                    anomaly_label += f" ({actions_display})"
+            elif severity_name == "AMBER":
+                anomaly_label = "AMBER"
+
+    # 10. Trip matching (skip for CZ — home country)
     trip_id: int | None = None
     if country != "CZ":
         trip = _find_trip(db, flight_date)
         trip_id = trip.id if trip else None
 
-    # 9. Auto-hide very short flights (<30s)
+    # 11. Auto-hide very short flights (<30s)
     is_hidden = duration_sec < 30
 
-    # 10. Insert
+    # 12. Insert
     flight = DroneFlight(
         drone_id=drone_id,
         trip_id=trip_id,
+        battery_id=battery_id,
         flight_date=flight_date,
         takeoff_time=takeoff_time,
         latitude=lat,
@@ -200,6 +282,13 @@ def process_flight_record(data: bytes, filename: str, db: Session) -> str:
         is_hidden=is_hidden,
         source_file=source_file,
         flight_path=flight_path,
+        anomaly_severity=anomaly_severity,
+        anomaly_actions=anomaly_actions,
+        battery_charge_start=battery_charge_start,
+        battery_charge_end=battery_charge_end,
+        battery_health_pct=battery_health_pct,
+        battery_cycles=battery_cycles,
+        battery_temp_max=battery_temp_max,
     )
     db.add(flight)
 
@@ -211,33 +300,16 @@ def process_flight_record(data: bytes, filename: str, db: Session) -> str:
 
     db.commit()
 
-    # 11. Extract battery health from last frame
-    battery_pct: int | None = None
+    # 13. Build reply
+    battery_pct = battery_charge_start
     battery_health: str = ""
+    if battery_health_pct is not None:
+        battery_health = f"{battery_health_pct}%"
     if frames:
         last_bat = frames[-1].battery
-        if last_bat.design_capacity > 0 and last_bat.full_capacity > 0:
-            health_pct = round(last_bat.full_capacity / last_bat.design_capacity * 100)
-            battery_health = f"{health_pct}%"
         if last_bat.lifetime_remaining > 0:
             battery_health += f" ({last_bat.lifetime_remaining} cycles left)"
-        first_bat = frames[0].battery
-        if first_bat.charge_level > 0:
-            battery_pct = first_bat.charge_level
 
-    # 12. Anomaly status
-    anomaly_label = ""
-    if fd.anomaly is not None:
-        severity_name = fd.anomaly.severity.name  # GREEN, AMBER, RED
-        if severity_name == "RED":
-            anomaly_label = "RED"
-            actions = ", ".join(a.name.replace("_", " ").title() for a in fd.anomaly.actions)
-            if actions:
-                anomaly_label += f" ({actions})"
-        elif severity_name == "AMBER":
-            anomaly_label = "AMBER"
-
-    # 13. Build reply
     parts = [f"Flight imported: #{flight.id}"]
     parts.append(f"Date: {flight_date}")
     if takeoff_time:
@@ -257,6 +329,8 @@ def process_flight_record(data: bytes, filename: str, db: Session) -> str:
     if drone_type_name:
         model_name = DRONE_MODELS.get(drone_type_name, (drone_type_name,))[0]
         parts.append(f"Drone: {model_name}")
+    if battery_sn:
+        parts.append(f"Battery S/N: {battery_sn}")
     if battery_pct is not None:
         bat_str = f"Battery: {battery_pct}%"
         if battery_health:

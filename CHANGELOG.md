@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.41.1 (2026-02-25)
+
+### Battery Tracking & Hardware
+- Battery registry — track batteries with serial number, color, drone assignment, health, and cycle count
+- Color-coded battery identification — color picker in admin, colored drone badge on flights page
+- Hardware sub-tab under Drones — drones and batteries managed together
+- Retire (not delete) drones and batteries, with cascade: retiring a drone retires its batteries
+- Battery telemetry per flight — charge start/end, health %, cycles, temperature from DJI records
+- Anomaly indicators on flights — amber/red dots for flight anomalies detected by DJI
+- Photo count and video duration badges on flight list
+- Improved dedup — catches re-uploads of previously bulk-imported flights
+- Fixed distance values on public stats (were stored in meters from original import)
+
 ## 0.41.0 (2026-02-25)
 
 ### Drone Flights
