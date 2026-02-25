@@ -3066,6 +3066,126 @@ a {
   font-size: 0.75rem;
 }
 
+/* Drone rules section */
+.country-info-drones {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.drone-status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.drone-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: 10px;
+}
+
+.drone-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.drone-status-allowed {
+  background: rgba(39, 174, 96, 0.12);
+  color: #27ae60;
+}
+
+.drone-status-allowed .drone-status-dot {
+  background: #27ae60;
+}
+
+.drone-status-restricted {
+  background: rgba(243, 156, 18, 0.12);
+  color: #f39c12;
+}
+
+.drone-status-restricted .drone-status-dot {
+  background: #f39c12;
+}
+
+.drone-status-banned {
+  background: rgba(231, 76, 60, 0.12);
+  color: #e74c3c;
+}
+
+.drone-status-banned .drone-status-dot {
+  background: #e74c3c;
+}
+
+.drone-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.drone-fact {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.drone-sub250g {
+  background: rgba(39, 174, 96, 0.06);
+  border: 1px solid rgba(39, 174, 96, 0.2);
+  border-radius: 6px;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.drone-sub250g-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #27ae60;
+}
+
+.drone-sub250g-text {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.drone-import-warning {
+  background: rgba(231, 76, 60, 0.08);
+  border-radius: 6px;
+  padding: 0.5rem;
+  font-size: 0.8125rem;
+  color: #e74c3c;
+}
+
+.drone-notes {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.drone-links {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.drone-links a {
+  font-size: 0.75rem;
+  color: var(--color-link);
+  text-decoration: none;
+}
+
+.drone-links a:hover {
+  text-decoration: underline;
+}
+
 .trip-form-back-btn {
   display: flex;
   align-items: center;

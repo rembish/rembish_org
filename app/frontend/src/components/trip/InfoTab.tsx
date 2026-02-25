@@ -394,6 +394,106 @@ export default function InfoTab({ tripId, readOnly }: InfoTabProps) {
           )}
         </div>
       )}
+      {country.drone_rules && (
+        <div className="country-info-drones">
+          <div className="drone-status-header">
+            <span className="info-label">Drone Rules</span>
+            <span
+              className={`drone-status-badge drone-status-${country.drone_rules.status}`}
+            >
+              <span className="drone-status-dot" />
+              {country.drone_rules.status === "allowed"
+                ? "Allowed"
+                : country.drone_rules.status === "restricted"
+                  ? "Restricted"
+                  : "Banned"}
+            </span>
+          </div>
+
+          {country.drone_rules.status !== "banned" && (
+            <div className="drone-facts">
+              {country.drone_rules.max_altitude_m != null && (
+                <span className="drone-fact">
+                  Max altitude: {country.drone_rules.max_altitude_m}m
+                </span>
+              )}
+              {country.drone_rules.registration_required != null && (
+                <span className="drone-fact">
+                  Registration:{" "}
+                  {country.drone_rules.registration_required
+                    ? country.drone_rules.registration_weight_g != null
+                      ? `required above ${country.drone_rules.registration_weight_g}g`
+                      : "required"
+                    : "not required"}
+                </span>
+              )}
+              {country.drone_rules.license_required && (
+                <span className="drone-fact">
+                  License:{" "}
+                  {country.drone_rules.license_required === "none"
+                    ? "not required"
+                    : country.drone_rules.license_required === "online"
+                      ? "online exam"
+                      : country.drone_rules.license_required === "full"
+                        ? "full license"
+                        : "per-flight permit"}
+                </span>
+              )}
+              {country.drone_rules.insurance_required != null && (
+                <span className="drone-fact">
+                  Insurance:{" "}
+                  {country.drone_rules.insurance_required
+                    ? "required"
+                    : "not required"}
+                </span>
+              )}
+            </div>
+          )}
+
+          {country.drone_rules.sub_250g_notes && (
+            <div className="drone-sub250g">
+              <span className="drone-sub250g-label">Mini 4 Pro (249g)</span>
+              <span className="drone-sub250g-text">
+                {country.drone_rules.sub_250g_notes}
+              </span>
+            </div>
+          )}
+
+          {country.drone_rules.import_restrictions && (
+            <div className="drone-import-warning">
+              {country.drone_rules.import_restrictions}
+            </div>
+          )}
+
+          {country.drone_rules.notes && (
+            <div className="drone-notes">{country.drone_rules.notes}</div>
+          )}
+
+          {(country.drone_rules.authority_url ||
+            country.drone_rules.source_url) && (
+            <div className="drone-links">
+              {country.drone_rules.authority_url && (
+                <a
+                  href={country.drone_rules.authority_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {country.drone_rules.authority || "Authority"}
+                </a>
+              )}
+              {country.drone_rules.source_url && (
+                <a
+                  href={country.drone_rules.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Details
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       {country.travel_docs && country.travel_docs.length > 0 && (
         <div className="country-info-travel-docs">
           <span className="info-label">Travel Documents</span>

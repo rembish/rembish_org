@@ -24,6 +24,7 @@ from .models import (
     CountryInfoData,
     CountryInfoTCCDestination,
     CurrencyInfo,
+    DroneRules,
     HealthRequirements,
     HealthVaccination,
     MalariaInfo,
@@ -48,6 +49,15 @@ if _health_data_path.exists():
         _raw = json.load(_f)
         for _c in _raw.get("countries", []):
             _health_data[_c["country_code"]] = _c
+
+# Drone rules: loaded once from static JSON
+_drone_rules: dict[str, dict] = {}
+_drone_rules_path = Path(__file__).parent.parent / "data" / "drone_rules.json"
+if _drone_rules_path.exists():
+    with open(_drone_rules_path) as _f:
+        _raw_dr = json.load(_f)
+        for _c in _raw_dr.get("countries", []):
+            _drone_rules[_c["country_code"]] = _c
 
 # Czech socket types for adapter comparison
 _CZ_SOCKETS = {"C", "E"}
@@ -163,6 +173,27 @@ def _get_health_requirements(
         vaccinations_routine=routine,
         malaria=malaria,
         other_risks=entry.get("other_risks", []),
+    )
+
+
+def _get_drone_rules(iso_alpha2: str) -> DroneRules | None:
+    """Look up drone rules for a country by ISO alpha-2 code."""
+    entry = _drone_rules.get(iso_alpha2)
+    if not entry:
+        return None
+    return DroneRules(
+        status=entry["status"],
+        max_altitude_m=entry.get("max_altitude_m"),
+        registration_required=entry.get("registration_required"),
+        registration_weight_g=entry.get("registration_weight_g"),
+        license_required=entry.get("license_required"),
+        insurance_required=entry.get("insurance_required"),
+        sub_250g_notes=entry.get("sub_250g_notes"),
+        import_restrictions=entry.get("import_restrictions"),
+        notes=entry.get("notes"),
+        authority=entry.get("authority"),
+        authority_url=entry.get("authority_url"),
+        source_url=entry.get("source_url"),
     )
 
 
@@ -406,6 +437,7 @@ def get_trip_country_info(
                     adapter_needed=_needs_adapter(un_country.socket_types),
                     sunrise_sunset=sunrise_sunset,
                     health=_get_health_requirements(iso, user_vax_names),
+                    drone_rules=_get_drone_rules(iso),
                     travel_docs=[
                         TripTravelDocInfo(
                             id=vtd.id,

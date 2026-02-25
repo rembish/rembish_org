@@ -112,6 +112,21 @@ export interface HealthRequirements {
   other_risks: string[];
 }
 
+export interface DroneRules {
+  status: string;
+  max_altitude_m: number | null;
+  registration_required: boolean | null;
+  registration_weight_g: number | null;
+  license_required: string | null;
+  insurance_required: boolean | null;
+  sub_250g_notes: string | null;
+  import_restrictions: string | null;
+  notes: string | null;
+  authority: string | null;
+  authority_url: string | null;
+  source_url: string | null;
+}
+
 export interface TripTravelDocInfo {
   id: number;
   doc_type: string;
@@ -155,6 +170,7 @@ export interface CountryInfoData {
   adapter_needed: boolean | null;
   sunrise_sunset: SunriseSunset | null;
   health: HealthRequirements | null;
+  drone_rules: DroneRules | null;
   travel_docs: TripTravelDocInfo[];
   fixers: TripFixerInfo[];
 }

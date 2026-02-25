@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.41.2 (2026-02-25)
+
+### Drone Rules on Trip Info
+- Per-country drone regulations on the trip info page — status (allowed/restricted/banned), altitude limits, registration, license, insurance requirements
+- Sub-250g callout for Mini 4 Pro (249g) — highlights when registration/license is not needed
+- Import restriction warnings for countries that confiscate drones at customs
+- Authority and source links for each country's aviation authority
+- 66 countries covered: 31 EASA members, 15 popular destinations, 20 restricted/banned
+
 ## 0.41.1 (2026-02-25)
 
 ### Battery Tracking & Hardware

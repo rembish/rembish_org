@@ -299,6 +299,21 @@ class HealthRequirements(BaseModel):
     other_risks: list[str] = []
 
 
+class DroneRules(BaseModel):
+    status: str  # "allowed" | "restricted" | "banned"
+    max_altitude_m: int | None = None
+    registration_required: bool | None = None
+    registration_weight_g: int | None = None
+    license_required: str | None = None  # "none" | "online" | "full" | "permit"
+    insurance_required: bool | None = None
+    sub_250g_notes: str | None = None
+    import_restrictions: str | None = None
+    notes: str | None = None
+    authority: str | None = None
+    authority_url: str | None = None
+    source_url: str | None = None
+
+
 class TripTravelDocInfo(BaseModel):
     id: int
     doc_type: str
@@ -342,6 +357,7 @@ class CountryInfoData(BaseModel):
     adapter_needed: bool | None  # computed: True if country sockets differ from CZ
     sunrise_sunset: SunriseSunset | None
     health: HealthRequirements | None = None
+    drone_rules: DroneRules | None = None
     travel_docs: list[TripTravelDocInfo] = []
     fixers: list[TripFixerInfo] = []
 
