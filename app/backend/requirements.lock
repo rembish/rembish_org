@@ -137,7 +137,7 @@ pydantic-core==2.41.5
     # via pydantic
 pydantic-settings==2.13.1
     # via rembish-org-backend (pyproject.toml)
-pydjirecord @ git+https://github.com/rembish/pydjirecord.git@73d689d59a13863bc3a29063e643e970b84c799c
+pydjirecord @ git+https://github.com/rembish/pydjirecord.git@af8a854b64d7ffccc051f99f6d625a53859e162c
     # via rembish-org-backend (pyproject.toml)
 pymysql==1.1.2
     # via

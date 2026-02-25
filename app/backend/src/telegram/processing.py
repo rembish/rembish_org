@@ -211,7 +211,33 @@ def process_flight_record(data: bytes, filename: str, db: Session) -> str:
 
     db.commit()
 
-    # 11. Build reply
+    # 11. Extract battery health from last frame
+    battery_pct: int | None = None
+    battery_health: str = ""
+    if frames:
+        last_bat = frames[-1].battery
+        if last_bat.design_capacity > 0 and last_bat.full_capacity > 0:
+            health_pct = round(last_bat.full_capacity / last_bat.design_capacity * 100)
+            battery_health = f"{health_pct}%"
+        if last_bat.lifetime_remaining > 0:
+            battery_health += f" ({last_bat.lifetime_remaining} cycles left)"
+        first_bat = frames[0].battery
+        if first_bat.charge_level > 0:
+            battery_pct = first_bat.charge_level
+
+    # 12. Anomaly status
+    anomaly_label = ""
+    if fd.anomaly is not None:
+        severity_name = fd.anomaly.severity.name  # GREEN, AMBER, RED
+        if severity_name == "RED":
+            anomaly_label = "RED"
+            actions = ", ".join(a.name.replace("_", " ").title() for a in fd.anomaly.actions)
+            if actions:
+                anomaly_label += f" ({actions})"
+        elif severity_name == "AMBER":
+            anomaly_label = "AMBER"
+
+    # 13. Build reply
     parts = [f"Flight imported: #{flight.id}"]
     parts.append(f"Date: {flight_date}")
     if takeoff_time:
@@ -223,9 +249,21 @@ def process_flight_record(data: bytes, filename: str, db: Session) -> str:
     parts.append(f"Duration: {int(duration_sec)}s")
     if distance_km > 0:
         parts.append(f"Distance: {distance_km} km")
+    if photos > 0:
+        parts.append(f"Photos: {photos}")
+    if video_sec > 0:
+        mins, secs = divmod(video_sec, 60)
+        parts.append(f"Video: {mins}m{secs}s" if mins else f"Video: {secs}s")
     if drone_type_name:
         model_name = DRONE_MODELS.get(drone_type_name, (drone_type_name,))[0]
         parts.append(f"Drone: {model_name}")
+    if battery_pct is not None:
+        bat_str = f"Battery: {battery_pct}%"
+        if battery_health:
+            bat_str += f" (health: {battery_health})"
+        parts.append(bat_str)
+    if anomaly_label:
+        parts.append(f"Anomaly: {anomaly_label}")
     if is_hidden:
         parts.append("(auto-hidden: <30s)")
     if trip_id:
