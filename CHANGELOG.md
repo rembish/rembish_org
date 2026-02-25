@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.41.0 (2026-02-25)
+
+### Drone Flights
+- Telegram bot for drone flight uploads — send a DJI `.txt` flight record to the Telegram bot and it's automatically parsed, geocoded, and added to the database
+- Supports dedup (same file won't import twice), auto-hide (<30s flights), trip matching, and country enrichment
+
 ## 0.40.3 (2026-02-24)
 
 ### Projects

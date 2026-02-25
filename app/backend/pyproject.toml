@@ -1,6 +1,6 @@
 [project]
 name = "rembish-org-backend"
-version = "0.40.3"
+version = "0.41.0"
 description = "rembish.org API backend"
 requires-python = ">=3.12"
 dependencies = [
@@ -21,8 +21,10 @@ dependencies = [
     "pillow>=10.0.0",
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
+    "pydjirecord @ git+https://github.com/rembish/pydjirecord.git",
     "pymysql>=1.1.0",
     "python-multipart>=0.0.9",
+    "reverse-geocode>=1.4.1",
     "sqlalchemy>=2.0.0",
     "uvicorn[standard]>=0.32.0",
 ]

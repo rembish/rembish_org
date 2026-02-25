@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     # Telegram
     telegram_token: str = ""
     telegram_chat_id: str = ""
+    telegram_webhook_secret: str = ""
+
+    # DJI API (for pydjirecord v13+ AES decryption)
+    dji_api_key: str = ""
 
     # Cloudflare Turnstile (CAPTCHA)
     turnstile_secret: str = ""  # Empty in dev = disabled

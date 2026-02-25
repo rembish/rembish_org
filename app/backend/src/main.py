@@ -18,6 +18,7 @@ from .config import settings
 from .database import get_db
 from .log_config import get_logger, setup_logging
 from .og import router as og_router
+from .telegram import router as telegram_router
 from .travels import router as travels_router
 
 # Initialize logging
@@ -26,7 +27,7 @@ log = get_logger(__name__)
 
 app = FastAPI(
     title="rembish.org API",
-    version="0.40.3",
+    version="0.41.0",
     docs_url="/docs" if settings.debug else None,
     redoc_url="/redoc" if settings.debug else None,
     openapi_url="/openapi.json" if settings.debug else None,
@@ -68,11 +69,13 @@ app.add_middleware(SecurityHeadersMiddleware)
 # CSRF protection: require X-CSRF header on mutating API requests
 class CSRFMiddleware(BaseHTTPMiddleware):
     _MUTATING_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
+    _EXEMPT_PATHS = {"/api/v1/telegram/webhook"}
 
     async def dispatch(self, request: Request, call_next: Callable[[Request], Any]) -> Response:
         if (
             request.method in self._MUTATING_METHODS
             and request.url.path.startswith("/api/")
+            and request.url.path not in self._EXEMPT_PATHS
             and not request.headers.get("x-csrf")
         ):
             return StarletteJSONResponse({"detail": "Missing CSRF header"}, status_code=403)
@@ -87,6 +90,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
 app.include_router(travels_router, prefix="/api")
 app.include_router(og_router, prefix="/api/v1")
+app.include_router(telegram_router, prefix="/api/v1")
 
 # Spam protection settings
 MIN_SUBMISSION_TIME_MS = 3000  # Reject forms submitted faster than 3 seconds
@@ -131,7 +135,7 @@ def health(db: Session = Depends(get_db)) -> dict[str, str]:
 def info() -> dict[str, str]:
     return {
         "name": "rembish.org",
-        "version": "0.40.3",
+        "version": "0.41.0",
     }
 
 
