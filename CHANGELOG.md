@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.43.1 (2026-02-26)
+
+- Fixed travel advisory computation for trips spanning 3+ years
+- Fixed Oktoberfest end date for years when October 1 falls on Sunday
+- Improved type safety for advisory data across backend and frontend
+
 ## 0.43.0 (2026-02-26)
 
 ### Travel Advisories

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -301,14 +303,14 @@ class HealthRequirements(BaseModel):
 
 
 class TravelAdvisory(BaseModel):
-    event_name: str  # "Ramadan", "Carnival", "Nyepi"
-    category: str  # "restriction" | "event"
+    event_name: str
+    category: Literal["restriction", "event"]
     start_date: str  # ISO date
     end_date: str  # ISO date
-    severity: str  # "high" | "medium" | "low"
-    summary: str  # User-facing message
-    details: str | None = None  # Extended info
-    location: str | None = None  # City/region if not country-wide
+    severity: Literal["high", "medium", "low"]
+    summary: str
+    details: str | None = None
+    location: str | None = None
 
 
 class TravelAdvisoriesResponse(BaseModel):

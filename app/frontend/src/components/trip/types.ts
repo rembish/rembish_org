@@ -48,10 +48,10 @@ export interface TripHoliday {
 
 export interface TripAdvisory {
   event_name: string;
-  category: string;
+  category: "restriction" | "event";
   start_date: string;
   end_date: string;
-  severity: string;
+  severity: "high" | "medium" | "low";
   summary: string;
   country_code: string;
   country_name: string;
@@ -131,10 +131,10 @@ export interface HealthRequirements {
 
 export interface TravelAdvisory {
   event_name: string;
-  category: string; // "restriction" | "event"
-  start_date: string; // ISO date
-  end_date: string; // ISO date
-  severity: string; // "high" | "medium" | "low"
+  category: "restriction" | "event";
+  start_date: string;
+  end_date: string;
+  severity: "high" | "medium" | "low";
   summary: string;
   details: string | null;
   location: string | null;

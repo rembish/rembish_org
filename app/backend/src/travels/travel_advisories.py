@@ -5,6 +5,7 @@ All dates computed from static data — no paid APIs.
 """
 
 from datetime import date, timedelta
+from typing import Literal
 
 from hijridate import Gregorian, Hijri
 
@@ -127,7 +128,7 @@ DIWALI_DATES: dict[int, date] = {
 }
 
 # Major sporting events: list of (name, country_codes, start, end, severity)
-MAJOR_SPORTING_EVENTS: list[tuple[str, set[str], date, date, str]] = [
+MAJOR_SPORTING_EVENTS: list[tuple[str, set[str], date, date, Literal["high", "medium", "low"]]] = [
     ("Summer Olympics", {"FR"}, date(2024, 7, 26), date(2024, 8, 11), "medium"),
     ("Winter Olympics", {"IT"}, date(2026, 2, 6), date(2026, 2, 22), "medium"),
     ("Summer Olympics", {"US"}, date(2028, 7, 14), date(2028, 7, 30), "medium"),
@@ -237,8 +238,6 @@ def _oktoberfest_dates(year: int) -> tuple[date, date]:
     # First Sunday of October
     oct1 = date(year, 10, 1)
     days_until_sunday = (6 - oct1.weekday()) % 7
-    if days_until_sunday == 0:
-        days_until_sunday = 7
     first_sunday_oct = oct1 + timedelta(days=days_until_sunday)
     return (start, first_sunday_oct)
 
@@ -258,6 +257,7 @@ def _check_ramadan(
 ) -> None:
     if iso not in ALL_RAMADAN:
         return
+    severity: Literal["high", "medium", "low"]
     if iso in RAMADAN_TIER1:
         severity = "high"
         summary = "Public eating/drinking illegal during daytime"
@@ -603,7 +603,7 @@ def get_travel_advisories(
         return []
 
     iso = iso_alpha2.upper()
-    years = {trip_start.year, trip_end.year}
+    years = set(range(trip_start.year, trip_end.year + 1))
     results: list[TravelAdvisory] = []
 
     # Restriction events

@@ -2,6 +2,8 @@
 
 from datetime import date
 
+from fastapi.testclient import TestClient
+
 from src.travels.travel_advisories import (
     _carnival_dates,
     _easter_date,
@@ -91,6 +93,11 @@ class TestOktoberfestDates:
             assert start == date(year, 9, 16)
             assert end.weekday() == 6  # Sunday
             assert end.month == 10
+
+    def test_oct1_is_sunday(self) -> None:
+        # 2028-10-01 is a Sunday — should end on Oct 1, not Oct 8
+        start, end = _oktoberfest_dates(2028)
+        assert end == date(2028, 10, 1)
 
 
 # ---------------------------------------------------------------------------
@@ -254,6 +261,15 @@ class TestCrossYear:
         # Should find CNY for 2025 or 2026
         assert len(cny) >= 1
 
+    def test_three_year_trip_includes_middle_year(self) -> None:
+        # Trip spanning 2025–2027 for Thailand: should find Songkran 2026 (middle year)
+        advisories = get_travel_advisories("TH", date(2025, 7, 1), date(2027, 2, 28))
+        songkran = [a for a in advisories if "Songkran" in a.event_name]
+        assert len(songkran) >= 1
+        # Specifically check that 2026 Songkran is included
+        songkran_2026 = [a for a in songkran if "2026-04" in a.start_date]
+        assert len(songkran_2026) == 1
+
 
 # ---------------------------------------------------------------------------
 # Dedup
@@ -290,3 +306,51 @@ class TestThaiAlcoholBans:
         advisories = get_travel_advisories("TH", date(2026, 3, 1), date(2026, 3, 5))
         bans = [a for a in advisories if "Alcohol Ban" in a.event_name]
         assert len(bans) == 1
+
+
+# ---------------------------------------------------------------------------
+# API-level tests for /api/v1/travels/advisories/{country_code}
+# ---------------------------------------------------------------------------
+
+
+class TestAdvisoriesEndpoint:
+    def test_requires_auth(self, client: TestClient) -> None:
+        resp = client.get("/api/v1/travels/advisories/SA?start_date=2026-02-01&end_date=2026-03-31")
+        assert resp.status_code == 401
+
+    def test_returns_advisories(self, admin_client: TestClient) -> None:
+        resp = admin_client.get(
+            "/api/v1/travels/advisories/SA?start_date=2026-02-01&end_date=2026-03-31"
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "advisories" in data
+        ramadan = [a for a in data["advisories"] if a["event_name"] == "Ramadan"]
+        assert len(ramadan) == 1
+        assert ramadan[0]["severity"] == "high"
+        assert ramadan[0]["category"] == "restriction"
+
+    def test_invalid_date_format(self, admin_client: TestClient) -> None:
+        resp = admin_client.get(
+            "/api/v1/travels/advisories/SA?start_date=not-a-date&end_date=2026-03-31"
+        )
+        assert resp.status_code == 400
+
+    def test_missing_query_params(self, admin_client: TestClient) -> None:
+        resp = admin_client.get("/api/v1/travels/advisories/SA")
+        assert resp.status_code == 422
+
+    def test_empty_result_for_unaffected_country(self, admin_client: TestClient) -> None:
+        resp = admin_client.get(
+            "/api/v1/travels/advisories/IS?start_date=2026-08-01&end_date=2026-08-15"
+        )
+        assert resp.status_code == 200
+        assert resp.json()["advisories"] == []
+
+    def test_country_code_case_insensitive(self, admin_client: TestClient) -> None:
+        resp = admin_client.get(
+            "/api/v1/travels/advisories/th?start_date=2026-04-10&end_date=2026-04-20"
+        )
+        assert resp.status_code == 200
+        songkran = [a for a in resp.json()["advisories"] if "Songkran" in a["event_name"]]
+        assert len(songkran) == 1

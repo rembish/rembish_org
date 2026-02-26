@@ -212,6 +212,7 @@ export default function EditTab({
       return;
     }
 
+    const controller = new AbortController();
     const startDate = formData.start_date;
     const endDate = formData.end_date || formData.start_date;
 
@@ -220,16 +221,17 @@ export default function EditTab({
       fetchPromises.push(
         apiFetch(
           `/api/v1/travels/advisories/${countryCode}?start_date=${startDate}&end_date=${endDate}`,
+          { signal: controller.signal },
         )
           .then((r) => r.json())
           .then((data) =>
             (data.advisories || []).map(
               (a: {
                 event_name: string;
-                category: string;
+                category: "restriction" | "event";
                 start_date: string;
                 end_date: string;
-                severity: string;
+                severity: "high" | "medium" | "low";
                 summary: string;
               }) => ({
                 ...a,
@@ -243,6 +245,7 @@ export default function EditTab({
     }
 
     Promise.all(fetchPromises).then((results) => {
+      if (controller.signal.aborted) return;
       const all = results
         .flat()
         .sort((a, b) => a.start_date.localeCompare(b.start_date));
@@ -251,6 +254,8 @@ export default function EditTab({
         setAdvisoriesVisible(true);
       }
     });
+
+    return () => controller.abort();
   }, [
     formData.start_date,
     formData.end_date,
