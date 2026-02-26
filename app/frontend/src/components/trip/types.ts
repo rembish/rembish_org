@@ -1,4 +1,10 @@
-export type TripTab = "edit" | "info" | "transport" | "stays" | "drone-flights";
+export type TripTab =
+  | "edit"
+  | "info"
+  | "transport"
+  | "stays"
+  | "documents"
+  | "drone-flights";
 
 export interface TCCDestinationOption {
   id: number;
@@ -340,4 +346,32 @@ export interface ExtractedAccommodationData {
   confirmation_code: string | null;
   notes: string | null;
   is_duplicate: boolean;
+}
+
+// Trip documents tab types
+export interface TripDocumentItem {
+  id: number;
+  trip_id: number;
+  label: string;
+  document_name: string | null;
+  document_mime_type: string | null;
+  document_size: number | null;
+  notes: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface PassportInfo {
+  id: number;
+  label: string;
+  issuing_country: string | null;
+  expiry_date: string | null;
+  has_files: boolean;
+}
+
+export interface TripDocumentsTabData {
+  passports: PassportInfo[];
+  travel_docs: TripTravelDocInfo[];
+  required_vaccines: string[];
+  documents: TripDocumentItem[];
 }

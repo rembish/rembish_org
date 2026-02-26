@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.42.0 (2026-02-26)
+
+### Trip Documents Tab
+- New "Docs" tab on trip pages — dedicated space for travel paperwork
+- **What to bring:** passports needed for the trip (derived from matched visas) and vaccination book reminder when required vaccines exist (e.g., Yellow Fever)
+- **Visas & Travel Docs:** visa badges filtered to trip destination countries with expiry warnings
+- **Trip Documents:** upload and manage arbitrary files (vouchers, insurance, receipts) — vault-gated downloads keep sensitive documents secure
+- Simplified visa display on the Info tab — compact one-line summary replaces full badge sections
+
 ## 0.41.2 (2026-02-25)
 
 ### Drone Rules on Trip Info

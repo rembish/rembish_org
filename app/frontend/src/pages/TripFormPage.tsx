@@ -21,6 +21,7 @@ import EditTab from "../components/trip/EditTab";
 import InfoTab from "../components/trip/InfoTab";
 import TransportTab from "../components/trip/TransportTab";
 import StaysTab from "../components/trip/StaysTab";
+import DocumentsTab from "../components/trip/DocumentsTab";
 import TripDroneFlightsTab from "../components/trip/TripDroneFlightsTab";
 
 export default function TripFormPage() {
@@ -34,16 +35,18 @@ export default function TripFormPage() {
   const isEdit = !!tripId;
   const preselectedDate = searchParams.get("date");
 
-  // Tab from URL: /info, /edit, /transport, /stays, or /drone-flights
+  // Tab from URL: /info, /edit, /transport, /stays, /documents, or /drone-flights
   const activeTab: TripTab = location.pathname.endsWith("/transport")
     ? "transport"
     : location.pathname.endsWith("/stays")
       ? "stays"
-      : location.pathname.endsWith("/drone-flights")
-        ? "drone-flights"
-        : isEdit && !location.pathname.endsWith("/edit")
-          ? "info"
-          : "edit";
+      : location.pathname.endsWith("/documents")
+        ? "documents"
+        : location.pathname.endsWith("/drone-flights")
+          ? "drone-flights"
+          : isEdit && !location.pathname.endsWith("/edit")
+            ? "info"
+            : "edit";
 
   const [formData, setFormData] = useState<TripFormData>(() => {
     if (preselectedDate) {
@@ -265,6 +268,14 @@ export default function TripFormPage() {
             Stays
           </button>
           <button
+            className={`trip-form-tab ${activeTab === "documents" ? "active" : ""}`}
+            onClick={() =>
+              navigate(`/admin/trips/${tripId}/documents`, { replace: true })
+            }
+          >
+            Docs
+          </button>
+          <button
             className={`trip-form-tab ${activeTab === "drone-flights" ? "active" : ""}`}
             onClick={() =>
               navigate(`/admin/trips/${tripId}/drone-flights`, {
@@ -295,6 +306,8 @@ export default function TripFormPage() {
           tccOptions={tccOptions}
           readOnly={readOnly}
         />
+      ) : activeTab === "documents" && isEdit ? (
+        <DocumentsTab tripId={tripId!} readOnly={readOnly} />
       ) : activeTab === "drone-flights" && isEdit ? (
         <TripDroneFlightsTab tripId={tripId!} readOnly={readOnly} />
       ) : activeTab === "info" && isEdit ? (

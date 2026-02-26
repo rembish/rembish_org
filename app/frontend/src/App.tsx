@@ -61,6 +61,10 @@ function App() {
                 element={<TripFormPage />}
               />
               <Route
+                path="/admin/trips/:tripId/documents"
+                element={<TripFormPage />}
+              />
+              <Route
                 path="/admin/trips/:tripId/drone-flights"
                 element={<TripFormPage />}
               />

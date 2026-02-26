@@ -872,3 +872,36 @@ class DroneFlightMapPoint(BaseModel):
     country: str | None
     date: str
     flight_path: list[list[float]] | None = None
+
+
+# Trip documents tab models
+class TripDocumentData(BaseModel):
+    id: int
+    trip_id: int
+    label: str
+    document_name: str | None
+    document_mime_type: str | None
+    document_size: int | None
+    notes: str | None
+    sort_order: int
+    created_at: str
+
+
+class TripDocumentCreateRequest(BaseModel):
+    label: str
+    notes: str | None = None
+
+
+class PassportInfo(BaseModel):
+    id: int
+    label: str
+    issuing_country: str | None
+    expiry_date: str | None
+    has_files: bool
+
+
+class TripDocumentsTabResponse(BaseModel):
+    passports: list[PassportInfo]
+    travel_docs: list[TripTravelDocInfo]
+    required_vaccines: list[str]
+    documents: list[TripDocumentData]

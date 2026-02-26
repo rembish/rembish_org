@@ -230,6 +230,9 @@ class Trip(Base):
     fixers_links: Mapped[list["TripFixer"]] = relationship(
         back_populates="trip", cascade="all, delete-orphan"
     )
+    documents: Mapped[list["TripDocument"]] = relationship(
+        back_populates="trip", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Trip #{self.id}: {self.start_date}>"
@@ -481,6 +484,32 @@ class Accommodation(Base):
 
     def __repr__(self) -> str:
         return f"<Accommodation #{self.id}: {self.property_name}>"
+
+
+class TripDocument(Base):
+    """Arbitrary file upload attached to a trip."""
+
+    __tablename__ = "trip_documents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    trip_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    label: Mapped[str] = mapped_column(String(200), nullable=False)
+    document_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    document_name: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    document_mime_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    document_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+    )
+
+    trip: Mapped[Trip] = relationship(back_populates="documents")
+
+    def __repr__(self) -> str:
+        return f"<TripDocument #{self.id}: {self.label}>"
 
 
 # Import to complete relationships

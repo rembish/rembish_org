@@ -197,36 +197,12 @@ def _get_drone_rules(iso_alpha2: str) -> DroneRules | None:
     )
 
 
-@router.get("/trips/{trip_id}/country-info", response_model=TripCountryInfoResponse)
-def get_trip_country_info(
-    trip_id: int,
-    admin: Annotated[User, Depends(get_trips_viewer)],
-    db: Session = Depends(get_db),
-) -> TripCountryInfoResponse:
-    """Get aggregated country reference data for a trip's destinations (admin only)."""
-    trip = (
-        db.query(Trip)
-        .options(
-            joinedload(Trip.destinations)
-            .joinedload(TripDestination.tcc_destination)
-            .joinedload(TCCDestination.un_country),
-        )
-        .filter(Trip.id == trip_id)
-        .first()
-    )
-    if not trip:
-        raise HTTPException(status_code=404, detail="Trip not found")
+def get_trip_travel_docs(trip: Trip, trip_id: int, db: Session) -> dict[str, list[VaultTravelDoc]]:
+    """Return travel docs for a trip, grouped by country code (uppercase).
 
-    # Get admin's vaccination records for coverage matching
-    user_vax_names: set[str] = set()
-    vax_records = (
-        db.query(VaultVaccination.vaccine_name).filter(VaultVaccination.user_id == admin.id).all()
-    )
-    for (name,) in vax_records:
-        user_vax_names.add(name)
-
-    # Query travel documents: assigned to this trip OR matching by country_code
-    trip_travel_docs: dict[str, list[VaultTravelDoc]] = {}
+    Includes explicitly assigned docs + auto-matched docs by country code.
+    """
+    result: dict[str, list[VaultTravelDoc]] = {}
     seen_doc_ids: set[int] = set()
 
     # Get the trip's assigned passport (to filter visa-passport linkage)
@@ -243,13 +219,12 @@ def get_trip_country_info(
     for vtd in ttd_rows:
         cc = (vtd.country_code or "").upper()
         if cc:
-            trip_travel_docs.setdefault(cc, []).append(vtd)
+            result.setdefault(cc, []).append(vtd)
             seen_doc_ids.add(vtd.id)
 
     # 2. Auto-match: docs matching trip's destination countries
     today = date.today()
     trip_is_past = trip.end_date is not None and trip.end_date < today
-    # For past trips, match docs valid during the trip; for future, match docs valid today
     validity_cutoff = trip.start_date if trip_is_past else today
 
     # Single-entry visas assigned to a DIFFERENT completed trip are considered used
@@ -281,12 +256,83 @@ def get_trip_country_info(
             continue
         if vtd.id in used_single_ids:
             continue
-        # Skip visas linked to a different passport than the trip's passport
         if vtd.document_id and trip_passport_id and vtd.document_id != trip_passport_id:
             continue
         cc = (vtd.country_code or "").upper()
         if cc:
-            trip_travel_docs.setdefault(cc, []).append(vtd)
+            result.setdefault(cc, []).append(vtd)
+
+    return result
+
+
+def get_trip_vaccination_needs(
+    trip: Trip, db: Session, user_id: int
+) -> list[tuple[str, str, bool]]:
+    """Return vaccination needs for all trip countries.
+
+    Returns list of (vaccine_name, priority, covered) tuples.
+    """
+    user_vax_names: set[str] = set()
+    vax_records = (
+        db.query(VaultVaccination.vaccine_name).filter(VaultVaccination.user_id == user_id).all()
+    )
+    for (name,) in vax_records:
+        user_vax_names.add(name)
+
+    seen_vaccines: set[str] = set()
+    needs: list[tuple[str, str, bool]] = []
+
+    for td in trip.destinations:
+        un = td.tcc_destination.un_country
+        if not un:
+            continue
+        health = _get_health_requirements(un.iso_alpha2, user_vax_names)
+        if not health:
+            continue
+        for v in health.vaccinations_required:
+            key = v.vaccine.lower()
+            if key not in seen_vaccines:
+                seen_vaccines.add(key)
+                needs.append((v.vaccine, "required", v.covered))
+        for v in health.vaccinations_recommended:
+            key = v.vaccine.lower()
+            if key not in seen_vaccines:
+                seen_vaccines.add(key)
+                needs.append((v.vaccine, "recommended", v.covered))
+
+    return needs
+
+
+@router.get("/trips/{trip_id}/country-info", response_model=TripCountryInfoResponse)
+def get_trip_country_info(
+    trip_id: int,
+    admin: Annotated[User, Depends(get_trips_viewer)],
+    db: Session = Depends(get_db),
+) -> TripCountryInfoResponse:
+    """Get aggregated country reference data for a trip's destinations (admin only)."""
+    trip = (
+        db.query(Trip)
+        .options(
+            joinedload(Trip.destinations)
+            .joinedload(TripDestination.tcc_destination)
+            .joinedload(TCCDestination.un_country),
+        )
+        .filter(Trip.id == trip_id)
+        .first()
+    )
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    # Get admin's vaccination records for coverage matching
+    user_vax_names: set[str] = set()
+    vax_records = (
+        db.query(VaultVaccination.vaccine_name).filter(VaultVaccination.user_id == admin.id).all()
+    )
+    for (name,) in vax_records:
+        user_vax_names.add(name)
+
+    # Query travel documents using shared helper
+    trip_travel_docs = get_trip_travel_docs(trip, trip_id, db)
 
     # Auto-seed fixers on first info view, then manual management
     if not trip.fixers_synced:

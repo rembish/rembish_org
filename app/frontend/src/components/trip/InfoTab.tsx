@@ -497,31 +497,15 @@ export default function InfoTab({ tripId, readOnly }: InfoTabProps) {
       {country.travel_docs && country.travel_docs.length > 0 && (
         <div className="country-info-travel-docs">
           <span className="info-label">Travel Documents</span>
-          <div className="travel-doc-badges">
+          <div className="visa-summary-list">
             {country.travel_docs.map((td) => (
               <span
                 key={td.id}
-                className={`travel-doc-badge${td.expires_before_trip ? " travel-doc-expiring" : ""}`}
-                onClick={() => navigate("/admin/documents/visas")}
+                className={`visa-summary-badge${td.expires_before_trip ? " visa-summary-expiring" : ""}`}
+                onClick={() => navigate(`/admin/trips/${tripId}/documents`)}
               >
                 {td.label}
-                {td.entry_type && (
-                  <span className="travel-doc-entry-type">{td.entry_type}</span>
-                )}
-                {td.passport_label && (
-                  <span className="travel-doc-passport">
-                    {td.passport_label}
-                  </span>
-                )}
-                {td.valid_until && (
-                  <span className="travel-doc-validity">
-                    until {td.valid_until}
-                  </span>
-                )}
-                {td.expires_before_trip && (
-                  <span className="travel-doc-warning">expires!</span>
-                )}
-                {td.has_files && <span className="travel-doc-file">📎</span>}
+                {td.expires_before_trip && " — expires!"}
               </span>
             ))}
           </div>
@@ -530,20 +514,14 @@ export default function InfoTab({ tripId, readOnly }: InfoTabProps) {
       {country.travel_docs &&
         country.travel_docs.length === 0 &&
         country.visa_free_days === 0 && (
-          <div className="travel-doc-suggest-banner">
-            No visa/travel document assigned for this country
-            {country.iso_alpha2 && (
-              <button
-                className="travel-doc-add-btn"
-                onClick={() =>
-                  navigate(
-                    `/admin/documents/visas?newTravelDoc=${country.iso_alpha2}`,
-                  )
-                }
-              >
-                + Add
-              </button>
-            )}
+          <div className="visa-summary-badge visa-summary-missing">
+            Visa required — none assigned
+            <button
+              className="btn-add-inline"
+              onClick={() => navigate(`/admin/trips/${tripId}/documents`)}
+            >
+              View Docs
+            </button>
           </div>
         )}
       {country.fixers && country.fixers.length > 0 && (
