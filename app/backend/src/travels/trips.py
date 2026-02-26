@@ -4,11 +4,13 @@ from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from ..auth.session import get_admin_user, get_trips_viewer
 from ..database import get_db
 from ..models import (
+    DroneFlight,
     TCCDestination,
     Trip,
     TripCity,
@@ -75,8 +77,20 @@ def get_trips(
     db: Session = Depends(get_db),
 ) -> TripsResponse:
     """Get all trips (admin/viewer)."""
-    trips = (
-        db.query(Trip)
+    # Subquery: count non-hidden drone flights per trip
+    drone_counts = (
+        db.query(
+            DroneFlight.trip_id,
+            func.count(DroneFlight.id).label("cnt"),
+        )
+        .filter(DroneFlight.is_hidden.is_(False))
+        .group_by(DroneFlight.trip_id)
+        .subquery()
+    )
+
+    rows = (
+        db.query(Trip, drone_counts.c.cnt)
+        .outerjoin(drone_counts, Trip.id == drone_counts.c.trip_id)
         .options(
             joinedload(Trip.destinations).joinedload(TripDestination.tcc_destination),
             joinedload(Trip.participants).joinedload(TripParticipant.user),
@@ -86,7 +100,7 @@ def get_trips(
         .all()
     )
 
-    trips_data = [_trip_to_data(trip) for trip in trips]
+    trips_data = [_trip_to_data(trip, drone_flights_count=cnt or 0) for trip, cnt in rows]
 
     return TripsResponse(trips=trips_data, total=len(trips_data))
 
@@ -181,7 +195,7 @@ def _recalculate_visit(db: Session, tcc_destination_id: int) -> None:
     # If no trips, don't clear existing visit date (may have been set by check-in)
 
 
-def _trip_to_data(trip: Trip) -> TripData:
+def _trip_to_data(trip: Trip, *, drone_flights_count: int = 0) -> TripData:
     """Convert Trip ORM object to TripData response."""
     return TripData(
         id=trip.id,
@@ -189,6 +203,7 @@ def _trip_to_data(trip: Trip) -> TripData:
         end_date=trip.end_date.isoformat() if trip.end_date else None,
         trip_type=trip.trip_type,
         flights_count=trip.flights_count,
+        drone_flights_count=drone_flights_count if drone_flights_count > 0 else None,
         working_days=trip.working_days,
         rental_car=trip.rental_car,
         description=trip.description,

@@ -101,6 +101,7 @@ class TripData(BaseModel):
     end_date: str | None  # ISO date
     trip_type: str  # regular, work, relocation
     flights_count: int | None
+    drone_flights_count: int | None = None
     working_days: int | None
     rental_car: str | None
     description: str | None

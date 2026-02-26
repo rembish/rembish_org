@@ -21,6 +21,7 @@ export interface Trip {
   end_date: string | null;
   trip_type: "regular" | "work" | "relocation";
   flights_count: number | null;
+  drone_flights_count: number | null;
   working_days: number | null;
   rental_car: string | null;
   description: string | null;

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.42.1 (2026-02-26)
+
+- Drone flights count shown on trips list — see how many drone flights each trip has at a glance
+- Anomaly badges on drone flights list — amber/red severity labels clearly visible next to drone model and media info
+- Faster first load — reduced cold start times for the site
+
 ## 0.42.0 (2026-02-26)
 
 ### Trip Documents Tab

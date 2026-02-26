@@ -2346,6 +2346,11 @@ a {
     color: #27ae60;
   }
 
+  &.drone {
+    background: #f3e8fd;
+    color: #7c3aed;
+  }
+
   &.future {
     background: #f5eef8;
     color: #8e44ad;

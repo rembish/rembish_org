@@ -17,6 +17,7 @@ import {
   BiTable,
   BiTrash,
 } from "react-icons/bi";
+import { TbDrone } from "react-icons/tb";
 import { apiFetch } from "../../lib/api";
 import type {
   Trip,
@@ -597,6 +598,16 @@ export default function TripsTab({
                         <span>{trip.flights_count}</span>
                       </span>
                     )}
+                    {trip.drone_flights_count &&
+                      trip.drone_flights_count > 0 && (
+                        <span
+                          className="trip-badge drone"
+                          title={`${trip.drone_flights_count} drone flights`}
+                        >
+                          <TbDrone />
+                          <span>{trip.drone_flights_count}</span>
+                        </span>
+                      )}
                     {trip.rental_car && (
                       <span className="trip-badge car" title={trip.rental_car}>
                         <BiCar />
