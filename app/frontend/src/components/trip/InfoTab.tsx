@@ -4,10 +4,12 @@ import { BiSignal5 } from "react-icons/bi";
 import { apiFetch } from "../../lib/api";
 import Flag from "../Flag";
 import type { CountryInfoData } from "./types";
+import type { TravelAdvisory } from "./types";
 import {
   formatSocketName,
   formatCurrencyRate,
   formatLocalTime,
+  formatAdvisoryDates,
   tapWaterLabel,
 } from "./helpers";
 
@@ -317,6 +319,79 @@ export default function InfoTab({ tripId, readOnly }: InfoTabProps) {
           </div>
         </div>
       )}
+
+      {country.advisories &&
+        country.advisories.length > 0 &&
+        (() => {
+          const restrictions = country.advisories.filter(
+            (a: TravelAdvisory) => a.category === "restriction",
+          );
+          const events = country.advisories.filter(
+            (a: TravelAdvisory) => a.category === "event",
+          );
+          return (
+            <div className="country-info-advisories">
+              {restrictions.length > 0 && (
+                <div className="advisories-group">
+                  <span className="info-label">Travel Restrictions</span>
+                  <div className="advisories-list">
+                    {restrictions.map((a: TravelAdvisory, i: number) => (
+                      <div
+                        key={`r-${i}`}
+                        className={`advisory-item advisory-${a.severity}`}
+                      >
+                        <div className="advisory-header">
+                          <span className="advisory-name">{a.event_name}</span>
+                          <span className="advisory-dates">
+                            {formatAdvisoryDates(a.start_date, a.end_date)}
+                          </span>
+                        </div>
+                        <span className="advisory-summary">{a.summary}</span>
+                        {a.details && (
+                          <span className="advisory-details">{a.details}</span>
+                        )}
+                        {a.location && (
+                          <span className="advisory-location">
+                            {a.location}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {events.length > 0 && (
+                <div className="advisories-group">
+                  <span className="info-label">Major Events</span>
+                  <div className="advisories-list">
+                    {events.map((a: TravelAdvisory, i: number) => (
+                      <div
+                        key={`e-${i}`}
+                        className={`advisory-item advisory-${a.severity}`}
+                      >
+                        <div className="advisory-header">
+                          <span className="advisory-name">{a.event_name}</span>
+                          <span className="advisory-dates">
+                            {formatAdvisoryDates(a.start_date, a.end_date)}
+                          </span>
+                        </div>
+                        <span className="advisory-summary">{a.summary}</span>
+                        {a.details && (
+                          <span className="advisory-details">{a.details}</span>
+                        )}
+                        {a.location && (
+                          <span className="advisory-location">
+                            {a.location}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
       {country.health && (
         <div className="country-info-health">

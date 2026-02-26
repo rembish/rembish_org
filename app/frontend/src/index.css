@@ -2989,6 +2989,88 @@ a {
   flex: 1;
 }
 
+/* Travel advisories section */
+.country-info-advisories {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.advisories-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.advisories-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.advisory-item {
+  border-left: 3px solid;
+  border-radius: 4px;
+  padding: 0.375rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.advisory-high {
+  border-left-color: #e74c3c;
+  background: rgba(231, 76, 60, 0.06);
+}
+
+.advisory-medium {
+  border-left-color: #f39c12;
+  background: rgba(243, 156, 18, 0.06);
+}
+
+.advisory-low {
+  border-left-color: var(--color-primary);
+  background: rgba(5, 99, 187, 0.04);
+}
+
+.advisory-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.advisory-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.advisory-dates {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.advisory-summary {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.advisory-details {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.advisory-location {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
 /* Health requirements section */
 .country-info-health {
   margin-top: 0.75rem;
@@ -4581,6 +4663,52 @@ a {
   & .holiday-country {
     flex-shrink: 0;
   }
+}
+
+/* Travel advisories warning button (trip form) */
+.advisories-warning-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  background: #fee2e2;
+  border: 1px solid #f87171;
+  border-radius: 6px;
+  color: #b91c1c;
+  font-size: 1.125rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+
+  &:hover {
+    background: #fecaca;
+    border-color: #ef4444;
+  }
+
+  & .holidays-count {
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+}
+
+.advisories-dropdown h4 {
+  color: #b91c1c !important;
+}
+
+.advisory-form-item {
+  border-left: 3px solid transparent;
+  padding-left: 0.5rem !important;
+}
+
+.advisory-form-high {
+  border-left-color: #e74c3c;
+}
+
+.advisory-form-medium {
+  border-left-color: #f39c12;
+}
+
+.advisory-form-low {
+  border-left-color: var(--color-primary);
 }
 
 /* Location Check-in Feature */

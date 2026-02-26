@@ -33,6 +33,7 @@ from .models import (
     TripTravelDocInfo,
     WeatherInfo,
 )
+from .travel_advisories import get_travel_advisories
 from .trips_external import (
     _fetch_currency_rates,
     _fetch_holidays_for_country,
@@ -484,6 +485,7 @@ def get_trip_country_info(
                     sunrise_sunset=sunrise_sunset,
                     health=_get_health_requirements(iso, user_vax_names),
                     drone_rules=_get_drone_rules(iso),
+                    advisories=get_travel_advisories(iso, trip_start, trip_end),
                     travel_docs=[
                         TripTravelDocInfo(
                             id=vtd.id,

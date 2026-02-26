@@ -11,11 +11,13 @@ import type {
   UserOption,
   CitySearchResult,
   TripHoliday,
+  TripAdvisory,
 } from "./types";
 import {
   useDebounce,
   parseLocalDate,
   formatLocalDate,
+  formatAdvisoryDates,
   groupByRegion,
 } from "./helpers";
 
@@ -70,6 +72,8 @@ export default function EditTab({
     [],
   );
   const [eventsVisible, setEventsVisible] = useState(false);
+  const [tripAdvisories, setTripAdvisories] = useState<TripAdvisory[]>([]);
+  const [advisoriesVisible, setAdvisoriesVisible] = useState(false);
 
   // Search cities when debounced search changes
   useEffect(() => {
@@ -176,6 +180,75 @@ export default function EditTab({
       setTripHolidays(allHolidays);
       if (allHolidays.length > 0) {
         setHolidaysVisible(true);
+      }
+    });
+  }, [
+    formData.start_date,
+    formData.end_date,
+    formData.destinations,
+    tccOptions,
+  ]);
+
+  // Fetch travel advisories for trip dates and destinations
+  useEffect(() => {
+    if (!formData.start_date || formData.destinations.length === 0) {
+      setTripAdvisories([]);
+      return;
+    }
+
+    const countryMap = new Map<string, string>();
+    for (const dest of formData.destinations) {
+      const tcc = tccOptions.find((t) => t.id === dest.tcc_destination_id);
+      if (tcc?.country_code) {
+        countryMap.set(
+          tcc.country_code,
+          tcc.name.split(",")[0] || tcc.country_code,
+        );
+      }
+    }
+
+    if (countryMap.size === 0) {
+      setTripAdvisories([]);
+      return;
+    }
+
+    const startDate = formData.start_date;
+    const endDate = formData.end_date || formData.start_date;
+
+    const fetchPromises: Promise<TripAdvisory[]>[] = [];
+    for (const [countryCode, countryName] of countryMap) {
+      fetchPromises.push(
+        apiFetch(
+          `/api/v1/travels/advisories/${countryCode}?start_date=${startDate}&end_date=${endDate}`,
+        )
+          .then((r) => r.json())
+          .then((data) =>
+            (data.advisories || []).map(
+              (a: {
+                event_name: string;
+                category: string;
+                start_date: string;
+                end_date: string;
+                severity: string;
+                summary: string;
+              }) => ({
+                ...a,
+                country_code: countryCode,
+                country_name: countryName,
+              }),
+            ),
+          )
+          .catch(() => [] as TripAdvisory[]),
+      );
+    }
+
+    Promise.all(fetchPromises).then((results) => {
+      const all = results
+        .flat()
+        .sort((a, b) => a.start_date.localeCompare(b.start_date));
+      setTripAdvisories(all);
+      if (all.length > 0) {
+        setAdvisoriesVisible(true);
       }
     });
   }, [
@@ -432,6 +505,41 @@ export default function EditTab({
                       </span>
                       <span className="holiday-name">
                         {e.category_emoji} {e.title}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {/* Travel Advisories Warning Icon */}
+          {tripAdvisories.length > 0 && (
+            <div className="holidays-warning-container">
+              <button
+                type="button"
+                className="advisories-warning-btn"
+                onClick={() => setAdvisoriesVisible(!advisoriesVisible)}
+                title={`${tripAdvisories.length} travel advisory(ies) during trip`}
+              >
+                <BiError />
+                <span className="holidays-count">{tripAdvisories.length}</span>
+              </button>
+              {advisoriesVisible && (
+                <div className="holidays-dropdown advisories-dropdown">
+                  <h4>Travel Advisories</h4>
+                  {tripAdvisories.map((a, i) => (
+                    <div
+                      key={`${a.event_name}-${a.country_code}-${i}`}
+                      className={`holiday-item advisory-form-item advisory-form-${a.severity}`}
+                    >
+                      <span className="holiday-date">
+                        {formatAdvisoryDates(a.start_date, a.end_date)}
+                      </span>
+                      <span className="holiday-name" title={a.summary}>
+                        {a.event_name}
+                      </span>
+                      <span className="holiday-country">
+                        <Flag code={a.country_code} size={14} />
                       </span>
                     </div>
                   ))}

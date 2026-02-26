@@ -300,6 +300,21 @@ class HealthRequirements(BaseModel):
     other_risks: list[str] = []
 
 
+class TravelAdvisory(BaseModel):
+    event_name: str  # "Ramadan", "Carnival", "Nyepi"
+    category: str  # "restriction" | "event"
+    start_date: str  # ISO date
+    end_date: str  # ISO date
+    severity: str  # "high" | "medium" | "low"
+    summary: str  # User-facing message
+    details: str | None = None  # Extended info
+    location: str | None = None  # City/region if not country-wide
+
+
+class TravelAdvisoriesResponse(BaseModel):
+    advisories: list[TravelAdvisory]
+
+
 class DroneRules(BaseModel):
     status: str  # "allowed" | "restricted" | "banned"
     max_altitude_m: int | None = None
@@ -359,6 +374,7 @@ class CountryInfoData(BaseModel):
     sunrise_sunset: SunriseSunset | None
     health: HealthRequirements | None = None
     drone_rules: DroneRules | None = None
+    advisories: list[TravelAdvisory] = []
     travel_docs: list[TripTravelDocInfo] = []
     fixers: list[TripFixerInfo] = []
 

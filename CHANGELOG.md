@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.43.0 (2026-02-26)
+
+### Travel Advisories
+- Warnings on trip info tab when trip dates overlap with events that affect travelers
+- **Restriction events:** Ramadan (3 severity tiers across 20+ countries), Eid al-Fitr, Eid al-Adha, Nyepi (Indonesia — 24h airport closure), Thai Buddhist alcohol ban days
+- **Major events:** Carnival, Songkran, Holi, Chinese New Year, Diwali, Oktoberfest, Day of the Dead, San Fermin, St Patrick's Day, Olympics, FIFA World Cup
+- Severity-colored cards: red (high — closures/legal restrictions), amber (medium — significant disruptions), blue (low — cultural events worth knowing about)
+- Advisory warnings also shown on trip edit/add form — red warning button next to the existing holidays and events buttons
+
 ## 0.42.1 (2026-02-26)
 
 - Drone flights count shown on trips list — see how many drone flights each trip has at a glance

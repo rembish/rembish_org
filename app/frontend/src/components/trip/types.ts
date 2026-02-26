@@ -46,6 +46,17 @@ export interface TripHoliday {
   country_name: string;
 }
 
+export interface TripAdvisory {
+  event_name: string;
+  category: string;
+  start_date: string;
+  end_date: string;
+  severity: string;
+  summary: string;
+  country_code: string;
+  country_name: string;
+}
+
 export interface TripFormData {
   start_date: string;
   end_date: string | null;
@@ -118,6 +129,17 @@ export interface HealthRequirements {
   other_risks: string[];
 }
 
+export interface TravelAdvisory {
+  event_name: string;
+  category: string; // "restriction" | "event"
+  start_date: string; // ISO date
+  end_date: string; // ISO date
+  severity: string; // "high" | "medium" | "low"
+  summary: string;
+  details: string | null;
+  location: string | null;
+}
+
 export interface DroneRules {
   status: string;
   max_altitude_m: number | null;
@@ -177,6 +199,7 @@ export interface CountryInfoData {
   sunrise_sunset: SunriseSunset | null;
   health: HealthRequirements | null;
   drone_rules: DroneRules | null;
+  advisories: TravelAdvisory[];
   travel_docs: TripTravelDocInfo[];
   fixers: TripFixerInfo[];
 }

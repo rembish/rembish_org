@@ -120,6 +120,15 @@ export function groupByRegion(
   return grouped;
 }
 
+export function formatAdvisoryDates(startStr: string, endStr: string): string {
+  const start = new Date(startStr + "T00:00:00");
+  const fmt = (d: Date) =>
+    d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  if (startStr === endStr) return fmt(start);
+  const end = new Date(endStr + "T00:00:00");
+  return `${fmt(start)} – ${fmt(end)}`;
+}
+
 export function formatSocketName(type: string): string {
   return SOCKET_NAMES[type] || type;
 }

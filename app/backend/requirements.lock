@@ -77,6 +77,8 @@ h11==0.16.0
     # via
     #   httpcore
     #   uvicorn
+hijridate==2.6.0
+    # via rembish-org-backend (pyproject.toml)
 httpcore==1.0.9
     # via httpx
 httptools==0.7.1

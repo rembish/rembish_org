@@ -24,6 +24,7 @@ from .models import (
     PublicHoliday,
     TCCDestinationOption,
     TCCDestinationOptionsResponse,
+    TravelAdvisoriesResponse,
     TripCityData,
     TripCityInput,
     TripCreateRequest,
@@ -627,6 +628,26 @@ def get_holidays(
         )
     except Exception:
         return HolidaysResponse(holidays=[])
+
+
+@router.get("/advisories/{country_code}", response_model=TravelAdvisoriesResponse)
+def get_advisories(
+    country_code: str,
+    admin: Annotated[User, Depends(get_trips_viewer)],
+    start_date: str = Query(..., description="ISO date YYYY-MM-DD"),
+    end_date: str = Query(..., description="ISO date YYYY-MM-DD"),
+) -> TravelAdvisoriesResponse:
+    """Get travel advisories for a country and date range."""
+    from .travel_advisories import get_travel_advisories
+
+    try:
+        start = date.fromisoformat(start_date)
+        end = date.fromisoformat(end_date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format")
+
+    advisories = get_travel_advisories(country_code.upper(), start, end)
+    return TravelAdvisoriesResponse(advisories=advisories)
 
 
 # Keep these names available for backward compatibility (used in re-exports and tests).
