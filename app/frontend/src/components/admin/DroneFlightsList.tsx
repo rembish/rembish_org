@@ -233,15 +233,7 @@ export default function DroneFlightsList({ readOnly }: { readOnly?: boolean }) {
                 >
                   <td className="drone-flight-date-cell">
                     <div>
-                      <span>
-                        {f.anomaly_severity && (
-                          <span
-                            className={`anomaly-dot anomaly-${f.anomaly_severity.toLowerCase()}`}
-                            title={`Anomaly: ${f.anomaly_severity}${f.anomaly_actions ? ` (${f.anomaly_actions})` : ""}`}
-                          />
-                        )}
-                        {fmtDate(f.flight_date)}
-                      </span>
+                      <span>{fmtDate(f.flight_date)}</span>
                       {f.takeoff_time && (
                         <span className="drone-flight-time">
                           {fmtTime(f.takeoff_time)}
@@ -287,6 +279,14 @@ export default function DroneFlightsList({ readOnly }: { readOnly?: boolean }) {
                         {f.video_sec > 0 && (
                           <span className="drone-badge drone-badge-media">
                             {fmtDuration(f.video_sec)}
+                          </span>
+                        )}
+                        {f.anomaly_severity && (
+                          <span
+                            className={`drone-badge drone-badge-anomaly anomaly-${f.anomaly_severity.toLowerCase()}`}
+                            title={f.anomaly_actions || undefined}
+                          >
+                            {f.anomaly_severity}
                           </span>
                         )}
                       </span>

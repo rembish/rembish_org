@@ -9129,21 +9129,14 @@ a {
 
 /* Battery & anomaly indicators */
 
-.anomaly-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-inline-end: 0.25rem;
-  vertical-align: middle;
+.drone-badge-anomaly.anomaly-amber {
+  background: #fff3e0;
+  color: #e65100;
 }
 
-.anomaly-amber {
-  background: #f9a825;
-}
-
-.anomaly-red {
-  background: #d32f2f;
+.drone-badge-anomaly.anomaly-red {
+  background: #ffebee;
+  color: #c62828;
 }
 
 .drone-badge-battery {
