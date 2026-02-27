@@ -76,11 +76,18 @@ export interface PersonalEvent {
 
 export type AdminTab =
   | "trips"
-  | "instagram"
+  | "media"
   | "people"
   | "documents"
   | "loyalty"
   | "drones";
+
+export type MediaSubTab = "instagram" | "memes";
+
+export const MEDIA_SUB_TABS: { key: MediaSubTab; label: string }[] = [
+  { key: "instagram", label: "Instagram" },
+  { key: "memes", label: "Memes" },
+];
 
 export type PeopleSection = "close-ones" | "addresses" | "fixers";
 
@@ -468,3 +475,49 @@ export function expiryClass(expiry: string | null, docType: string): string {
   if (exp < warn) return "expiry-warning";
   return "";
 }
+
+// --- Meme types ---
+
+export type MemeStatus = "pending" | "approved" | "rejected";
+
+export interface MemeItem {
+  id: number;
+  status: MemeStatus;
+  source_type: string;
+  source_url: string | null;
+  media_path: string;
+  mime_type: string;
+  width: number | null;
+  height: number | null;
+  language: string | null;
+  category: string | null;
+  description_en: string | null;
+  is_site_worthy: boolean | null;
+  telegram_message_id: number | null;
+  created_at: string;
+  approved_at: string | null;
+}
+
+export interface MemeStats {
+  pending: number;
+  approved: number;
+  rejected: number;
+  total: number;
+}
+
+export const MEME_CATEGORY_LABELS: Record<string, string> = {
+  dev: "Dev",
+  math: "Math",
+  internet: "Internet",
+  life: "Life",
+  edge: "Edge",
+};
+
+export const MEME_LANGUAGE_LABELS: Record<string, string> = {
+  en: "EN",
+  ru: "RU",
+  cs: "CS",
+  uk: "UK",
+  pl: "PL",
+  other: "Other",
+};

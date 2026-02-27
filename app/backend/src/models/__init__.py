@@ -3,6 +3,7 @@ from .event import PersonalEvent
 from .fixer import Fixer, FixerCountry, TripFixer
 from .instagram import InstagramMedia, InstagramPost
 from .location import UserLastLocation
+from .meme import Meme
 from .setting import AppSetting
 from .travel import (
     Accommodation,
@@ -48,6 +49,7 @@ __all__ = [
     "Flight",
     "InstagramMedia",
     "InstagramPost",
+    "Meme",
     "Microstate",
     "NMRegion",
     "PersonalEvent",

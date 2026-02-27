@@ -10,7 +10,7 @@ class StorageBackend(ABC):
     """Abstract storage backend."""
 
     @abstractmethod
-    def save(self, filename: str, content: bytes) -> str:
+    def save(self, filename: str, content: bytes, content_type: str = "image/jpeg") -> str:
         """Save content and return public URL or path."""
         pass
 
@@ -32,7 +32,7 @@ class LocalStorage(StorageBackend):
         self.base_path = base_path
         self.base_path.mkdir(parents=True, exist_ok=True)
 
-    def save(self, filename: str, content: bytes) -> str:
+    def save(self, filename: str, content: bytes, content_type: str = "image/jpeg") -> str:
         path = self.base_path / filename
         path.write_bytes(content)
         return str(path)
@@ -47,28 +47,29 @@ class LocalStorage(StorageBackend):
 class GCSStorage(StorageBackend):
     """Google Cloud Storage backend."""
 
-    def __init__(self, bucket_name: str):
+    def __init__(self, bucket_name: str, prefix: str):
         from google.cloud import storage
 
         self.client = storage.Client()
         self.bucket = self.client.bucket(bucket_name)
         self.bucket_name = bucket_name
+        self.prefix = prefix
 
-    def save(self, filename: str, content: bytes) -> str:
-        blob = self.bucket.blob(f"instagram/{filename}")
-        blob.upload_from_string(content, content_type="image/jpeg")
+    def save(self, filename: str, content: bytes, content_type: str = "image/jpeg") -> str:
+        blob = self.bucket.blob(f"{self.prefix}/{filename}")
+        blob.upload_from_string(content, content_type=content_type)
         return self.get_public_url(filename)
 
     def get_public_url(self, filename: str) -> str:
-        return f"https://storage.googleapis.com/{self.bucket_name}/instagram/{filename}"
+        return f"https://storage.googleapis.com/{self.bucket_name}/{self.prefix}/{filename}"
 
     def exists(self, filename: str) -> bool:
-        blob = self.bucket.blob(f"instagram/{filename}")
+        blob = self.bucket.blob(f"{self.prefix}/{filename}")
         return bool(blob.exists())
 
 
-def get_storage() -> StorageBackend:
-    """Get configured storage backend."""
+def get_storage(collection: str = "instagram") -> StorageBackend:
+    """Get configured storage backend for a collection."""
     if settings.gcs_bucket:
-        return GCSStorage(settings.gcs_bucket)
-    return LocalStorage(Path("/app/data/instagram"))
+        return GCSStorage(settings.gcs_bucket, prefix=collection)
+    return LocalStorage(Path(f"/app/data/{collection}"))

@@ -40,12 +40,13 @@ def test_webhook_no_document(mock_reply: MagicMock, mock_settings: MagicMock, cl
     )
     assert resp.status_code == 200
     mock_reply.assert_called_once()
-    assert "Send me a DJI flight record" in mock_reply.call_args[0][2]
+    assert "DJI .txt flight record or a meme image" in mock_reply.call_args[0][2]
 
 
 @patch("src.telegram.webhook.settings")
 @patch("src.telegram.webhook._reply")
-def test_webhook_wrong_extension(mock_reply: MagicMock, mock_settings: MagicMock, client: TestClient) -> None:
+def test_webhook_unsupported_document(mock_reply: MagicMock, mock_settings: MagicMock, client: TestClient) -> None:
+    """Non-.txt, non-image documents should get a help message."""
     mock_settings.telegram_webhook_secret = ""
     mock_settings.telegram_chat_id = "12345"
     mock_settings.telegram_token = "test-token"
@@ -55,13 +56,67 @@ def test_webhook_wrong_extension(mock_reply: MagicMock, mock_settings: MagicMock
             "message": {
                 "chat": {"id": 12345},
                 "message_id": 1,
-                "document": {"file_name": "photo.jpg", "file_id": "abc"},
+                "document": {"file_name": "data.pdf", "file_id": "abc", "mime_type": "application/pdf"},
             }
         },
     )
     assert resp.status_code == 200
     mock_reply.assert_called_once()
-    assert ".txt" in mock_reply.call_args[0][2]
+    assert "DJI .txt flight record or a meme image" in mock_reply.call_args[0][2]
+
+
+@patch("src.telegram.webhook.settings")
+@patch("src.telegram.webhook._reply")
+@patch("src.telegram.webhook._handle_meme_photo")
+def test_webhook_photo_routes_to_meme(
+    mock_meme: MagicMock, mock_reply: MagicMock, mock_settings: MagicMock, client: TestClient
+) -> None:
+    """Photo messages should be routed to meme processing."""
+    mock_settings.telegram_webhook_secret = ""
+    mock_settings.telegram_chat_id = "12345"
+    mock_settings.telegram_token = "test-token"
+    resp = client.post(
+        "/api/v1/telegram/webhook",
+        json={
+            "message": {
+                "chat": {"id": 12345},
+                "message_id": 1,
+                "photo": [
+                    {"file_id": "small", "width": 90, "height": 90},
+                    {"file_id": "large", "width": 800, "height": 600},
+                ],
+            }
+        },
+    )
+    assert resp.status_code == 200
+    mock_meme.assert_called_once()
+    # Should pick the largest photo (last in array)
+    assert mock_meme.call_args[0][0] == "large"
+
+
+@patch("src.telegram.webhook.settings")
+@patch("src.telegram.webhook._reply")
+@patch("src.telegram.webhook._handle_meme_photo")
+def test_webhook_image_document_routes_to_meme(
+    mock_meme: MagicMock, mock_reply: MagicMock, mock_settings: MagicMock, client: TestClient
+) -> None:
+    """Image documents (uncompressed sends) should route to meme processing."""
+    mock_settings.telegram_webhook_secret = ""
+    mock_settings.telegram_chat_id = "12345"
+    mock_settings.telegram_token = "test-token"
+    resp = client.post(
+        "/api/v1/telegram/webhook",
+        json={
+            "message": {
+                "chat": {"id": 12345},
+                "message_id": 1,
+                "document": {"file_name": "meme.png", "file_id": "abc", "mime_type": "image/png"},
+            }
+        },
+    )
+    assert resp.status_code == 200
+    mock_meme.assert_called_once()
+    assert mock_meme.call_args[0][0] == "abc"
 
 
 @patch("src.telegram.webhook.settings")

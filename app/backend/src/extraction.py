@@ -237,6 +237,44 @@ class AccommodationExtractionResult(BaseModel):
     error: str | None = None
 
 
+MEME_EXTRACTION_PROMPT = """\
+You are a meme analyst. Analyze this meme image and extract metadata.
+
+Return ONLY a JSON object with these fields:
+{
+  "language": primary text language — one of "en", "ru", "cs", "uk", "pl", "other",
+  "category": one of "dev" (programming/tech humor), "math" (math/science humor), \
+"internet" (internet culture, social media, viral), "life" (everyday life, relatable), \
+"edge" (dark/edgy humor),
+  "description_en": "Brief English description of the meme (1-2 sentences). \
+If the meme text is not in English, translate it.",
+  "is_site_worthy": true if this meme is clever/funny enough for a curated public gallery, \
+false if it's low-effort, too niche, or offensive
+}
+
+Rules:
+- Always provide all four fields
+- For language, detect the primary language of text on the image. \
+If no text or mixed, use the dominant one
+- Category should reflect the humor type, not the topic
+- description_en should explain the joke briefly, translating if needed
+- is_site_worthy: be selective — only clever, well-crafted, or universally funny memes qualify
+- If the image is not a meme (e.g. a regular photo), set is_site_worthy to false \
+and category to "life\""""
+
+
+class ExtractedMeme(BaseModel):
+    language: str | None = None
+    category: str | None = None
+    description_en: str | None = None
+    is_site_worthy: bool | None = None
+
+
+class MemeExtractionResult(BaseModel):
+    meme: ExtractedMeme | None = None
+    error: str | None = None
+
+
 class ExtractedDocMetadata(BaseModel):
     doc_type: str | None = None
     label: str | None = None
@@ -590,3 +628,56 @@ def extract_accommodation_data(
         if "401" in msg or "auth" in msg.lower():
             return AccommodationExtractionResult(error="Invalid API key")
         return AccommodationExtractionResult(error="Extraction failed")
+
+
+def extract_meme_metadata(file_content: bytes, mime_type: str) -> MemeExtractionResult:
+    """Extract meme metadata from an image using Claude Haiku."""
+    if not settings.anthropic_api_key:
+        return MemeExtractionResult(error="API key not configured")
+
+    if not mime_type.startswith("image/"):
+        return MemeExtractionResult(error=f"Unsupported file type: {mime_type}")
+
+    try:
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+
+        content: list[dict[str, Any]] = [
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": mime_type,
+                    "data": base64.b64encode(file_content).decode(),
+                },
+            },
+            {"type": "text", "text": MEME_EXTRACTION_PROMPT},
+        ]
+
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": content}],  # type: ignore[typeddict-item]
+        )
+
+        text = response.content[0].text.strip()  # type: ignore[union-attr]
+
+        # Strip markdown code fences if present
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+
+        data = json.loads(text)
+        return MemeExtractionResult(meme=ExtractedMeme(**data))
+
+    except json.JSONDecodeError:
+        log.warning("Failed to parse meme extraction response as JSON")
+        return MemeExtractionResult(error="Failed to parse AI response")
+    except Exception as exc:
+        log.exception("Meme metadata extraction failed")
+        msg = str(exc)
+        if "credit" in msg.lower() or "balance" in msg.lower() or "402" in msg:
+            return MemeExtractionResult(error="Insufficient API balance")
+        if "401" in msg or "auth" in msg.lower():
+            return MemeExtractionResult(error="Invalid API key")
+        return MemeExtractionResult(error="Extraction failed")

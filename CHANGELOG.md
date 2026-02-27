@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.44.0 (2026-02-27)
+
+### Meme Feed — Phase 1
+- Meme capture via Telegram — send a photo or forward a meme to the bot, it gets saved automatically
+- AI triage via Claude Haiku — each meme is analyzed for language, category, description, and site-worthiness
+- Admin "Memes" tab for curation — review pending memes, approve or reject, edit AI suggestions
+- Categories: dev, math, internet, life, edge; Languages: en, ru, cs, uk, pl
+- Instagram and Memes now grouped under a single "Media" tab with sub-tabs
+- Telegram bot now handles both DJI flight records (.txt) and meme images (photo/image documents)
+
 ## 0.43.2 (2026-02-27)
 
 - pydjirecord now installed from PyPI instead of GitHub — proper versioned dependency

@@ -1,4 +1,4 @@
-"""Telegram webhook endpoint for drone flight record uploads."""
+"""Telegram webhook endpoint for drone flight records and meme uploads."""
 
 from typing import Any
 
@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..database import get_db
 from ..log_config import get_logger
+from .meme_processing import IMAGE_MIME_TYPES, process_meme
 from .processing import process_flight_record
 
 log = get_logger(__name__)
@@ -46,6 +47,57 @@ def _download_file(file_id: str) -> bytes:
     return dl_resp.content
 
 
+def _handle_drone_document(
+    document: dict[str, Any],
+    message: dict[str, Any],
+    chat_id: int,
+    message_id: int,
+    db: Session,
+) -> None:
+    """Process a .txt DJI flight record document."""
+    filename: str = document.get("file_name", "")
+    try:
+        file_data = _download_file(document["file_id"])
+    except Exception:
+        log.error("Telegram webhook: failed to download file %s", filename, exc_info=True)
+        _reply(chat_id, message_id, f"Failed to download file: {filename}")
+        return
+
+    try:
+        result = process_flight_record(file_data, filename, db)
+        _reply(chat_id, message_id, result)
+        log.info("Telegram webhook: processed %s — %s", filename, result.split("\n")[0])
+    except Exception:
+        log.error("Telegram webhook: failed to process %s", filename, exc_info=True)
+        db.rollback()
+        _reply(chat_id, message_id, f"Error processing {filename}. Check server logs.")
+
+
+def _handle_meme_photo(
+    file_id: str,
+    mime_type: str,
+    message: dict[str, Any],
+    chat_id: int,
+    message_id: int,
+    db: Session,
+) -> None:
+    """Download and process a meme image."""
+    try:
+        file_data = _download_file(file_id)
+    except Exception:
+        log.error("Telegram webhook: failed to download meme photo", exc_info=True)
+        _reply(chat_id, message_id, "Failed to download image.")
+        return
+
+    try:
+        result = process_meme(file_data, mime_type, message, db)
+        _reply(chat_id, message_id, result)
+    except Exception:
+        log.error("Telegram webhook: failed to process meme", exc_info=True)
+        db.rollback()
+        _reply(chat_id, message_id, "Error processing meme. Check server logs.")
+
+
 @router.post("/webhook")
 async def telegram_webhook(
     request: Request,
@@ -72,31 +124,36 @@ async def telegram_webhook(
         log.info("Telegram webhook: ignoring message from chat %s", chat_id)
         return {"status": "ok"}
 
+    # Route 1: Photo array (compressed images from Telegram)
+    photos: list[dict[str, Any]] | None = message.get("photo")
+    if photos:
+        # Telegram sends multiple sizes; pick the largest (last in array)
+        best_photo = photos[-1]
+        _handle_meme_photo(best_photo["file_id"], "image/jpeg", message, chat_id, message_id, db)
+        return {"status": "ok"}
+
+    # Route 2: Document
     document = message.get("document")
-    if not document:
-        _reply(chat_id, message_id, "Send me a DJI flight record .txt file")
+    if document:
+        filename: str = document.get("file_name", "")
+        doc_mime: str = document.get("mime_type", "")
+
+        # .txt → drone flight record
+        if filename.lower().endswith(".txt"):
+            _handle_drone_document(document, message, chat_id, message_id, db)
+            return {"status": "ok"}
+
+        # Image document (sent as file, uncompressed) → meme
+        if doc_mime in IMAGE_MIME_TYPES:
+            _handle_meme_photo(document["file_id"], doc_mime, message, chat_id, message_id, db)
+            return {"status": "ok"}
+
+        _reply(
+            chat_id,
+            message_id,
+            "Send me a DJI .txt flight record or a meme image.",
+        )
         return {"status": "ok"}
 
-    filename: str = document.get("file_name", "")
-    if not filename.lower().endswith(".txt"):
-        _reply(chat_id, message_id, "Only .txt flight record files are supported")
-        return {"status": "ok"}
-
-    # Download and process
-    try:
-        file_data = _download_file(document["file_id"])
-    except Exception:
-        log.error("Telegram webhook: failed to download file %s", filename, exc_info=True)
-        _reply(chat_id, message_id, f"Failed to download file: {filename}")
-        return {"status": "ok"}
-
-    try:
-        result = process_flight_record(file_data, filename, db)
-        _reply(chat_id, message_id, result)
-        log.info("Telegram webhook: processed %s — %s", filename, result.split("\n")[0])
-    except Exception:
-        log.error("Telegram webhook: failed to process %s", filename, exc_info=True)
-        db.rollback()
-        _reply(chat_id, message_id, f"Error processing {filename}. Check server logs.")
-
+    _reply(chat_id, message_id, "Send me a DJI .txt flight record or a meme image.")
     return {"status": "ok"}

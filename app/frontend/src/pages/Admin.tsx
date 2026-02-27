@@ -5,15 +5,17 @@ import type {
   AdminTab,
   DocSection,
   DroneSubTab,
+  MediaSubTab,
   PeopleSection,
 } from "../components/admin/types";
 import {
   DOC_SECTIONS,
   DRONE_SUB_TABS,
+  MEDIA_SUB_TABS,
   PEOPLE_SECTIONS,
 } from "../components/admin/types";
 import TripsTab from "../components/admin/TripsTab";
-import InstagramTab from "../components/admin/InstagramTab";
+import MediaTab from "../components/admin/MediaTab";
 import PeopleTab from "../components/admin/PeopleTab";
 import DocumentsTab from "../components/admin/DocumentsTab";
 import LoyaltyTab from "../components/admin/LoyaltyTab";
@@ -22,6 +24,7 @@ import DronesTab from "../components/admin/DronesTab";
 const validDocSections = new Set<string>(DOC_SECTIONS.map((s) => s.key));
 const validPeopleSections = new Set<string>(PEOPLE_SECTIONS.map((s) => s.key));
 const validDroneSubTabs = new Set<string>(DRONE_SUB_TABS.map((s) => s.key));
+const validMediaSubTabs = new Set<string>(MEDIA_SUB_TABS.map((s) => s.key));
 
 export default function Admin() {
   const { user, loading: authLoading } = useAuth();
@@ -30,11 +33,11 @@ export default function Admin() {
   const { tab, year } = useParams();
   const activeTab = (tab as AdminTab) || "trips";
   // For trips tab, 'year' is the year number
-  // For instagram tab, 'year' is the ig_id (Instagram ID string)
+  // For media tab, 'year' is the sub-tab (instagram/memes) or ig_id
   // For documents tab, 'year' is the doc section (ids/vaccinations/visas)
   // For people tab, 'year' is the people section (close-ones/addresses)
   const selectedYear =
-    tab === "instagram" ||
+    tab === "media" ||
     tab === "documents" ||
     tab === "people" ||
     tab === "drones"
@@ -42,7 +45,19 @@ export default function Admin() {
       : year
         ? Number(year)
         : null;
-  const instagramIgId = tab === "instagram" && year ? year : null;
+
+  // Media sub-tab routing: /admin/media/instagram or /admin/media/memes
+  // Also supports /admin/media/instagram/<ig_id> for deep-linking to a specific post
+  const mediaSubTab: MediaSubTab =
+    tab === "media" && year && validMediaSubTabs.has(year)
+      ? (year as MediaSubTab)
+      : tab === "media" && year && !validMediaSubTabs.has(year)
+        ? "instagram" // year is an ig_id, so we're on Instagram sub-tab
+        : "instagram";
+  // If on media tab and year is not a sub-tab name, it's an Instagram ig_id
+  const instagramIgId =
+    tab === "media" && year && !validMediaSubTabs.has(year) ? year : null;
+
   const docSection: DocSection =
     tab === "documents" && year && validDocSections.has(year)
       ? (year as DocSection)
@@ -69,6 +84,8 @@ export default function Admin() {
       navigate(`/admin/people/${readOnly ? "fixers" : "close-ones"}`);
     } else if (newTab === "drones") {
       navigate(`/admin/drones/flights`);
+    } else if (newTab === "media") {
+      navigate(`/admin/media/instagram`);
     } else {
       navigate(`/admin/${newTab}`);
     }
@@ -80,10 +97,14 @@ export default function Admin() {
 
   const setInstagramIgId = (igId: string | null) => {
     if (igId) {
-      navigate(`/admin/instagram/${igId}`, { replace: true });
+      navigate(`/admin/media/${igId}`, { replace: true });
     } else {
-      navigate(`/admin/instagram`, { replace: true });
+      navigate(`/admin/media/instagram`, { replace: true });
     }
+  };
+
+  const setMediaSubTab = (sub: MediaSubTab) => {
+    navigate(`/admin/media/${sub}`, { replace: true });
   };
 
   const setDocSection = (section: DocSection) => {
@@ -117,6 +138,10 @@ export default function Admin() {
   // Remove year from URL for tabs that don't use it
   if (activeTab === "loyalty" && year) {
     return <Navigate to="/admin/loyalty" replace />;
+  }
+  // Default media to instagram sub-tab
+  if (activeTab === "media" && !year) {
+    return <Navigate to="/admin/media/instagram" replace />;
   }
   // Default drones to flights sub-tab
   if (activeTab === "drones" && !year) {
@@ -192,10 +217,10 @@ export default function Admin() {
           {!readOnly && (
             <>
               <button
-                className={`admin-tab ${activeTab === "instagram" ? "active" : ""}`}
-                onClick={() => setActiveTab("instagram")}
+                className={`admin-tab ${activeTab === "media" ? "active" : ""}`}
+                onClick={() => setActiveTab("media")}
               >
-                Instagram
+                Media
               </button>
               <button
                 className={`admin-tab ${activeTab === "documents" ? "active" : ""}`}
@@ -221,10 +246,11 @@ export default function Admin() {
               readOnly={readOnly}
             />
           )}
-          {activeTab === "instagram" && (
-            <InstagramTab
-              key={instagramIgId ?? "latest"}
-              initialIgId={instagramIgId}
+          {activeTab === "media" && (
+            <MediaTab
+              activeSubTab={mediaSubTab}
+              onSubTabChange={setMediaSubTab}
+              instagramIgId={instagramIgId}
               onIgIdChange={setInstagramIgId}
             />
           )}
