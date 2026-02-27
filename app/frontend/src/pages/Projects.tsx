@@ -50,6 +50,28 @@ const projects: Project[] = [
     ],
   },
   {
+    title: "Deploy Horoscope",
+    description:
+      "Should I deploy today? Let the stars decide. A deterministic deployment oracle that answers the eternal question using your zodiac sign, moon phase, Mercury retrograde status, planetary positions, and the iron law that Fridays are always red. No database. No external APIs. No real astrology.",
+    features: [
+      "12 zodiac signs with optional birthdate for extra cosmic calibration",
+      "Deterministic SHA-256 scores — same inputs always produce the same result",
+      "Animated SVG natal chart with zodiac ring, house sectors, and aspect lines",
+      "Two-month deployment calendar with progressive color reveals",
+      "Stable shareable URLs — date encoded as mystical spell-words, no DB needed",
+      "Special Friday exemptions for Friday the 13th and April Fools'",
+    ],
+    techStack: ["Python 3.12+", "FastAPI", "Jinja2", "SVG"],
+    status: "active",
+    links: [
+      {
+        label: "Website",
+        url: "https://deployhoroscope.com",
+        icon: BiLinkExternal,
+      },
+    ],
+  },
+  {
     title: "Am I Free?",
     description:
       "A web application that helps you plan your vacation days by calculating working days spent on trips, excluding weekends and public holidays automatically.",
