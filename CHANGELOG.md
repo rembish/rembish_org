@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.44.1 (2026-02-27)
+
+- Updated Deploy Horoscope project listing — added API, OG cards, special-day themes, Pillow to tech stack
+
 ## 0.44.0 (2026-02-27)
 
 ### Meme Feed — Phase 1
