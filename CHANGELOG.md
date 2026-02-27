@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.43.2 (2026-02-27)
+
+- pydjirecord now installed from PyPI instead of GitHub — proper versioned dependency
+- Added PyPI and documentation links to pydjirecord on the Projects page
+- Smaller Docker images — removed git from build dependencies
+
 ## 0.43.1 (2026-02-26)
 
 - Fixed travel advisory computation for trips spanning 3+ years

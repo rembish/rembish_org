@@ -5,7 +5,7 @@ import {
   BiLogoGithub,
   BiSolidStar,
 } from "react-icons/bi";
-import { SiNpm } from "react-icons/si";
+import { SiNpm, SiPypi } from "react-icons/si";
 
 interface Project {
   title: string;
@@ -95,6 +95,16 @@ const projects: Project[] = [
         label: "GitHub",
         url: "https://github.com/rembish/pydjirecord",
         icon: BiLogoGithub,
+      },
+      {
+        label: "PyPI",
+        url: "https://pypi.org/project/pydjirecord/",
+        icon: SiPypi,
+      },
+      {
+        label: "Docs",
+        url: "https://rembish.github.io/pydjirecord/",
+        icon: BiLinkExternal,
       },
     ],
   },
