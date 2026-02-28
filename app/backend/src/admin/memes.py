@@ -1,9 +1,9 @@
 """Admin endpoints for meme curation."""
 
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -13,6 +13,7 @@ from ..database import get_db
 from ..log_config import get_logger
 from ..models import Meme, User
 from ..storage import get_storage
+from ..telegram.meme_processing import IMAGE_MIME_TYPES, process_meme
 
 log = get_logger(__name__)
 
@@ -125,6 +126,43 @@ def list_memes(
         memes=[_meme_to_response(m) for m in memes],
         total=total,
     )
+
+
+@router.post("/upload", response_model=MemeResponse)
+async def upload_meme(
+    file: Annotated[UploadFile, File()],
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+    source_url: str | None = Form(None),
+) -> MemeResponse:
+    """Upload a meme image directly (bypasses Telegram)."""
+    if not file.content_type or file.content_type not in IMAGE_MIME_TYPES:
+        raise HTTPException(status_code=400, detail="Only image files are accepted")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="File is empty")
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+
+    # Build minimal message dict (message_id=0 skips Telegram dedup)
+    message: dict[str, Any] = {"message_id": 0}
+    if source_url:
+        message["caption"] = source_url
+
+    process_meme(content, file.content_type, message, db)
+
+    # Find the just-created meme (most recent)
+    meme = db.query(Meme).order_by(Meme.id.desc()).first()
+    if not meme:
+        raise HTTPException(status_code=500, detail="Meme creation failed")
+
+    # Mark as upload source
+    meme.source_type = "upload"
+    db.commit()
+    db.refresh(meme)
+
+    return _meme_to_response(meme)
 
 
 @router.get("/{meme_id}", response_model=MemeResponse)

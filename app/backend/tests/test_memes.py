@@ -1,4 +1,4 @@
-"""Tests for meme admin endpoints and meme processing."""
+"""Tests for meme admin endpoints, meme processing, and meme upload."""
 
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
@@ -225,3 +225,110 @@ def test_extract_source_url_none() -> None:
     from src.telegram.meme_processing import _extract_source_url
 
     assert _extract_source_url({}) is None
+
+
+# ---------------------------------------------------------------------------
+# Meme upload endpoint
+# ---------------------------------------------------------------------------
+
+
+def test_upload_meme_requires_auth(client: TestClient) -> None:
+    """Upload endpoint requires admin auth."""
+    resp = client.post(
+        "/api/v1/admin/memes/upload",
+        files={"file": ("meme.jpg", b"data", "image/jpeg")},
+    )
+    assert resp.status_code == 401
+
+
+def test_upload_meme_rejects_non_image(admin_client: TestClient) -> None:
+    """Upload rejects non-image files."""
+    resp = admin_client.post(
+        "/api/v1/admin/memes/upload",
+        files={"file": ("doc.pdf", b"data", "application/pdf")},
+    )
+    assert resp.status_code == 400
+    assert "image" in resp.json()["detail"]
+
+
+def test_upload_meme_rejects_empty(admin_client: TestClient) -> None:
+    """Upload rejects empty files."""
+    resp = admin_client.post(
+        "/api/v1/admin/memes/upload",
+        files={"file": ("meme.jpg", b"", "image/jpeg")},
+    )
+    assert resp.status_code == 400
+    assert "empty" in resp.json()["detail"]
+
+
+@patch("src.admin.memes.process_meme")
+def test_upload_meme_success(
+    mock_process: MagicMock, admin_client: TestClient, db_session: Session
+) -> None:
+    """Successful upload creates meme with source_type='upload'."""
+
+    def _fake_process(
+        file_data: bytes, mime_type: str, message: dict[str, object], db: Session
+    ) -> str:
+        meme = Meme(
+            status="pending",
+            source_type="telegram",
+            media_path="/app/data/memes/test.jpg",
+            mime_type=mime_type,
+            width=800,
+            height=600,
+            language="en",
+            category="dev",
+            description_en="Test meme",
+            is_site_worthy=True,
+            telegram_message_id=None,
+        )
+        db.add(meme)
+        db.commit()
+        db.refresh(meme)
+        return "Meme saved (pending review)."
+
+    mock_process.side_effect = _fake_process
+
+    resp = admin_client.post(
+        "/api/v1/admin/memes/upload",
+        files={"file": ("meme.jpg", b"fake-image-data", "image/jpeg")},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["source_type"] == "upload"
+    assert data["mime_type"] == "image/jpeg"
+    assert data["status"] == "pending"
+    mock_process.assert_called_once()
+
+
+@patch("src.admin.memes.process_meme")
+def test_upload_meme_with_source_url(
+    mock_process: MagicMock, admin_client: TestClient, db_session: Session
+) -> None:
+    """Upload with source_url passes it as caption in message dict."""
+
+    def _fake_process(
+        file_data: bytes, mime_type: str, message: dict[str, object], db: Session
+    ) -> str:
+        # Verify caption was set from source_url
+        assert message.get("caption") == "https://example.com/meme.jpg"
+        meme = Meme(
+            status="pending",
+            source_type="telegram",
+            source_url="https://example.com/meme.jpg",
+            media_path="/app/data/memes/test.jpg",
+            mime_type=mime_type,
+        )
+        db.add(meme)
+        db.commit()
+        return "Meme saved."
+
+    mock_process.side_effect = _fake_process
+
+    resp = admin_client.post(
+        "/api/v1/admin/memes/upload",
+        files={"file": ("meme.jpg", b"fake-image-data", "image/jpeg")},
+        data={"source_url": "https://example.com/meme.jpg"},
+    )
+    assert resp.status_code == 200

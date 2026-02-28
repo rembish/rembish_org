@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.45.0 (2026-02-28)
+
+### iOS App API Support
+- Bearer token authentication — native iOS app can call all existing endpoints without cookies or CSRF headers
+- Direct drone flight upload — upload DJI `.txt` files via API (same processing as Telegram bot)
+- Direct meme upload — upload images via API with optional source URL (bypasses Telegram)
+
 ## 0.44.1 (2026-02-27)
 
 - Updated Deploy Horoscope project listing — added API, OG cards, special-day themes, Pillow to tech stack

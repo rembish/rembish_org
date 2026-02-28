@@ -1,6 +1,7 @@
+import secrets
 from typing import Annotated, Any, cast
 
-from fastapi import Cookie, Depends, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, Request, status
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from sqlalchemy.orm import Session
 
@@ -31,19 +32,27 @@ def verify_session_token(token: str) -> dict[str, Any] | None:
 
 
 def get_current_user_optional(
+    request: Request,
     session: Annotated[str | None, Cookie(alias=SESSION_COOKIE_NAME)] = None,
     db: Session = Depends(get_db),
 ) -> User | None:
-    """Get current user from session cookie, or None if not logged in."""
-    if not session:
-        return None
+    """Get current user from session cookie or Bearer token, or None."""
+    # Path 1: Cookie auth (existing)
+    if session:
+        data = verify_session_token(session)
+        if data and "user_id" in data:
+            user = db.query(User).filter(User.id == data["user_id"]).first()
+            if user:
+                return user
 
-    data = verify_session_token(session)
-    if not data or "user_id" not in data:
-        return None
+    # Path 2: Bearer token (iOS app)
+    auth_header = request.headers.get("authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        if settings.app_token and secrets.compare_digest(token, settings.app_token):
+            return db.query(User).filter(User.role == "admin").first()
 
-    user = db.query(User).filter(User.id == data["user_id"]).first()
-    return user
+    return None
 
 
 def get_current_user(

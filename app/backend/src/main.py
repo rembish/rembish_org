@@ -27,7 +27,7 @@ log = get_logger(__name__)
 
 app = FastAPI(
     title="rembish.org API",
-    version="0.44.1",
+    version="0.45.0",
     docs_url="/docs" if settings.debug else None,
     redoc_url="/redoc" if settings.debug else None,
     openapi_url="/openapi.json" if settings.debug else None,
@@ -41,7 +41,7 @@ app.add_middleware(
     allow_origins=[settings.frontend_url],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=["content-type", "x-csrf"],
+    allow_headers=["authorization", "content-type", "x-csrf"],
 )
 
 
@@ -77,6 +77,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             and request.url.path.startswith("/api/")
             and request.url.path not in self._EXEMPT_PATHS
             and not request.headers.get("x-csrf")
+            and not request.headers.get("authorization")
         ):
             return StarletteJSONResponse({"detail": "Missing CSRF header"}, status_code=403)
         response: Response = await call_next(request)
@@ -135,7 +136,7 @@ def health(db: Session = Depends(get_db)) -> dict[str, str]:
 def info() -> dict[str, str]:
     return {
         "name": "rembish.org",
-        "version": "0.44.1",
+        "version": "0.45.0",
     }
 
 

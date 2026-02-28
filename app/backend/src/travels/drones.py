@@ -4,13 +4,15 @@ from collections import defaultdict
 from datetime import date, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..auth.session import get_admin_user, get_trips_viewer
 from ..database import get_db
+from ..log_config import get_logger
 from ..models import Battery, Drone, DroneFlight, Trip, User
+from ..telegram.processing import process_flight_record
 from .models import (
     BatteriesResponse,
     BatteryCreateRequest,
@@ -29,6 +31,8 @@ from .models import (
     DroneStatsResponse,
     MapCitiesResponse,
 )
+
+log = get_logger(__name__)
 
 router = APIRouter()
 
@@ -407,6 +411,31 @@ def create_drone_flight(
     db.commit()
     db.refresh(f)
     return _flight_to_data(f)
+
+
+@router.post("/drone-flights/upload")
+async def upload_drone_flight(
+    file: Annotated[UploadFile, File()],
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    """Upload a DJI flight record file (.txt) for processing."""
+    if not file.filename or not file.filename.lower().endswith(".txt"):
+        raise HTTPException(status_code=400, detail="Only .txt flight record files are accepted")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="File is empty")
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+
+    try:
+        result = process_flight_record(content, file.filename, db)
+    except Exception:
+        log.exception("Failed to process flight record: %s", file.filename)
+        raise HTTPException(status_code=422, detail="Failed to parse flight record")
+
+    return {"result": result}
 
 
 @router.put("/drone-flights/{flight_id}", response_model=DroneFlightData)

@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     # Anthropic API (for PDF metadata extraction, empty = disabled)
     anthropic_api_key: str = ""
 
+    # iOS app bearer token (empty = disabled)
+    app_token: str = ""
+
     # GCS Storage (empty = use local storage for dev)
     gcs_bucket: str = ""
 

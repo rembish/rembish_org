@@ -17,6 +17,7 @@ os.environ["INSTAGRAM_ACCOUNT_ID"] = ""
 os.environ["INSTAGRAM_PAGE_TOKEN"] = ""
 os.environ["AERODATABOX_API_KEY"] = ""
 os.environ["ANTHROPIC_API_KEY"] = ""
+os.environ["APP_TOKEN"] = ""
 os.environ["VAULT_ENCRYPTION_KEY"] = ""
 
 from collections.abc import Generator

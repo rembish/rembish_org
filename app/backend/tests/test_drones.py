@@ -1,6 +1,8 @@
 """Tests for drones and drone flights API."""
 
 from datetime import date
+from io import BytesIO
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -434,3 +436,72 @@ def test_flight_list_with_battery_filter(admin_client: TestClient, db_session: S
     res = admin_client.get(f"/api/v1/travels/drone-flights?battery_id={bat.id}")
     assert res.status_code == 200
     assert res.json()["total"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Drone flight upload
+# ---------------------------------------------------------------------------
+
+
+def test_upload_drone_flight_requires_auth(client: TestClient) -> None:
+    """Upload endpoint requires admin auth."""
+    res = client.post(
+        "/api/v1/travels/drone-flights/upload",
+        files={"file": ("flight.txt", b"data", "application/octet-stream")},
+    )
+    assert res.status_code == 401
+
+
+def test_upload_drone_flight_rejects_non_txt(admin_client: TestClient) -> None:
+    """Upload rejects non-.txt files."""
+    res = admin_client.post(
+        "/api/v1/travels/drone-flights/upload",
+        files={"file": ("flight.jpg", b"data", "image/jpeg")},
+    )
+    assert res.status_code == 400
+    assert ".txt" in res.json()["detail"]
+
+
+def test_upload_drone_flight_rejects_empty(admin_client: TestClient) -> None:
+    """Upload rejects empty files."""
+    res = admin_client.post(
+        "/api/v1/travels/drone-flights/upload",
+        files={"file": ("flight.txt", b"", "application/octet-stream")},
+    )
+    assert res.status_code == 400
+    assert "empty" in res.json()["detail"]
+
+
+@patch("src.travels.drones.process_flight_record")
+def test_upload_drone_flight_success(
+    mock_process: object, admin_client: TestClient, db_session: Session
+) -> None:
+    """Successful upload calls process_flight_record and returns result."""
+    from unittest.mock import MagicMock
+
+    mock_fn = MagicMock(return_value="Flight imported: #42\nDate: 2025-06-05")
+    with patch("src.travels.drones.process_flight_record", mock_fn):
+        res = admin_client.post(
+            "/api/v1/travels/drone-flights/upload",
+            files={"file": ("DJIFlightRecord_2025-06-05.txt", b"binary-data", "application/octet-stream")},
+        )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["result"] == "Flight imported: #42\nDate: 2025-06-05"
+    mock_fn.assert_called_once()
+
+
+@patch("src.travels.drones.process_flight_record")
+def test_upload_drone_flight_parse_error(
+    mock_process: object, admin_client: TestClient, db_session: Session
+) -> None:
+    """Parse errors return 422."""
+    from unittest.mock import MagicMock
+
+    mock_fn = MagicMock(side_effect=ValueError("bad format"))
+    with patch("src.travels.drones.process_flight_record", mock_fn):
+        res = admin_client.post(
+            "/api/v1/travels/drone-flights/upload",
+            files={"file": ("flight.txt", b"bad-data", "application/octet-stream")},
+        )
+    assert res.status_code == 422
