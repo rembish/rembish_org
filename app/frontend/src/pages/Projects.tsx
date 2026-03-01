@@ -74,6 +74,26 @@ const projects: Project[] = [
     ],
   },
   {
+    title: "TripClimate",
+    description:
+      "A travel event calendar that shows what awaits before you book. Given a country and date range, it layers cultural events, religious observances, public holidays, weather, and crowd levels — each tagged with whether it's a reason to go or a reason to stay away.",
+    features: [
+      "Cultural events: Ramadan, Songkran, Carnival, Holi, Nyepi, Oktoberfest",
+      "Public holidays and bank holidays for 100+ countries",
+      "Historical weather averages and seasonality indicators",
+      "Travel impact tags: seek, caution, or avoid",
+    ],
+    techStack: ["HTML", "CSS", "nginx", "Google Cloud"],
+    status: "alpha",
+    links: [
+      {
+        label: "Website",
+        url: "https://tripclimate.com",
+        icon: BiLinkExternal,
+      },
+    ],
+  },
+  {
     title: "Am I Free?",
     description:
       "A web application that helps you plan your vacation days by calculating working days spent on trips, excluding weekends and public holidays automatically.",
