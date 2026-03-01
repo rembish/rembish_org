@@ -885,6 +885,11 @@ a {
   color: #92400e;
 }
 
+.status-beta {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
 .project-description {
   color: var(--color-text-secondary);
   margin-block-end: 1.25rem;

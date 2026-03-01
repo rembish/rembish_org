@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.45.2 (2026-03-01)
+
+- Updated TripClimate project card — now reflects v1.0.0 with 7 data layers, 243 festivals, 194 sporting events, correct tech stack (FastAPI + Alpine.js), status changed from alpha to beta
+- Added iOS app repository to workspace structure
+
 ## 0.45.1 (2026-03-01)
 
 - Added TripClimate to the Projects page — a travel event calendar exploring festivals, holidays, weather, and crowd levels by country and date

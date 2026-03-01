@@ -14,7 +14,7 @@ interface Project {
   starred?: boolean;
   features: string[];
   techStack: string[];
-  status: "active" | "completed" | "alpha";
+  status: "active" | "completed" | "alpha" | "beta";
   links: { label: string; url: string; icon: React.ComponentType }[];
 }
 
@@ -76,15 +76,17 @@ const projects: Project[] = [
   {
     title: "TripClimate",
     description:
-      "A travel event calendar that shows what awaits before you book. Given a country and date range, it layers cultural events, religious observances, public holidays, weather, and crowd levels — each tagged with whether it's a reason to go or a reason to stay away.",
+      "A travel event calendar that shows what awaits before you book. Given a country and date range, it layers 7 data sources — cultural events, sporting events, public holidays, religious observances, weather, seasonality, and travel warnings — each tagged with whether it's a reason to go or a reason to stay away. Covers 250 countries with 240+ festivals, 190+ sporting events, and GeoIP-based country detection.",
     features: [
-      "Cultural events: Ramadan, Songkran, Carnival, Holi, Nyepi, Oktoberfest",
-      "Public holidays and bank holidays for 100+ countries",
-      "Historical weather averages and seasonality indicators",
-      "Travel impact tags: seek, caution, or avoid",
+      "243 cultural events across 141 countries: Ramadan, Carnival, Songkran, Holi, Nyepi, Oktoberfest, and more",
+      "194 sporting events: F1, Grand Slams, marathons, Olympics, cycling tours",
+      "Public holidays for 240+ countries with 3-tier resolution fallback",
+      "Historical weather averages, extreme condition alerts, and seasonality indicators",
+      "Travel warnings from US State Dept and Canada government advisories",
+      "Travel impact tags: seek (green), caution (amber), or avoid (red)",
     ],
-    techStack: ["HTML", "CSS", "nginx", "Google Cloud"],
-    status: "alpha",
+    techStack: ["Python", "FastAPI", "Alpine.js", "Google Cloud Run"],
+    status: "beta",
     links: [
       {
         label: "Website",
@@ -296,6 +298,8 @@ function getStatusLabel(status: Project["status"]) {
       return "Completed";
     case "alpha":
       return "Alpha";
+    case "beta":
+      return "Beta";
   }
 }
 
