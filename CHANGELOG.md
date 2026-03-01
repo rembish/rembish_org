@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.45.1 (2026-03-01)
+
+- Added TripClimate to the Projects page — a travel event calendar exploring festivals, holidays, weather, and crowd levels by country and date
+
 ## 0.45.0 (2026-02-28)
 
 ### iOS App API Support
