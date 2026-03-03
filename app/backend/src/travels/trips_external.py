@@ -412,13 +412,16 @@ _tripclimate_cache: TTLCache[tuple[str, str, str], list[CountryHoliday]] = TTLCa
 )
 
 
+_TRIPCLIMATE_MIN_YEAR = 2026
+
+
 def _fetch_holidays_for_country(country_code: str, start: date, end: date) -> list[CountryHoliday]:
     """Fetch public holidays for a country within a date range.
 
-    Uses TripClimate API when configured (richer 250-country coverage + cultural
-    events overlay). Falls back to Nager.Date when TRIPCLIMATE_API_KEY is unset.
+    Uses TripClimate API when configured and the date range is within covered
+    years (2026+). Falls back to Nager.Date for earlier years or when key is unset.
     """
-    if settings.tripclimate_api_key:
+    if settings.tripclimate_api_key and start.year >= _TRIPCLIMATE_MIN_YEAR:
         return _fetch_holidays_tripclimate(country_code, start, end)
     return _fetch_holidays_nager(country_code, start, end)
 
