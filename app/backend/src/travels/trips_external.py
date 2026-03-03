@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 import httpx
 from cachetools import TTLCache
 
+from ..config import settings
 from .models import CountryHoliday, SunriseSunset
 
 # TTL caches for external API responses (auto-evict expired entries, bounded size)
@@ -406,22 +407,72 @@ def _fetch_sunrise_sunset(
         return None
 
 
+_tripclimate_cache: TTLCache[tuple[str, str, str], list[CountryHoliday]] = TTLCache(
+    maxsize=256, ttl=86400
+)
+
+
 def _fetch_holidays_for_country(country_code: str, start: date, end: date) -> list[CountryHoliday]:
-    """Fetch public holidays for a country within a date range."""
+    """Fetch public holidays for a country within a date range.
+
+    Uses TripClimate API when configured (richer 250-country coverage + cultural
+    events overlay). Falls back to Nager.Date when TRIPCLIMATE_API_KEY is unset.
+    """
+    if settings.tripclimate_api_key:
+        return _fetch_holidays_tripclimate(country_code, start, end)
+    return _fetch_holidays_nager(country_code, start, end)
+
+
+def _fetch_holidays_tripclimate(country_code: str, start: date, end: date) -> list[CountryHoliday]:
+    """Fetch holidays + cultural events from TripClimate API."""
+    cache_key = (country_code.upper(), start.isoformat(), end.isoformat())
+    if cache_key in _tripclimate_cache:
+        return _tripclimate_cache[cache_key]
+
+    try:
+        resp = httpx.get(
+            f"{settings.tripclimate_api_url}/api/v1/calendar",
+            params={
+                "country": country_code.upper(),
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "types": "holiday,cultural_event",
+            },
+            headers={"X-Api-Key": settings.tripclimate_api_key},
+            timeout=10.0,
+        )
+        resp.raise_for_status()
+        events = resp.json().get("events", [])
+        holidays = [
+            CountryHoliday(
+                date=e["date"],
+                name=e["name"],
+                local_name=e.get("details") or e.get("summary") or None,
+            )
+            for e in events
+        ]
+        _tripclimate_cache[cache_key] = holidays
+        return holidays
+    except Exception:
+        log.warning(
+            "TripClimate API failed for %s (%s–%s), falling back to Nager.Date",
+            country_code,
+            start,
+            end,
+            exc_info=True,
+        )
+        return _fetch_holidays_nager(country_code, start, end)
+
+
+def _fetch_holidays_nager(country_code: str, start: date, end: date) -> list[CountryHoliday]:
+    """Fetch public holidays from Nager.Date API (fallback)."""
     holidays: list[CountryHoliday] = []
 
-    # Determine years to fetch
-    years = set()
-    for y in range(start.year, end.year + 1):
-        years.add(y)
-
-    for year in sorted(years):
+    for year in range(start.year, end.year + 1):
         cache_key = (year, country_code.upper())
 
-        # Check cache
-        raw_holidays: list[dict] = []
         if cache_key in _holidays_cache:
-            raw_holidays = _holidays_cache[cache_key]
+            raw_holidays: list[dict] = _holidays_cache[cache_key]
         else:
             raw_holidays = _fetch_holidays_raw(year, country_code)
 

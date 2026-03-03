@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.45.4 (2026-03-03)
+
+- Trip country info now fetches holidays + cultural events from TripClimate API (250-country coverage, cultural events overlay); falls back to Nager.Date when key is unset
+
 ## 0.45.3 (2026-03-03)
 
 - Projects page — grouped three TopoJSON packages (ISO A2, TCC, NM UN+) into a single card with per-package GitHub and npm links

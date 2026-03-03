@@ -52,5 +52,9 @@ class Settings(BaseSettings):
     # Vault document storage (private bucket, empty = local filesystem)
     vault_gcs_bucket: str = ""
 
+    # TripClimate API (empty key = disabled, falls back to Nager.Date)
+    tripclimate_api_url: str = "https://tripclimate.com"
+    tripclimate_api_key: str = ""
+
 
 settings = Settings()
