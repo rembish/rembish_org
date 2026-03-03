@@ -7,6 +7,12 @@ import {
 } from "react-icons/bi";
 import { SiNpm, SiPypi } from "react-icons/si";
 
+interface Package {
+  name: string;
+  npmUrl: string;
+  githubUrl: string;
+}
+
 interface Project {
   title: string;
   description: string;
@@ -16,6 +22,7 @@ interface Project {
   techStack: string[];
   status: "active" | "completed" | "alpha" | "beta";
   links: { label: string; url: string; icon: React.ComponentType }[];
+  packages?: Package[];
 }
 
 const projects: Project[] = [
@@ -76,14 +83,15 @@ const projects: Project[] = [
   {
     title: "TripClimate",
     description:
-      "A travel event calendar that shows what awaits before you book. Given a country and date range, it layers 7 data sources — cultural events, sporting events, public holidays, religious observances, weather, seasonality, and travel warnings — each tagged with whether it's a reason to go or a reason to stay away. Covers 250 countries with 240+ festivals, 190+ sporting events, and GeoIP-based country detection.",
+      "A travel event calendar that shows what awaits before you book. Given a country and date range, it layers 7 data sources — cultural events, sporting events, public holidays, religious observances, weather, seasonality, and travel warnings — each tagged with whether it's a reason to go or a reason to stay away. Covers 250 countries with GeoIP-based country detection, shareable URLs, and a world events map.",
     features: [
-      "243 cultural events across 141 countries: Ramadan, Carnival, Songkran, Holi, Nyepi, Oktoberfest, and more",
+      "330 cultural events across 167 countries: Ramadan, Carnival, Songkran, Holi, Nyepi, Oktoberfest, and more",
       "194 sporting events: F1, Grand Slams, marathons, Olympics, cycling tours",
       "Public holidays for 240+ countries with 3-tier resolution fallback",
-      "Historical weather averages, extreme condition alerts, and seasonality indicators",
+      "Historical weather averages, extreme condition alerts, closed seasons, and seasonality indicators",
       "Travel warnings from US State Dept and Canada government advisories",
-      "Travel impact tags: seek (green), caution (amber), or avoid (red)",
+      "Travel Score — Explorer/Chill modes to surface trips that match your style",
+      "World choropleth map, shareable URLs, and OG preview cards",
     ],
     techStack: ["Python", "FastAPI", "Alpine.js", "Google Cloud Run"],
     status: "beta",
@@ -155,53 +163,34 @@ const projects: Project[] = [
     ],
   },
   {
-    title: "TCC TopoJSON",
+    title: "TopoJSON Maps",
     description:
-      "An open-source TopoJSON world map with 330 polygons matching the Travelers' Century Club destination list. Nothing like this existed before — TCC has no polygon data and existing world atlases only cover countries. Built from Natural Earth 10m shapefiles with transcontinental splits, island extractions, and Antarctic claim sectors.",
+      "Three open-source TopoJSON world maps built from Natural Earth 10m shapefiles — one for each major travel tracking system, plus a standard ISO baseline. All published on npm and available via CDN.",
     features: [
-      "330 TCC destinations — full polygons and point-marker variants",
-      "Transcontinental splits (Russia, Turkey, Egypt at precise boundaries)",
-      "All 7 UAE emirates, Indonesian island groups, disputed territories",
-      "Antarctic claim wedges and remote island extractions",
-      "Published on npm, available via jsDelivr CDN",
+      "ISO A2 — 250 polygons keyed by ISO 3166-1 alpha-2 codes, overseas territories as separate polygons",
+      "TCC — 330 destinations matching the Travelers' Century Club list (no equivalent existed before)",
+      "NM UN+ — 265 regions matching the NomadMania UN+ destination list",
+      "Full and markers variants: tiny territories rendered as point markers in compact builds",
+      "Transcontinental splits, disputed territories, island extractions, Antarctic claim sectors",
     ],
     techStack: ["Python", "Shapely", "GeoPandas", "mapshaper", "TopoJSON"],
     status: "active",
-    links: [
+    links: [],
+    packages: [
       {
-        label: "GitHub",
-        url: "https://github.com/rembish/tcc-topojson",
-        icon: BiLogoGithub,
+        name: "@rembish/iso-topojson",
+        npmUrl: "https://www.npmjs.com/package/@rembish/iso-topojson",
+        githubUrl: "https://github.com/rembish/iso-topojson",
       },
       {
-        label: "npm",
-        url: "https://www.npmjs.com/package/tcc-topojson",
-        icon: SiNpm,
-      },
-    ],
-  },
-  {
-    title: "NM UN+ TopoJSON",
-    description:
-      "A companion to TCC TopoJSON — a TopoJSON world map with 265 polygons matching the NomadMania UN+ region list. Same build pipeline, same quality: Natural Earth 10m base data, proper polygon dissolves, and a point-marker variant for tiny territories.",
-    features: [
-      "265 NomadMania UN+ regions as individual polygons",
-      "Full and markers variants (tiny territories as point markers)",
-      "Per-feature properties: index, name, region, ISO codes, sovereign state",
-      "Interactive viewer included for visual testing",
-    ],
-    techStack: ["Python", "Shapely", "GeoPandas", "mapshaper", "TopoJSON"],
-    status: "active",
-    links: [
-      {
-        label: "GitHub",
-        url: "https://github.com/rembish/nm-unp-topojson",
-        icon: BiLogoGithub,
+        name: "@rembish/tcc-topojson",
+        npmUrl: "https://www.npmjs.com/package/@rembish/tcc-topojson",
+        githubUrl: "https://github.com/rembish/tcc-topojson",
       },
       {
-        label: "npm",
-        url: "https://www.npmjs.com/package/@rembish/nm-unp-topojson",
-        icon: SiNpm,
+        name: "@rembish/nm-unp-topojson",
+        npmUrl: "https://www.npmjs.com/package/@rembish/nm-unp-topojson",
+        githubUrl: "https://github.com/rembish/nm-unp-topojson",
       },
     ],
   },
@@ -359,7 +348,7 @@ export default function Projects() {
                 </div>
               </div>
 
-              {project.links.length > 0 && (
+              {(project.links.length > 0 || project.packages) && (
                 <div className="project-links">
                   {project.links.map(({ label, url, icon: Icon }) => (
                     <a
@@ -371,6 +360,31 @@ export default function Projects() {
                       <Icon /> {label}
                     </a>
                   ))}
+                  {project.packages && (
+                    <ul className="project-packages">
+                      {project.packages.map(({ name, npmUrl, githubUrl }) => (
+                        <li key={name}>
+                          <code>{name}</code>
+                          <span className="package-links">
+                            <a
+                              href={githubUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <BiLogoGithub /> GitHub
+                            </a>
+                            <a
+                              href={npmUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <SiNpm /> npm
+                            </a>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               )}
             </article>

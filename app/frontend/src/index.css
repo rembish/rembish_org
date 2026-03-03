@@ -962,6 +962,7 @@ a {
 
 .project-links {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   padding-block-start: 1rem;
   border-block-start: 1px solid var(--color-border);
@@ -980,6 +981,34 @@ a {
 
     & svg {
       font-size: 1.25rem;
+    }
+  }
+}
+
+.project-packages {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  inline-size: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+
+  & li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+
+    & code {
+      font-size: 0.875rem;
+      color: var(--color-text);
+    }
+
+    & .package-links {
+      display: flex;
+      gap: 1rem;
+      flex-shrink: 0;
     }
   }
 }

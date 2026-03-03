@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.45.3 (2026-03-03)
+
+- Projects page — grouped three TopoJSON packages (ISO A2, TCC, NM UN+) into a single card with per-package GitHub and npm links
+- Projects page — added @rembish/iso-topojson to the TopoJSON group
+- Projects page — updated TripClimate card: 330 cultural events (was 243), 167 countries, Travel Score, world map, shareable URLs, closed seasons
+- Dev tooling — added `uv` to dev dependencies so `make check` lockfile-check works on any machine without a system-installed uv
+
 ## 0.45.2 (2026-03-01)
 
 - Updated TripClimate project card — now reflects v1.0.0 with 7 data layers, 243 festivals, 194 sporting events, correct tech stack (FastAPI + Alpine.js), status changed from alpha to beta
