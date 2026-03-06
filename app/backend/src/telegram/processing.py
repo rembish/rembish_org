@@ -84,7 +84,7 @@ def _find_trip(db: Session, flight_date: date) -> Trip | None:
 # ---------------------------------------------------------------------------
 
 
-def process_flight_record(data: bytes, filename: str, db: Session) -> str:
+def process_flight_record(data: bytes, filename: str, db: Session, *, is_test: bool = False) -> str:
     """Parse a DJI flight record and insert into drone_flights.
 
     Returns a formatted summary string for the Telegram reply.
@@ -289,6 +289,7 @@ def process_flight_record(data: bytes, filename: str, db: Session) -> str:
         battery_health_pct=battery_health_pct,
         battery_cycles=battery_cycles,
         battery_temp_max=battery_temp_max,
+        is_test=is_test,
     )
     db.add(flight)
 

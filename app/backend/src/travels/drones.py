@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import date, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -93,6 +93,7 @@ def _battery_to_data(b: Battery, db: Session) -> BatteryData:
     flights_q = db.query(DroneFlight).filter(
         DroneFlight.battery_id == b.id,
         DroneFlight.is_deleted == False,  # noqa: E712
+        DroneFlight.is_test == False,  # noqa: E712
     )
     flights_count = flights_q.count()
     total_flight_time = (
@@ -100,6 +101,7 @@ def _battery_to_data(b: Battery, db: Session) -> BatteryData:
         .filter(
             DroneFlight.battery_id == b.id,
             DroneFlight.is_deleted == False,  # noqa: E712
+            DroneFlight.is_test == False,  # noqa: E712
         )
         .scalar()
     )
@@ -144,6 +146,7 @@ def list_drones(
         .filter(
             DroneFlight.drone_id.isnot(None),
             DroneFlight.is_deleted == False,  # noqa: E712
+            DroneFlight.is_test == False,  # noqa: E712
         )
         .group_by(DroneFlight.drone_id)
         .all()
@@ -194,7 +197,11 @@ def update_drone(
     db.refresh(drone)
     cnt = (
         db.query(DroneFlight)
-        .filter(DroneFlight.drone_id == drone_id, DroneFlight.is_deleted == False)  # noqa: E712
+        .filter(
+            DroneFlight.drone_id == drone_id,
+            DroneFlight.is_deleted == False,  # noqa: E712
+            DroneFlight.is_test == False,  # noqa: E712
+        )
         .count()
     )
     return _drone_to_data(drone, cnt)
@@ -225,7 +232,11 @@ def retire_drone(
     db.refresh(drone)
     cnt = (
         db.query(DroneFlight)
-        .filter(DroneFlight.drone_id == drone_id, DroneFlight.is_deleted == False)  # noqa: E712
+        .filter(
+            DroneFlight.drone_id == drone_id,
+            DroneFlight.is_deleted == False,  # noqa: E712
+            DroneFlight.is_test == False,  # noqa: E712
+        )
         .count()
     )
     return _drone_to_data(drone, cnt)
@@ -350,7 +361,10 @@ def list_drone_flights(
     battery_id: int | None = Query(None),
 ) -> DroneFlightsResponse:
     """List drone flights with optional filters. Viewers see non-hidden only."""
-    q = db.query(DroneFlight).filter(DroneFlight.is_deleted == False)  # noqa: E712
+    q = db.query(DroneFlight).filter(
+        DroneFlight.is_deleted == False,  # noqa: E712
+        DroneFlight.is_test == False,  # noqa: E712
+    )
     is_admin = viewer.role == "admin"
     if not is_admin:
         q = q.filter(DroneFlight.is_hidden == False)  # noqa: E712
@@ -418,6 +432,7 @@ async def upload_drone_flight(
     file: Annotated[UploadFile, File()],
     admin: Annotated[User, Depends(get_admin_user)],
     db: Session = Depends(get_db),
+    x_test_mode: Annotated[str | None, Header()] = None,
 ) -> dict[str, str]:
     """Upload a DJI flight record file (.txt) for processing."""
     if not file.filename or not file.filename.lower().endswith(".txt"):
@@ -429,8 +444,9 @@ async def upload_drone_flight(
     if len(content) > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File too large (max 10MB)")
 
+    is_test = x_test_mode == "true"
     try:
-        result = process_flight_record(content, file.filename, db)
+        result = process_flight_record(content, file.filename, db, is_test=is_test)
     except Exception:
         log.exception("Failed to process flight record: %s", file.filename)
         raise HTTPException(status_code=422, detail="Failed to parse flight record")
@@ -547,6 +563,7 @@ def get_trip_drone_flights(
     q = db.query(DroneFlight).filter(
         DroneFlight.trip_id == trip_id,
         DroneFlight.is_deleted == False,  # noqa: E712
+        DroneFlight.is_test == False,  # noqa: E712
     )
     if viewer.role != "admin":
         q = q.filter(DroneFlight.is_hidden == False)  # noqa: E712
@@ -567,6 +584,7 @@ def get_drone_stats(
     visible = db.query(DroneFlight).filter(
         DroneFlight.is_hidden == False,  # noqa: E712
         DroneFlight.is_deleted == False,  # noqa: E712
+        DroneFlight.is_test == False,  # noqa: E712
     )
 
     flights = visible.all()
@@ -675,6 +693,7 @@ def get_drone_flight_cities(
         func.avg(DroneFlight.longitude).label("avg_lng"),
     ).filter(
         DroneFlight.is_deleted == False,  # noqa: E712
+        DroneFlight.is_test == False,  # noqa: E712
         DroneFlight.city.isnot(None),
         DroneFlight.latitude.isnot(None),
         DroneFlight.longitude.isnot(None),
@@ -700,6 +719,7 @@ def get_drone_flights_map(
         DroneFlight.latitude.isnot(None),
         DroneFlight.longitude.isnot(None),
         DroneFlight.is_deleted == False,  # noqa: E712
+        DroneFlight.is_test == False,  # noqa: E712
     )
     if not is_admin:
         q = q.filter(DroneFlight.is_hidden == False)  # noqa: E712
@@ -715,3 +735,23 @@ def get_drone_flights_map(
         )
         for f in flights
     ]
+
+
+# ---------------------------------------------------------------------------
+# Test data cleanup
+# ---------------------------------------------------------------------------
+
+
+@router.delete("/drone-flights/test-data", status_code=200)
+def delete_test_drone_flights(
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+) -> dict[str, int]:
+    """Delete all drone flights marked as test data."""
+    count = (
+        db.query(DroneFlight)
+        .filter(DroneFlight.is_test == True)  # noqa: E712
+        .delete()
+    )
+    db.commit()
+    return {"deleted": count}

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.46.0 (2026-03-06)
+
+### Test Mode for iOS App
+- Upload endpoints (drone flights, memes) now support `X-Test-Mode: true` header — test records are excluded from all queries, stats, and maps
+- Cleanup endpoints to delete all test data: `DELETE /drone-flights/test-data` and `DELETE /memes/test-data`
+
 ## 0.45.4 (2026-03-03)
 
 - Trip country info now fetches holidays + cultural events from TripClimate API (250-country coverage, cultural events overlay); falls back to Nager.Date when key is unset

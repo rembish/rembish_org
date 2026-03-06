@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Response, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -98,7 +98,12 @@ def meme_stats(
     db: Session = Depends(get_db),
 ) -> MemeStatsResponse:
     """Get meme counts by status."""
-    rows = db.query(Meme.status, func.count(Meme.id)).group_by(Meme.status).all()
+    rows = (
+        db.query(Meme.status, func.count(Meme.id))
+        .filter(Meme.is_test == False)  # noqa: E712
+        .group_by(Meme.status)
+        .all()
+    )
     counts: dict[str, int] = {status: count for status, count in rows}
     return MemeStatsResponse(
         pending=counts.get("pending", 0),
@@ -117,7 +122,7 @@ def list_memes(
     offset: int = 0,
 ) -> MemeListResponse:
     """List memes, optionally filtered by status."""
-    query = db.query(Meme)
+    query = db.query(Meme).filter(Meme.is_test == False)  # noqa: E712
     if status:
         query = query.filter(Meme.status == status)
     total = query.count()
@@ -134,6 +139,7 @@ async def upload_meme(
     admin: Annotated[User, Depends(get_admin_user)],
     db: Session = Depends(get_db),
     source_url: str | None = Form(None),
+    x_test_mode: Annotated[str | None, Header()] = None,
 ) -> MemeResponse:
     """Upload a meme image directly (bypasses Telegram)."""
     if not file.content_type or file.content_type not in IMAGE_MIME_TYPES:
@@ -145,12 +151,14 @@ async def upload_meme(
     if len(content) > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File too large (max 10MB)")
 
+    is_test = x_test_mode == "true"
+
     # Build minimal message dict (message_id=0 skips Telegram dedup)
     message: dict[str, Any] = {"message_id": 0}
     if source_url:
         message["caption"] = source_url
 
-    process_meme(content, file.content_type, message, db)
+    process_meme(content, file.content_type, message, db, is_test=is_test)
 
     # Find the just-created meme (most recent)
     meme = db.query(Meme).order_by(Meme.id.desc()).first()
@@ -279,3 +287,18 @@ def get_meme_media(
         status_code=302,
         headers={"Location": storage.get_public_url(filename)},
     )
+
+
+@router.delete("/test-data", status_code=200)
+def delete_test_memes(
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+) -> dict[str, int]:
+    """Delete all memes marked as test data."""
+    count = (
+        db.query(Meme)
+        .filter(Meme.is_test == True)  # noqa: E712
+        .delete()
+    )
+    db.commit()
+    return {"deleted": count}

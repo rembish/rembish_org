@@ -52,6 +52,8 @@ def process_meme(
     mime_type: str,
     message: dict[str, Any],
     db: Session,
+    *,
+    is_test: bool = False,
 ) -> str:
     """Process a meme image: save, run AI triage, insert DB record.
 
@@ -115,6 +117,7 @@ def process_meme(
         description_en=description_en,
         is_site_worthy=is_site_worthy,
         telegram_message_id=message_id,
+        is_test=is_test,
     )
     db.add(meme)
     db.commit()

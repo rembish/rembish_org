@@ -24,6 +24,7 @@ class Meme(Base):
     description_en: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_site_worthy: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     telegram_message_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    is_test: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )

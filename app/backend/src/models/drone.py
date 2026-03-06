@@ -94,6 +94,7 @@ class DroneFlight(Base):
     battery_health_pct: Mapped[int | None] = mapped_column(Integer, nullable=True)
     battery_cycles: Mapped[int | None] = mapped_column(Integer, nullable=True)
     battery_temp_max: Mapped[float | None] = mapped_column(Float, nullable=True)
+    is_test: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )

@@ -268,7 +268,11 @@ def test_upload_meme_success(
     """Successful upload creates meme with source_type='upload'."""
 
     def _fake_process(
-        file_data: bytes, mime_type: str, message: dict[str, object], db: Session
+        file_data: bytes,
+        mime_type: str,
+        message: dict[str, object],
+        db: Session,
+        **kwargs: object,
     ) -> str:
         meme = Meme(
             status="pending",
@@ -309,7 +313,11 @@ def test_upload_meme_with_source_url(
     """Upload with source_url passes it as caption in message dict."""
 
     def _fake_process(
-        file_data: bytes, mime_type: str, message: dict[str, object], db: Session
+        file_data: bytes,
+        mime_type: str,
+        message: dict[str, object],
+        db: Session,
+        **kwargs: object,
     ) -> str:
         # Verify caption was set from source_url
         assert message.get("caption") == "https://example.com/meme.jpg"
