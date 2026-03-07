@@ -923,6 +923,12 @@ export default function Photos() {
               Albums
             </button>
             <button className="travel-tab active">Map</button>
+            <button
+              className="travel-tab"
+              onClick={() => navigate("/photos/cosplay")}
+            >
+              Cosplay
+            </button>
           </div>
 
           <div className="photo-map-container">
@@ -1115,6 +1121,12 @@ export default function Photos() {
             >
               Map
             </button>
+            <button
+              className="travel-tab"
+              onClick={() => navigate("/photos/cosplay")}
+            >
+              Cosplay
+            </button>
           </div>
           <p>No photos available yet.</p>
         </div>
@@ -1155,6 +1167,12 @@ export default function Photos() {
             onClick={() => navigate("/photos/map")}
           >
             Map
+          </button>
+          <button
+            className="travel-tab"
+            onClick={() => navigate("/photos/cosplay")}
+          >
+            Cosplay
           </button>
         </div>
 

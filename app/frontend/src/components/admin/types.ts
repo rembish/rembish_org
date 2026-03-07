@@ -82,11 +82,12 @@ export type AdminTab =
   | "loyalty"
   | "drones";
 
-export type MediaSubTab = "instagram" | "memes";
+export type MediaSubTab = "instagram" | "memes" | "cosplay";
 
 export const MEDIA_SUB_TABS: { key: MediaSubTab; label: string }[] = [
   { key: "instagram", label: "Instagram" },
   { key: "memes", label: "Memes" },
+  { key: "cosplay", label: "Cosplay" },
 ];
 
 export type PeopleSection = "close-ones" | "addresses" | "fixers";

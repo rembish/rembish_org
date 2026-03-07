@@ -27,7 +27,7 @@ log = get_logger(__name__)
 
 app = FastAPI(
     title="rembish.org API",
-    version="0.46.0",
+    version="0.47.0",
     docs_url="/docs" if settings.debug else None,
     redoc_url="/redoc" if settings.debug else None,
     openapi_url="/openapi.json" if settings.debug else None,
@@ -136,7 +136,7 @@ def health(db: Session = Depends(get_db)) -> dict[str, str]:
 def info() -> dict[str, str]:
     return {
         "name": "rembish.org",
-        "version": "0.46.0",
+        "version": "0.47.0",
     }
 
 

@@ -1,3 +1,4 @@
+from .cosplay import CosplayCostume, CosplayPhoto
 from .drone import Battery, Drone, DroneFlight
 from .event import PersonalEvent
 from .fixer import Fixer, FixerCountry, TripFixer
@@ -44,6 +45,8 @@ __all__ = [
     "Drone",
     "DroneFlight",
     "City",
+    "CosplayCostume",
+    "CosplayPhoto",
     "Fixer",
     "FixerCountry",
     "Flight",

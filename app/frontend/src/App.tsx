@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 const CV = lazy(() => import("./pages/CV"));
 const Projects = lazy(() => import("./pages/Projects"));
 const Photos = lazy(() => import("./pages/Photos"));
+const CosplayGallery = lazy(() => import("./pages/CosplayGallery"));
 const Travels = lazy(() => import("./pages/Travels"));
 const Admin = lazy(() => import("./pages/Admin"));
 const TripFormPage = lazy(() => import("./pages/TripFormPage"));
@@ -34,6 +35,7 @@ function App() {
               />
               <Route path="/photos/albums" element={<Photos />} />
               <Route path="/photos/albums/:param" element={<Photos />} />
+              <Route path="/photos/cosplay" element={<CosplayGallery />} />
               <Route path="/photos/map" element={<Photos />} />
               <Route path="/photos/map/:countryId" element={<Photos />} />
               <Route path="/travels" element={<Travels />} />

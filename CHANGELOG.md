@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.47.0 (2026-03-07)
+
+### Cosplay Photo Gallery
+- New public gallery at `/photos/cosplay` — professional cosplay photoshoots grouped by costume, with cover cards and lightbox viewer
+- "Cosplay" tab added to Photos page navigation (alongside Albums and Map)
+- Admin management under Media > Cosplay — create/edit/delete costumes, upload/reorder/delete photos
+- Easter egg: hero background swaps to Angel of Death photo when "amateur Cosplayer" title appears (crossfade effect)
+
 ## 0.46.0 (2026-03-06)
 
 ### Test Mode for iOS App

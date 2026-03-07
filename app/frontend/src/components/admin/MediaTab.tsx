@@ -1,5 +1,6 @@
 import type { MediaSubTab } from "./types";
 import { MEDIA_SUB_TABS } from "./types";
+import CosplayTab from "./CosplayTab";
 import InstagramTab from "./InstagramTab";
 import MemesTab from "./MemesTab";
 
@@ -38,6 +39,7 @@ export default function MediaTab({
         />
       )}
       {activeSubTab === "memes" && <MemesTab />}
+      {activeSubTab === "cosplay" && <CosplayTab />}
     </div>
   );
 }
