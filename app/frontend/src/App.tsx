@@ -28,7 +28,11 @@ function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/cv" element={<CV />} />
-              <Route path="/projects" element={<Projects />} />
+              <Route
+                path="/projects"
+                element={<Navigate to="/projects/web" replace />}
+              />
+              <Route path="/projects/:tab" element={<Projects />} />
               <Route
                 path="/photos"
                 element={<Navigate to="/photos/albums" replace />}

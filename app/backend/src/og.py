@@ -40,10 +40,15 @@ STATIC_PAGES: dict[str, tuple[str, str | None]] = {
         "Software engineer since 2005. Python expert, test infrastructure, "
         "team leadership up to 75 engineers. Based in Prague.",
     ),
-    "/projects": (
-        "Projects \u2014 Alex Rembish",
-        "pydjirecord, TCC TopoJSON, NM UN+ TopoJSON, TextAtAnyCost, "
-        "Am I Free?, fit, cfb, Miette \u2014 open-source tools and personal projects",
+    "/projects/web": (
+        "Web Projects \u2014 Alex Rembish",
+        "rembish.org, TripClimate, Deploy Horoscope, Am I Free? "
+        "\u2014 hobby web projects and side experiments",
+    ),
+    "/projects/modules": (
+        "Modules \u2014 Alex Rembish",
+        "Python packages: pydjirecord, xcodeproj-creator, fit, cfb, Miette. "
+        "TopoJSON Maps: ISO, TCC, NM UN+. PHP: TextAtAnyCost.",
     ),
     "/contact": ("Contact \u2014 Alex Rembish", None),
     "/changelog": (f"Changelog \u2014 {SITE_NAME}", None),

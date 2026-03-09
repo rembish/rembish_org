@@ -1,3 +1,4 @@
+import { useNavigate, useParams } from "react-router-dom";
 import {
   BiGlobe,
   BiCodeAlt,
@@ -25,18 +26,23 @@ interface Project {
   packages?: Package[];
 }
 
-const projects: Project[] = [
+type TabType = "web" | "modules";
+
+const webProjects: Project[] = [
   {
     title: "rembish.org",
     description:
-      "This very website! What started as a simple portfolio page grew into a full travel management platform — trip planning, flight tracking, encrypted document vault, photo gallery, and more. Built entirely with Claude AI.",
+      "This very website! What started as a simple portfolio page grew into a full personal travel and life management platform — trip planning, flight and drone tracking, encrypted vault, photo galleries, meme feed, and more. Built entirely with Claude AI.",
+    starred: true,
     features: [
-      "Interactive travel map with 193 UN countries and 330 TCC destinations",
-      "Flight tracking with AeroDataBox lookup and statistics",
-      "Encrypted vault for passports, visas, and travel documents",
-      "Instagram photo gallery with country-based world map",
-      "Trip planner with country info, weather, holidays, and vacation balance",
-      "Car rental, transport booking, and accommodation management",
+      "Interactive travel map with 193 UN countries, 330 TCC, and 265 NM UN+ destinations",
+      "Drone flights — Telegram bot upload, geocoded locations, battery telemetry, anomaly detection",
+      "Flight tracking with AeroDataBox lookup, statistics, and Flighty import",
+      "Encrypted vault for passports, visas, travel documents, loyalty programs, and vaccinations",
+      "Photo galleries — Instagram albums, cosplay gallery, and country-based world map",
+      "Trip planner with TripClimate integration, travel advisories, and vacation balance",
+      "Meme feed — Telegram capture with AI triage via Claude Haiku",
+      "iOS app API — Bearer token auth with direct drone flight and meme upload endpoints",
     ],
     techStack: [
       "React",
@@ -53,6 +59,34 @@ const projects: Project[] = [
         label: "GitHub",
         url: "https://github.com/rembish/rembish_org",
         icon: BiLogoGithub,
+      },
+    ],
+  },
+  {
+    title: "TripClimate",
+    description:
+      "A travel planning tool that shows what awaits before you book. Layers cultural events, sporting events, public holidays, weather, seasonality, visa requirements, and travel warnings into an interactive calendar. Includes a world map, destination Compass, browsable Event Guide, and personalized settings for units and passport country. Covers 250+ countries.",
+    starred: true,
+    features: [
+      "423 curated festivals across 167 countries: Ramadan, Carnival, Songkran, Holi, Nyepi, Oktoberfest, and more",
+      "194 sporting events: F1, Grand Slams, marathons, Olympics, cycling tours",
+      "Public holidays for 249 countries with 3-tier resolution fallback",
+      "Historical weather averages, extreme condition alerts, closed seasons, and seasonality indicators",
+      "Visa requirements — personalized by passport country with GeoIP-based detection",
+      "Travel advisories from US State Dept, Canada, UK FCDO, and Germany",
+      "Travel Score — Explorer/Chill modes to surface trips that match your style",
+      "Compass — destination ranking by month, weather preference, and travel vibe",
+      "Event Guide — browsable directory of 1,490 festivals, sports events, and holidays with descriptions and photos",
+      "World choropleth map with zoom/pan, multiple view modes, and biome overlays",
+      "User preferences: temperature/precipitation units and passport country, persisted locally",
+    ],
+    techStack: ["Python 3.12+", "FastAPI", "Alpine.js", "Google Cloud Run"],
+    status: "beta",
+    links: [
+      {
+        label: "Website",
+        url: "https://tripclimate.com",
+        icon: BiLinkExternal,
       },
     ],
   },
@@ -76,29 +110,6 @@ const projects: Project[] = [
       {
         label: "Website",
         url: "https://deployhoroscope.com",
-        icon: BiLinkExternal,
-      },
-    ],
-  },
-  {
-    title: "TripClimate",
-    description:
-      "A travel event calendar that shows what awaits before you book. Given a country and date range, it layers 7 data sources — cultural events, sporting events, public holidays, religious observances, weather, seasonality, and travel warnings — each tagged with whether it's a reason to go or a reason to stay away. Covers 250 countries with GeoIP-based country detection, shareable URLs, and a world events map.",
-    features: [
-      "330 cultural events across 167 countries: Ramadan, Carnival, Songkran, Holi, Nyepi, Oktoberfest, and more",
-      "194 sporting events: F1, Grand Slams, marathons, Olympics, cycling tours",
-      "Public holidays for 240+ countries with 3-tier resolution fallback",
-      "Historical weather averages, extreme condition alerts, closed seasons, and seasonality indicators",
-      "Travel warnings from US State Dept and Canada government advisories",
-      "Travel Score — Explorer/Chill modes to surface trips that match your style",
-      "World choropleth map, shareable URLs, and OG preview cards",
-    ],
-    techStack: ["Python", "FastAPI", "Alpine.js", "Google Cloud Run"],
-    status: "beta",
-    links: [
-      {
-        label: "Website",
-        url: "https://tripclimate.com",
         icon: BiLinkExternal,
       },
     ],
@@ -131,18 +142,23 @@ const projects: Project[] = [
       { label: "Website", url: "https://amifree.info", icon: BiLinkExternal },
     ],
   },
+];
+
+const moduleProjects: Project[] = [
   {
     title: "pydjirecord",
     description:
-      "A Python 3.12+ parser for DJI drone flight log files (.txt binary format). Handles format versions 1–14 with XOR and AES-256-CBC decryption. Built as a rewrite of the Rust dji-log-parser, with improvements: zero-coordinate backfill from OSD GPS frames, accurate video/photo/distance stats from raw telemetry, and local keychain caching for the DJI API.",
+      "A Python 3.10+ parser for DJI drone flight log files (.txt binary format). Handles format versions 1–14 with XOR and AES-256-CBC decryption. Built as a rewrite of the Rust dji-log-parser, with improvements: zero-coordinate backfill from OSD GPS frames, accurate video/photo/distance stats from raw telemetry, and local keychain caching for the DJI API.",
+    starred: true,
     features: [
       "Parse DJI flight logs across format versions 1–14",
       "XOR + AES-256-CBC decryption with DJI API keychain fetching",
-      "Multiple output formats: JSON, GeoJSON, KML, CSV",
+      "Multiple output formats: JSON, GeoJSON, KML, CSV, hardware report",
       "Zero-coordinate backfill from OSD GPS telemetry frames",
       "Accurate photo count, video time, and distance from raw records",
+      "Flight anomaly detection with RED/AMBER/GREEN severity levels",
     ],
-    techStack: ["Python 3.12+", "PyCryptodome", "httpx"],
+    techStack: ["Python 3.10+", "PyCryptodome", "httpx"],
     status: "active",
     links: [
       {
@@ -163,9 +179,38 @@ const projects: Project[] = [
     ],
   },
   {
+    title: "xcodeproj-creator",
+    description:
+      "A Python library and CLI tool that generates Xcode .xcodeproj bundles from scratch — on Linux or any platform, no macOS required. Ideal for CI/CD pipelines and cross-platform build automation where you need to programmatically produce valid Xcode projects for iOS and macOS apps.",
+    starred: true,
+    features: [
+      "Generate full Xcode projects on Linux or any non-macOS platform",
+      "Supports object model v56 (all Xcode versions) and v77 (Xcode 16+ with filesystem-sync groups)",
+      "Multiple product types: iOS App, Framework, Static Library, Unit Tests, UI Tests, App Extensions",
+      "Configurable build settings, deployment targets, Swift versions, and team IDs",
+      "Shell script build phases, asset catalogs, and resource management",
+      "Both Python API and CLI (xcodeproj-create command)",
+    ],
+    techStack: ["Python 3.12+"],
+    status: "beta",
+    links: [
+      {
+        label: "GitHub",
+        url: "https://github.com/rembish/xcodeproj-creator",
+        icon: BiLogoGithub,
+      },
+      {
+        label: "PyPI",
+        url: "https://pypi.org/project/xcodeproj-creator/",
+        icon: SiPypi,
+      },
+    ],
+  },
+  {
     title: "TopoJSON Maps",
     description:
       "Three open-source TopoJSON world maps built from Natural Earth 10m shapefiles — one for each major travel tracking system, plus a standard ISO baseline. All published on npm and available via CDN.",
+    starred: true,
     features: [
       "ISO A2 — 250 polygons keyed by ISO 3166-1 alpha-2 codes, overseas territories as separate polygons",
       "TCC — 330 destinations matching the Travelers' Century Club list (no equivalent existed before)",
@@ -195,24 +240,53 @@ const projects: Project[] = [
     ],
   },
   {
-    title: "TextAtAnyCost",
+    title: "fit",
     description:
-      "One of my oldest and most popular open source projects. A PHP library that pulls plain text out of old document formats — Word files, PDFs, PowerPoint slides, RTF, and more. Born in 2009 and finally given a proper v1.0.0 release in 2026.",
-    starred: true,
+      "A Python library for reading and writing Garmin FIT files — the binary format used by fitness devices to record activities, workouts, and health data. Fully ported to modern Python and given a proper new release in 2026.",
     features: [
-      "Extract text from PDF files",
-      "Read old and new Word documents (.doc and .docx)",
-      "Extract text from PowerPoint presentations",
-      "Handle RTF and OpenDocument formats",
-      "No extra software needed — pure PHP",
+      "Read and write .fit activity files",
+      "Supports all standard FIT message types",
+      "Dynamic and composite bit-packed fields",
+      "Plugin system for custom message and file types",
+      "Context-manager API with stream support",
     ],
-    techStack: ["PHP 8.3+"],
-    status: "completed",
+    techStack: ["Python 3.9+"],
+    status: "active",
     links: [
       {
         label: "GitHub",
-        url: "https://github.com/rembish/TextAtAnyCost",
+        url: "https://github.com/rembish/fit",
         icon: BiLogoGithub,
+      },
+      {
+        label: "PyPI",
+        url: "https://pypi.org/project/fit/",
+        icon: SiPypi,
+      },
+    ],
+  },
+  {
+    title: "cfb",
+    description:
+      "A Python library for reading the internal structure of old-style Microsoft Office files. The .doc, .xls, and .ppt formats are actually containers full of streams and folders — this library lets you open them and navigate what's inside. The foundation that Miette is built on.",
+    features: [
+      "Open and inspect old Office file containers",
+      "Navigate internal folders and data streams",
+      "File-like reading interface",
+      "Handles malformed or unusual files gracefully",
+    ],
+    techStack: ["Python 3.8+"],
+    status: "beta",
+    links: [
+      {
+        label: "GitHub",
+        url: "https://github.com/rembish/cfb",
+        icon: BiLogoGithub,
+      },
+      {
+        label: "PyPI",
+        url: "https://pypi.org/project/cfb/",
+        icon: SiPypi,
       },
     ],
   },
@@ -234,45 +308,31 @@ const projects: Project[] = [
         url: "https://github.com/rembish/Miette",
         icon: BiLogoGithub,
       },
-    ],
-  },
-  {
-    title: "cfb",
-    description:
-      "A Python library for reading the internal structure of old-style Microsoft Office files. The .doc, .xls, and .ppt formats are actually containers full of streams and folders — this library lets you open them and navigate what's inside. The foundation that Miette is built on.",
-    features: [
-      "Open and inspect old Office file containers",
-      "Navigate internal folders and data streams",
-      "File-like reading interface",
-      "Handles malformed or unusual files gracefully",
-    ],
-    techStack: ["Python 3.8+"],
-    status: "alpha",
-    links: [
       {
-        label: "GitHub",
-        url: "https://github.com/rembish/cfb",
-        icon: BiLogoGithub,
+        label: "PyPI",
+        url: "https://pypi.org/project/miette/",
+        icon: SiPypi,
       },
     ],
   },
   {
-    title: "fit",
+    title: "TextAtAnyCost",
     description:
-      "A Python library for reading and writing Garmin FIT files — the binary format used by fitness devices to record activities, workouts, and health data. Fully ported to modern Python and given a proper new release in 2026.",
+      "One of my oldest and most popular open source projects. A PHP library that pulls plain text out of old document formats — Word files, PDFs, PowerPoint slides, RTF, and more. Born in 2009 and finally given a proper v1.0.0 release in 2026.",
+    starred: true,
     features: [
-      "Read and write .fit activity files",
-      "Supports all standard FIT message types",
-      "Dynamic and composite bit-packed fields",
-      "Plugin system for custom message and file types",
-      "Context-manager API with stream support",
+      "Extract text from PDF files",
+      "Read old and new Word documents (.doc and .docx)",
+      "Extract text from PowerPoint presentations",
+      "Handle RTF and OpenDocument formats",
+      "No extra software needed — pure PHP",
     ],
-    techStack: ["Python 3.9+"],
-    status: "active",
+    techStack: ["PHP 8.3+"],
+    status: "completed",
     links: [
       {
         label: "GitHub",
-        url: "https://github.com/rembish/fit",
+        url: "https://github.com/rembish/TextAtAnyCost",
         icon: BiLogoGithub,
       },
     ],
@@ -293,12 +353,33 @@ function getStatusLabel(status: Project["status"]) {
 }
 
 export default function Projects() {
+  const { tab } = useParams<{ tab?: string }>();
+  const navigate = useNavigate();
+
+  const activeTab: TabType = tab === "modules" ? "modules" : "web";
+  const projects = activeTab === "web" ? webProjects : moduleProjects;
+
   return (
     <section id="projects" className="projects">
       <div className="container">
         <div className="section-title">
           <h2>Projects</h2>
           <p>Hobby projects and side experiments</p>
+        </div>
+
+        <div className="travel-tabs">
+          <button
+            className={`travel-tab ${activeTab === "web" ? "active" : ""}`}
+            onClick={() => navigate("/projects/web")}
+          >
+            <BiGlobe /> Web
+          </button>
+          <button
+            className={`travel-tab ${activeTab === "modules" ? "active" : ""}`}
+            onClick={() => navigate("/projects/modules")}
+          >
+            <BiCodeAlt /> Modules
+          </button>
         </div>
 
         <div className="projects-list">

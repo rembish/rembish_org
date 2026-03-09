@@ -7,14 +7,16 @@ User-agent: DuckDuckBot
 User-agent: Yandex
 Allow: /$
 Allow: /cv
-Allow: /projects
+Allow: /projects/web
+Allow: /projects/modules
 Disallow: /
 
 # AI search crawlers: same rules
 User-agent: OAI-SearchBot
 Allow: /$
 Allow: /cv
-Allow: /projects
+Allow: /projects/web
+Allow: /projects/modules
 Disallow: /
 
 # AI training crawlers: block everything
