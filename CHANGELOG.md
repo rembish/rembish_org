@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.47.1 (2026-03-09)
+
+- Projects page split into Web and Modules tabs with URL routing (`/projects/web`, `/projects/modules`)
+- Added TripClimate and xcodeproj-creator project cards
+- Updated rembish.org, pydjirecord, and fit project descriptions with latest features
+- Updated OG meta tags, sitemap, and robots.txt for new project URLs
+
 ## 0.47.0 (2026-03-07)
 
 ### Cosplay Photo Gallery
