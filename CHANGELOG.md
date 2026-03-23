@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.47.2 (2026-03-23)
+
+- Fixed trip editing failing with duplicate key error when saving destinations
+
 ## 0.47.1 (2026-03-09)
 
 - Projects page split into Web and Modules tabs with URL routing (`/projects/web`, `/projects/modules`)

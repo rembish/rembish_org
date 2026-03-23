@@ -408,8 +408,9 @@ def update_trip(
             if dest_ids
             else set()
         )
-        # Clear existing and recreate
+        # Clear existing and recreate (flush to avoid unique constraint violation)
         trip.destinations.clear()
+        db.flush()
         for dest_input in request.destinations:
             if dest_input.tcc_destination_id in valid_dests:
                 trip.destinations.append(
@@ -424,6 +425,7 @@ def update_trip(
         # Preserve city_id links set by location check-in
         old_city_ids = {tc.name: tc.city_id for tc in trip.cities if tc.city_id}
         trip.cities.clear()
+        db.flush()
         for i, city_input in enumerate(request.cities):
             trip.cities.append(
                 TripCity(
