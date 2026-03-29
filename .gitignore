@@ -23,3 +23,5 @@ app/frontend/public/CHANGELOG.md
 .env
 .env.*
 !.env.example
+
+.omc/

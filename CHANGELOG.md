@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.47.3 (2026-03-29)
+
+- Added Deploy Tarot to the Projects page
+
 ## 0.47.2 (2026-03-23)
 
 - Fixed trip editing failing with duplicate key error when saving destinations

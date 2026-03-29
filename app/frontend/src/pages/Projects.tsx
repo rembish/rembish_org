@@ -115,6 +115,35 @@ const webProjects: Project[] = [
     ],
   },
   {
+    title: "Deploy Tarot",
+    description:
+      "Should I deploy today? Let the cards decide. A tarot-based deploy advisor born from 5 hours of vibecoding that accidentally hit HN front page and gathered ~10k active users. Pick your role and deployment intent, draw from the full 78-card deck, and receive your verdict. No database. No real mysticism. The anxiety it surfaces might be real though.",
+    starred: true,
+    features: [
+      "Full 78-card deck — 22 Major Arcana and 56 Minor Arcana with upright and reversed meanings",
+      "Quick read (3 cards) and full Celtic Cross spread (10 cards)",
+      "Role and intent selector — 8 roles × 9 intents for personalized cosmic context",
+      "Stable shareable URLs — entire reading encoded as arcane spell-words, no DB needed",
+      "Browsable card reference at /cards with individual card pages",
+      "Zero server state — all session context lives in two browser cookies",
+      "Viral HN front page hit: ~10k active users, 68k+ events in first days",
+    ],
+    techStack: ["Python 3.12+", "FastAPI", "Jinja2", "Google Cloud Run"],
+    status: "active",
+    links: [
+      {
+        label: "Website",
+        url: "https://deploytarot.com",
+        icon: BiLinkExternal,
+      },
+      {
+        label: "HN Discussion",
+        url: "https://news.ycombinator.com/item?id=47535586",
+        icon: BiLinkExternal,
+      },
+    ],
+  },
+  {
     title: "Am I Free?",
     description:
       "A web application that helps you plan your vacation days by calculating working days spent on trips, excluding weekends and public holidays automatically.",
