@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.47.4 (2026-04-17)
+
+- Added Should I Ape? to Web projects and wadlib to Modules
+
 ## 0.47.3 (2026-03-29)
 
 - Added Deploy Tarot to the Projects page

@@ -91,6 +91,36 @@ const webProjects: Project[] = [
     ],
   },
   {
+    title: "Should I Ape?",
+    description:
+      "A crypto Major Arcana oracle. Ask the 22-card tarot deck whether to buy, hold, or sell — it knows as much as your analyst does. Draws three cards (Setup → Force → Outcome), weighs them against live Binance market data and your zodiac sign, and delivers a verdict: Ape In, Hodl, or Get Out.",
+    features: [
+      "22-card Major Arcana deck with upright and reversed meanings",
+      "Three-card spread: Setup → Force → Outcome weighted against your zodiac sign",
+      "Live Binance 24h market signal — no API key required",
+      "Deterministic readings — same seed always produces the same cards",
+      "Stable shareable URLs — intent + coin + seed encoded in an 18-character pronounceable string",
+      "Dynamic OG image generation per share code for rich link previews",
+      "Responsible use page at /when-it-stops addressing compulsive trading and market distress",
+    ],
+    techStack: [
+      "Python 3.12+",
+      "FastAPI",
+      "Jinja2",
+      "Pillow",
+      "Binance API",
+      "Google Cloud Run",
+    ],
+    status: "active",
+    links: [
+      {
+        label: "Website",
+        url: "https://shouldiape.com",
+        icon: BiLinkExternal,
+      },
+    ],
+  },
+  {
     title: "Deploy Horoscope",
     description:
       "Should I deploy today? Let the stars decide. A deterministic deployment oracle that answers the eternal question using your zodiac sign, moon phase, Mercury retrograde status, planetary positions, and the iron law that Fridays are always red. No database. No real astrology. Now with a JSON API.",
@@ -291,6 +321,38 @@ const moduleProjects: Project[] = [
         label: "PyPI",
         url: "https://pypi.org/project/fit/",
         icon: SiPypi,
+      },
+    ],
+  },
+  {
+    title: "wadlib",
+    description:
+      "A Python 3.12+ library and CLI toolkit for reading, writing, and analysing id Software WAD files — the format used by Doom, Doom II, Heretic, Hexen, Strife, and derivative source-port mods. Supports IWAD base files and PWAD patches with a zipfile-style archive API and full lump-level access.",
+    features: [
+      "Read and write IWAD and PWAD files across all id Software games",
+      "Layer multiple PWADs on top of an IWAD — PWAD lumps shadow base WAD lumps by name",
+      "zipfile-style archive interface: read, write, append, replace, and extract lumps",
+      "Full WAD writer for building custom maps and assets from scratch",
+      "wadcli command-line tool for inspection and extraction",
+      "Built-in lump validation and type-safe lump definitions",
+    ],
+    techStack: ["Python 3.12+"],
+    status: "active",
+    links: [
+      {
+        label: "GitHub",
+        url: "https://github.com/rembish/wadlib",
+        icon: BiLogoGithub,
+      },
+      {
+        label: "PyPI",
+        url: "https://pypi.org/project/wadlib/",
+        icon: SiPypi,
+      },
+      {
+        label: "Docs",
+        url: "https://rembish.github.io/wadlib/",
+        icon: BiLinkExternal,
       },
     ],
   },
