@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.47.5 (2026-04-21)
+
+- Trip edit page: "Trello" button copies a formatted trip summary (flights, stays, car rentals, transport, visa docs) to clipboard
+
 ## 0.47.4 (2026-04-17)
 
 - Added Should I Ape? to Web projects and wadlib to Modules

@@ -6,11 +6,16 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { BiArrowBack } from "react-icons/bi";
+import { BiArrowBack, BiCheck, BiCopy } from "react-icons/bi";
 import { useAuth } from "../hooks/useAuth";
 import { useViewAs } from "../hooks/useViewAs";
 import { apiFetch } from "../lib/api";
 import type {
+  AccommodationItem,
+  CarRentalItem,
+  FlightDataItem,
+  TransportBookingItem,
+  TripDocumentsTabData,
   TripFormData,
   TripTab,
   TCCDestinationOption,
@@ -23,6 +28,11 @@ import TransportTab from "../components/trip/TransportTab";
 import StaysTab from "../components/trip/StaysTab";
 import DocumentsTab from "../components/trip/DocumentsTab";
 import TripDroneFlightsTab from "../components/trip/TripDroneFlightsTab";
+
+function fmtDate(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
 
 export default function TripFormPage() {
   const { user, loading: authLoading } = useAuth();
@@ -66,6 +76,7 @@ export default function TripFormPage() {
     }[]
   >([]);
   const [saving, setSaving] = useState(false);
+  const [copying, setCopying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingTrip, setLoadingTrip] = useState(isEdit);
   const [tripCitiesDisplay, setTripCitiesDisplay] = useState<
@@ -148,6 +159,177 @@ export default function TripFormPage() {
       });
   }, [isEdit, tripId, tccOptions]);
 
+  const copyTrelloText = async () => {
+    if (!tripId) return;
+    setCopying(true);
+    try {
+      const [flightsData, staysData, rentalsData, transportData, docsData] =
+        await Promise.all([
+          apiFetch(`/api/v1/travels/trips/${tripId}/flights`).then((r) =>
+            r.json(),
+          ),
+          apiFetch(`/api/v1/travels/trips/${tripId}/accommodations`).then((r) =>
+            r.json(),
+          ),
+          apiFetch(`/api/v1/travels/trips/${tripId}/car-rentals`).then((r) =>
+            r.json(),
+          ),
+          apiFetch(`/api/v1/travels/trips/${tripId}/transport-bookings`).then(
+            (r) => r.json(),
+          ),
+          apiFetch(`/api/v1/travels/trips/${tripId}/documents-tab`).then((r) =>
+            r.json(),
+          ),
+        ]);
+
+      const flights: FlightDataItem[] = (flightsData.flights || []).sort(
+        (a: FlightDataItem, b: FlightDataItem) =>
+          a.flight_date.localeCompare(b.flight_date) ||
+          (a.departure_time ?? "").localeCompare(b.departure_time ?? ""),
+      );
+      const stays: AccommodationItem[] = (staysData.accommodations || []).sort(
+        (a: AccommodationItem, b: AccommodationItem) =>
+          (a.checkin_date ?? "").localeCompare(b.checkin_date ?? ""),
+      );
+      const rentals: CarRentalItem[] = (rentalsData.car_rentals || []).sort(
+        (a: CarRentalItem, b: CarRentalItem) =>
+          (a.pickup_datetime ?? "").localeCompare(b.pickup_datetime ?? ""),
+      );
+      const transports: TransportBookingItem[] = (
+        transportData.transport_bookings || []
+      ).sort((a: TransportBookingItem, b: TransportBookingItem) =>
+        (a.departure_datetime ?? "").localeCompare(b.departure_datetime ?? ""),
+      );
+      const docs: TripDocumentsTabData = docsData;
+
+      const lines: string[] = [];
+
+      const destNames = formData.destinations
+        .map((d) => tccOptions.find((o) => o.id === d.tcc_destination_id)?.name)
+        .filter(Boolean)
+        .join(", ");
+      if (destNames) lines.push(destNames);
+
+      const cityNames = formData.cities.map((c) => c.name).join(", ");
+      if (cityNames) lines.push(`Cities: ${cityNames}`);
+
+      const startFmt = fmtDate(formData.start_date);
+      const endFmt = formData.end_date ? fmtDate(formData.end_date) : "?";
+      lines.push(`${startFmt} → ${endFmt}`);
+
+      if (flights.length > 0) {
+        lines.push("");
+        lines.push(`FLIGHTS (${flights.length})`);
+        for (const f of flights) {
+          const dep = f.departure_airport.iata_code;
+          const arr = f.arrival_airport.iata_code;
+          const depTime = f.departure_time?.slice(0, 5);
+          const arrTime = f.arrival_time?.slice(0, 5);
+          const times =
+            depTime && arrTime
+              ? `  ${depTime}–${arrTime}`
+              : depTime
+                ? `  ${depTime}`
+                : "";
+          const airline = f.airline_name ? ` ${f.airline_name}` : "";
+          let line = `• ${fmtDate(f.flight_date)}  ${f.flight_number}${airline}  ${dep} → ${arr}${times}`;
+          const extras: string[] = [];
+          if (f.seat) extras.push(`Seat: ${f.seat}`);
+          if (f.booking_reference) extras.push(`PNR: ${f.booking_reference}`);
+          if (extras.length) line += `  [${extras.join(" | ")}]`;
+          lines.push(line);
+        }
+      }
+
+      if (stays.length > 0) {
+        lines.push("");
+        lines.push(`STAYS (${stays.length})`);
+        for (const s of stays) {
+          const checkin = s.checkin_date ? fmtDate(s.checkin_date) : "?";
+          const checkout = s.checkout_date ? fmtDate(s.checkout_date) : "?";
+          const platform = s.platform ? ` (${s.platform})` : "";
+          let line = `• ${checkin}–${checkout}  ${s.property_name}${platform}`;
+          if (s.confirmation_code) line += `  [Conf: ${s.confirmation_code}]`;
+          lines.push(line);
+          if (s.address) lines.push(`  ${s.address}`);
+        }
+      }
+
+      if (rentals.length > 0) {
+        lines.push("");
+        lines.push(`CAR RENTAL (${rentals.length})`);
+        for (const r of rentals) {
+          const pickup = r.pickup_datetime
+            ? fmtDate(r.pickup_datetime.slice(0, 10))
+            : "?";
+          const dropoff = r.dropoff_datetime
+            ? fmtDate(r.dropoff_datetime.slice(0, 10))
+            : "?";
+          const car =
+            [r.car_class, r.actual_car].filter(Boolean).join(" / ") || "?";
+          const trans = r.transmission ? ` (${r.transmission})` : "";
+          let line = `• ${pickup}–${dropoff}  ${r.rental_company} — ${car}${trans}`;
+          if (r.confirmation_number)
+            line += `  [Conf: ${r.confirmation_number}]`;
+          lines.push(line);
+          if (r.pickup_location) lines.push(`  Pickup: ${r.pickup_location}`);
+          if (r.dropoff_location && r.dropoff_location !== r.pickup_location)
+            lines.push(`  Dropoff: ${r.dropoff_location}`);
+        }
+      }
+
+      if (transports.length > 0) {
+        lines.push("");
+        lines.push(`TRANSPORT (${transports.length})`);
+        for (const t of transports) {
+          const date = t.departure_datetime
+            ? fmtDate(t.departure_datetime.slice(0, 10))
+            : "?";
+          const depTime = t.departure_datetime?.slice(11, 16);
+          const arrTime = t.arrival_datetime?.slice(11, 16);
+          const times =
+            depTime && arrTime
+              ? `  ${depTime}–${arrTime}`
+              : depTime
+                ? `  ${depTime}`
+                : "";
+          const type =
+            t.type.charAt(0).toUpperCase() + t.type.slice(1).toLowerCase();
+          const service = [t.operator, t.service_number]
+            .filter(Boolean)
+            .join(" ");
+          const route = [t.departure_station, t.arrival_station]
+            .filter(Boolean)
+            .join(" → ");
+          let line = `• ${date}  ${type}${service ? ` ${service}` : ""}  ${route}${times}`;
+          const seatParts: string[] = [];
+          if (t.carriage) seatParts.push(`Car ${t.carriage}`);
+          if (t.seat) seatParts.push(`Seat ${t.seat}`);
+          if (t.booking_reference)
+            seatParts.push(`Ref: ${t.booking_reference}`);
+          if (seatParts.length) line += `  [${seatParts.join(" | ")}]`;
+          lines.push(line);
+        }
+      }
+
+      if (docs.travel_docs?.length > 0) {
+        lines.push("");
+        lines.push("VISA / TRAVEL DOCS");
+        for (const v of docs.travel_docs) {
+          const status = v.has_files ? "issued" : "not yet issued";
+          const passport = v.passport_label ? ` [${v.passport_label}]` : "";
+          const entry = v.entry_type ? ` (${v.entry_type})` : "";
+          lines.push(`• ${v.label}${entry}: ${status}${passport}`);
+        }
+      }
+
+      await navigator.clipboard.writeText(lines.join("\n"));
+      setTimeout(() => setCopying(false), 2000);
+    } catch {
+      setCopying(false);
+    }
+  };
+
   const goBack = () => {
     const year = formData.start_date
       ? new Date(formData.start_date).getFullYear()
@@ -229,6 +411,18 @@ export default function TripFormPage() {
           <BiArrowBack />
         </button>
         <h2>{isEdit ? "Edit Trip" : "Add Trip"}</h2>
+        {isEdit && (
+          <button
+            type="button"
+            className="trip-copy-trello-btn"
+            onClick={copyTrelloText}
+            disabled={copying}
+            title="Copy trip summary for Trello"
+          >
+            {copying ? <BiCheck /> : <BiCopy />}
+            {copying ? "Copied!" : "Trello"}
+          </button>
+        )}
       </div>
 
       {isEdit && (

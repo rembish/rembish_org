@@ -3329,6 +3329,36 @@ a {
   text-decoration: underline;
 }
 
+.trip-copy-trello-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  padding: 0 0.75rem;
+  height: 36px;
+  border: none;
+  border-radius: 6px;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+
+  & svg {
+    font-size: 1rem;
+  }
+
+  &:hover {
+    background: var(--color-border);
+    color: var(--color-text);
+  }
+
+  &:disabled {
+    color: var(--color-success, #4caf50);
+    cursor: default;
+  }
+}
+
 .trip-form-back-btn {
   display: flex;
   align-items: center;
