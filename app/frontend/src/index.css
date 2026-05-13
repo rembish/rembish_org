@@ -912,6 +912,11 @@ a {
   color: #3730a3;
 }
 
+.status-sunset {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
 .project-description {
   color: var(--color-text-secondary);
   margin-block-end: 1.25rem;

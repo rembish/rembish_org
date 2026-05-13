@@ -21,7 +21,7 @@ interface Project {
   starred?: boolean;
   features: string[];
   techStack: string[];
-  status: "active" | "completed" | "alpha" | "beta";
+  status: "active" | "completed" | "alpha" | "beta" | "sunset";
   links: { label: string; url: string; icon: React.ComponentType }[];
   packages?: Package[];
 }
@@ -196,9 +196,13 @@ const webProjects: Project[] = [
       "MySQL",
       "Google Cloud",
     ],
-    status: "alpha",
+    status: "sunset",
     links: [
-      { label: "Website", url: "https://amifree.info", icon: BiLinkExternal },
+      {
+        label: "GitHub",
+        url: "https://github.com/rembish/amifree",
+        icon: BiLogoGithub,
+      },
     ],
   },
 ];
@@ -440,6 +444,8 @@ function getStatusLabel(status: Project["status"]) {
       return "Alpha";
     case "beta":
       return "Beta";
+    case "sunset":
+      return "Sunset";
   }
 }
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.47.6 (2026-05-13)
+
+- Projects page: Am I Free? marked as sunset, website link replaced with GitHub repository link
+
 ## 0.47.5 (2026-04-21)
 
 - Trip edit page: "Trello" button copies a formatted trip summary (flights, stays, car rentals, transport, visa docs) to clipboard
