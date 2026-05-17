@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.47.7 (2026-05-17)
+
+- Added Portolan (portolanmap.com) to Web projects — interactive global connectivity map with air hop-distance coloring, 31 maritime chokepoints, land border crossing statuses, ferry/rail overlays, and ~40k-cell visa matrix
+
 ## 0.47.6 (2026-05-13)
 
 - Projects page: Am I Free? marked as sunset, website link replaced with GitHub repository link

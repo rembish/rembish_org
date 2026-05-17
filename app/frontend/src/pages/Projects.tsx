@@ -91,6 +91,46 @@ const webProjects: Project[] = [
     ],
   },
   {
+    title: "Portolan",
+    description:
+      "Google Flights answers cheapest A→B. Rome2Rio works city-pair. Nobody visualizes the backtrack cost of living outside a hub — or the orphan status of genuinely remote destinations like Comoros, Bhutan, Tuvalu, or Nauru. Portolan does. Color-codes every zone on the globe by air-hop distance from any chosen origin, with country panels covering all surface transport, land border crossings, ferry routes, 31 maritime chokepoints, and a personal visa overlay across ~40,000 passport × destination pairs.",
+    starred: true,
+    features: [
+      "Global air reachability map: BFS over the full flight route graph colors every zone by hop count from any chosen origin — instantly revealing which destinations are genuinely remote vs. merely off the beaten path",
+      "~220–250 zones rather than ~195 countries — non-contiguous territories (Alaska, Greenland, Canary Islands, Réunion, Kaliningrad) get their own zone so the isolation signal is geographically accurate",
+      "Country panel: air connectivity summary, all surface transport modes and operators, land border crossings with open/restricted/closed status sourced from OpenStreetMap and Wikidata SPARQL",
+      "31 maritime chokepoints — Bosporus, Suez, Malacca, Strait of Hormuz, Panama, and 26 others — each with transit context in the country panel",
+      "Visa matrix from passport-index-dataset: ~40,000 passport × destination cells, visa-free / on-arrival / e-visa / required, with a searchable passport selector that overlays your personal access across the map",
+      "Ferry routes and international lake crossings as a dedicated overlay layer alongside mainline rail arcs and airport icons",
+      "Click an airport to see every direct connection; click a second airport to build a multi-leg chain with a per-leg route panel showing IATA codes, duration, and operators",
+      "Static architecture: Python pipeline (Polars, DuckDB, NetworkX) emits precomputed JSON + TopoJSON to CDN — no backend, no database, sub-100ms global loads",
+    ],
+    techStack: [
+      "Svelte 5",
+      "Vite",
+      "MapLibre GL JS",
+      "Python 3.12",
+      "Polars",
+      "DuckDB",
+      "NetworkX",
+      "GCP Cloud Run",
+      "Cloudflare CDN",
+    ],
+    status: "beta",
+    links: [
+      {
+        label: "Website",
+        url: "https://portolanmap.com",
+        icon: BiLinkExternal,
+      },
+      {
+        label: "GitHub",
+        url: "https://github.com/rembish/portolanmap_com",
+        icon: BiLogoGithub,
+      },
+    ],
+  },
+  {
     title: "Should I Ape?",
     description:
       "A crypto Major Arcana oracle. Ask the 22-card tarot deck whether to buy, hold, or sell — it knows as much as your analyst does. Draws three cards (Setup → Force → Outcome), weighs them against live Binance market data and your zodiac sign, and delivers a verdict: Ape In, Hodl, or Get Out.",
