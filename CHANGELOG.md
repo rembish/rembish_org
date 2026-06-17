@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.47.8 (2026-06-17)
+
+- Added Entry Conditions (entryconditions.com) to the Web projects list — verified passport × destination entry requirements, placed as the most recent project
+
 ## 0.47.7 (2026-05-17)
 
 - Added Portolan (portolanmap.com) to Web projects — interactive global connectivity map with air hop-distance coloring, 31 maritime chokepoints, land border crossing statuses, ferry/rail overlays, and ~40k-cell visa matrix

@@ -91,6 +91,38 @@ const webProjects: Project[] = [
     ],
   },
   {
+    title: "Entry Conditions",
+    description:
+      "A verified, primary-source dataset of passport × destination entry requirements — plus the web app that serves it. For any passport and destination it answers what you need to enter — visa-free, eVisa, visa-on-arrival, ETA, full visa, or no admission — with a verbatim quote from an official government source behind every verified answer. Flat-file and database-free: the cell data is the source of truth, and the entire site is generated from it.",
+    starred: true,
+    features: [
+      "213 passports × 250 destinations of verified entry requirements",
+      "Answers any passport × destination pair: visa-free, eVisa, visa-on-arrival, ETA, full visa, or no admission",
+      "Every verified cell backed by a verbatim quote from an official government source",
+      "Strict verification contract — a cell counts as verified only when its official source was fetched live and quoted",
+      "Flat-file architecture, no database — the YAML cell data is the single source of truth, everything downstream is generated",
+      "Interactive per-passport world map built on a custom Entry Conditions TopoJSON of 250 destinations",
+      "Multi-tier fetch ladder (httpx → headless Chromium → Cloudflare/WAF escalation) for sourcing official pages",
+      "Per-passport pages with dynamic OG share cards",
+    ],
+    techStack: [
+      "SvelteKit",
+      "TypeScript",
+      "Vite",
+      "Python 3.12",
+      "TopoJSON",
+      "Google Cloud Run",
+    ],
+    status: "beta",
+    links: [
+      {
+        label: "Website",
+        url: "https://entryconditions.com",
+        icon: BiLinkExternal,
+      },
+    ],
+  },
+  {
     title: "Portolan",
     description:
       "Google Flights answers cheapest A→B. Rome2Rio works city-pair. Nobody visualizes the backtrack cost of living outside a hub — or the orphan status of genuinely remote destinations like Comoros, Bhutan, Tuvalu, or Nauru. Portolan does. Color-codes every zone on the globe by air-hop distance from any chosen origin, with country panels covering all surface transport, land border crossings, ferry routes, 31 maritime chokepoints, and a personal visa overlay across ~40,000 passport × destination pairs.",
