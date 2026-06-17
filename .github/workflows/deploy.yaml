@@ -39,7 +39,9 @@ jobs:
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e "app/backend[dev]" pytest-cov
+          # Pin runtime deps to the lockfile (constraints) so CI resolves the same
+          # versions that pass locally; dev-only tools stay unpinned. (DEP-01)
+          pip install -e "app/backend[dev]" pytest-cov -c app/backend/requirements.lock
 
       - name: Install frontend dependencies
         run: cd app/frontend && npm ci

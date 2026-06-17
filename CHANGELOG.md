@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.47.9 (2026-06-17)
+
+- Upgraded backend web stack — FastAPI 0.137, Starlette 1.x, httpx2 test client
+- CI now installs backend dependencies pinned to the lockfile for reproducible builds
+
 ## 0.47.8 (2026-06-17)
 
 - Added Entry Conditions (entryconditions.com) to the Web projects list — verified passport × destination entry requirements, placed as the most recent project
