@@ -42,7 +42,11 @@ def _booking_ref_display(booking: TransportBooking, vault_open: bool) -> str | N
             plaintext = decrypt(booking.booking_reference_encrypted)
             return plaintext if vault_open else mask_value(plaintext, reveal=1)
         except Exception:
-            pass
+            log.warning(
+                "Vault decrypt failed for transport booking %s reference; showing masked value",
+                booking.id,
+                exc_info=True,
+            )
     return booking.booking_reference_masked
 
 

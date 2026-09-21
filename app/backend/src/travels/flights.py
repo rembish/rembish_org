@@ -123,7 +123,11 @@ def _booking_ref_display(flight: Flight, vault_open: bool) -> str | None:
             plaintext = decrypt(flight.booking_ref_encrypted)
             return plaintext if vault_open else mask_value(plaintext, reveal=1)
         except Exception:
-            pass
+            log.warning(
+                "Vault decrypt failed for flight %s booking reference; showing masked value",
+                flight.id,
+                exc_info=True,
+            )
     return flight.booking_ref_masked
 
 

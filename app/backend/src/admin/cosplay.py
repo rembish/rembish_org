@@ -162,7 +162,11 @@ async def upload_photo(
         img = Image.open(io.BytesIO(content))
         width, height = img.size
     except Exception:
-        pass
+        log.warning(
+            "Could not read image dimensions for %s; storing without them",
+            file.filename,
+            exc_info=True,
+        )
 
     # Save to storage
     ext = (

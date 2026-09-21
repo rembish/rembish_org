@@ -39,7 +39,11 @@ def _confirmation_display(rental: CarRental, vault_open: bool) -> str | None:
             plaintext = decrypt(rental.confirmation_number_encrypted)
             return plaintext if vault_open else mask_value(plaintext, reveal=1)
         except Exception:
-            pass
+            log.warning(
+                "Vault decrypt failed for car rental %s confirmation number; showing masked value",
+                rental.id,
+                exc_info=True,
+            )
     return rental.confirmation_number_masked
 
 

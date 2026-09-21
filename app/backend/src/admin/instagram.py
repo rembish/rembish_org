@@ -712,7 +712,7 @@ def _download_image(
             with Image.open(BytesIO(content)) as img:
                 dimensions = img.size
         except Exception:
-            log.warning("Failed to read image dimensions for %s", filename)
+            log.warning("Failed to read image dimensions for %s", filename, exc_info=True)
 
         # Save to storage (local or GCS)
         storage_path = storage.save(filename, content)

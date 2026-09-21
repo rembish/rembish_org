@@ -43,7 +43,11 @@ def _confirmation_display(acc: Accommodation, vault_open: bool) -> str | None:
             plaintext = decrypt(acc.confirmation_code_encrypted)
             return plaintext if vault_open else mask_value(plaintext, reveal=1)
         except Exception:
-            pass
+            log.warning(
+                "Vault decrypt failed for accommodation %s confirmation code; showing masked value",
+                acc.id,
+                exc_info=True,
+            )
     return acc.confirmation_code_masked
 
 
