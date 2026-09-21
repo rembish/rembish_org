@@ -2,8 +2,9 @@ FROM node:22-slim
 
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install
+# npm ci from the lockfile, as Dockerfile.prod does; npm install ignores it and drifts.
+COPY package.json package-lock.json ./
+RUN npm ci
 
 COPY . .
 

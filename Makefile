@@ -108,8 +108,8 @@ frontend-format-check: ## Check frontend formatting without changes
 frontend-typecheck: ## Run TypeScript type checking
 	cd $(FRONTEND_DIR) && npx tsc --noEmit
 
-frontend-install: ## Install frontend dependencies
-	cd $(FRONTEND_DIR) && npm install
+frontend-install: ## Install frontend dependencies (npm ci, as CI does)
+	cd $(FRONTEND_DIR) && npm ci
 
 ##@ Database
 
@@ -203,6 +203,8 @@ version-check: ## Verify all version files match VERSION
 	echo "---"; \
 	echo "All versions match!"
 
+# Uses `npm version` rather than a sed on package.json: it updates package-lock.json
+# too. A bare sed left the lock's version field stale (0.47.1 through v0.47.9).
 version-sync: ## Update all version files from VERSION (run after editing VERSION)
 	@if [ ! -f "$(VERSION_FILE)" ]; then \
 		echo "ERROR: VERSION file not found at $(VERSION_FILE)"; \
@@ -219,7 +221,7 @@ version-sync: ## Update all version files from VERSION (run after editing VERSIO
 		exit 1; \
 	fi; \
 	echo "Syncing version $$VERSION to all files..."; \
-	sed -i 's/"version": "[^"]*"/"version": "'$$VERSION'"/' $(FRONTEND_DIR)/package.json; \
+	(cd $(FRONTEND_DIR) && npm version $$VERSION --no-git-tag-version --allow-same-version >/dev/null); \
 	sed -i 's/^version = "[^"]*"/version = "'$$VERSION'"/' $(BACKEND_DIR)/pyproject.toml; \
 	sed -i 's/version="[^"]*"/version="'$$VERSION'"/' $(BACKEND_DIR)/src/main.py; \
 	sed -i 's/"version": "[^"]*"/"version": "'$$VERSION'"/' $(BACKEND_DIR)/src/main.py; \
