@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.47.10 (2026-09-21)
+
+- Security: updated every dependency carrying a published advisory — Pillow, cryptography, anyio, pyasn1, pydantic-settings on the backend; vite, react-router-dom, puppeteer and transitive packages on the frontend
+- Travels and Photos maps moved to react-simple-maps 5, which fixes a d3-color denial-of-service issue; country hover highlighting works as before
+- The OAuth sign-in cookie is now short-lived and HTTPS-only in production, instead of lasting two weeks
+- Booking references that fail to decrypt are now logged as errors rather than silently appearing as masked values
+
 ## 0.47.9 (2026-06-17)
 
 - Upgraded backend web stack — FastAPI 0.137, Starlette 1.x, httpx2 test client
