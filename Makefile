@@ -137,19 +137,25 @@ test: backend-test ## Run all tests
 
 check: backend-format-check frontend-format-check lint typecheck lockfile-check ## Run formatters, linters and type checkers
 
-lockfile-check: ## Verify requirements.lock matches pyproject.toml
+# Checks that the lock COVERS pyproject (every dep present, specifiers satisfiable)
+# rather than re-resolving to the newest releases. The old check recompiled from
+# loose specifiers, so it only passed on the day the lock was generated and went
+# red on every upstream release. Bumps are deliberate; see the hints below.
+lockfile-check: ## Verify requirements.lock covers pyproject.toml (no re-resolve)
 	@echo "Checking requirements.lock..."
-	@cp $(BACKEND_DIR)/requirements.lock /tmp/lockfile-expected.lock
-	@cd $(BACKEND_DIR) && $(CURDIR)/$(VENV)/uv pip compile pyproject.toml \
-		-o /tmp/lockfile-expected.lock 2>/dev/null
-	@grep -v '^#' /tmp/lockfile-expected.lock > /tmp/lockfile-expected.txt
-	@grep -v '^#' $(BACKEND_DIR)/requirements.lock > /tmp/lockfile-current.txt
-	@if ! diff -q /tmp/lockfile-expected.txt /tmp/lockfile-current.txt >/dev/null 2>&1; then \
-		echo "ERROR: requirements.lock is out of date"; \
-		echo "Run: cd app/backend && uv pip compile pyproject.toml -o requirements.lock"; \
+	@cd $(BACKEND_DIR) && uv pip compile pyproject.toml \
+		--python-version 3.12 -c requirements.lock --no-annotate --no-header -q \
+		-o /tmp/lockfile-expected.txt
+	@grep -E '^[A-Za-z0-9._-]+==' $(BACKEND_DIR)/requirements.lock > /tmp/lockfile-current.txt
+	@if ! diff -q /tmp/lockfile-expected.txt /tmp/lockfile-current.txt >/dev/null; then \
+		echo "ERROR: requirements.lock does not cover pyproject.toml"; \
+		diff /tmp/lockfile-expected.txt /tmp/lockfile-current.txt || true; \
+		echo ""; \
+		echo "Targeted bump: cd app/backend && uv pip compile pyproject.toml --python-version 3.12 -o requirements.lock --upgrade-package <pkg>"; \
+		echo "Full upgrade:  cd app/backend && uv pip compile pyproject.toml --python-version 3.12 -o requirements.lock --upgrade   (then run pytest)"; \
 		exit 1; \
 	fi
-	@echo "requirements.lock is up to date."
+	@echo "requirements.lock is consistent with pyproject.toml."
 
 ##@ Production Build
 

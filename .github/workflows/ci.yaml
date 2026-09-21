@@ -25,7 +25,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: app/frontend/package-lock.json
 
@@ -50,21 +50,22 @@ jobs:
         run: cd app/backend && mypy src/
 
       - name: Backend dependency audit
-        run: pip install pip-audit && pip-audit --ignore-vuln CVE-2026-4539
+        run: pip install pip-audit && pip-audit
 
       - name: Install uv
         run: pip install uv
 
-      - name: Check requirements.lock freshness
+      - name: Check requirements.lock covers pyproject.toml
         run: |
           cd app/backend
-          cp requirements.lock /tmp/lockfile-expected.lock
-          uv pip compile pyproject.toml -o /tmp/lockfile-expected.lock 2>/dev/null
-          grep -v '^#' /tmp/lockfile-expected.lock > /tmp/expected.txt
-          grep -v '^#' requirements.lock > /tmp/current.txt
-          if ! diff -q /tmp/expected.txt /tmp/current.txt >/dev/null 2>&1; then
-            echo "::error::requirements.lock is out of date with pyproject.toml"
-            echo "Run: cd app/backend && uv pip compile pyproject.toml -o requirements.lock"
+          # Constrained by the lock, so this verifies coverage instead of
+          # re-resolving to the newest releases on every run.
+          uv pip compile pyproject.toml \
+            --python-version 3.12 -c requirements.lock --no-annotate --no-header -q \
+            -o /tmp/expected.txt
+          grep -E '^[A-Za-z0-9._-]+==' requirements.lock > /tmp/current.txt
+          if ! diff -q /tmp/expected.txt /tmp/current.txt >/dev/null; then
+            echo "::error::requirements.lock does not cover pyproject.toml"
             diff /tmp/expected.txt /tmp/current.txt || true
             exit 1
           fi
