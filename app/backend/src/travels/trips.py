@@ -171,8 +171,15 @@ def _update_visits_for_trip(db: Session, trip: Trip) -> None:
 def _recalculate_visit(db: Session, tcc_destination_id: int) -> None:
     """Find earliest trip visiting this destination and update Visit.
 
-    Only updates first_visit_date if trip date is earlier than existing.
-    Never clears existing dates (preserves check-in data).
+    A visit dated in the past is historical fact: it may have come from a check-in
+    rather than a trip, so it is never moved later and never deleted.
+
+    A visit dated in the future is only ever a plan — a check-in writes the current
+    trip's start date or today, never a future date — so it must track the trips that
+    justify it. If the last trip for the destination goes away, the row goes with it;
+    otherwise it follows that trip, including when the trip is pushed back. Without
+    this, a cancelled or re-routed trip leaves the destination counted as planned
+    forever, and a postponed one silently flips to "visited" on the original date.
     """
     earliest_trip = (
         db.query(Trip)
@@ -183,17 +190,24 @@ def _recalculate_visit(db: Session, tcc_destination_id: int) -> None:
     )
 
     visit = db.query(Visit).filter(Visit.tcc_destination_id == tcc_destination_id).first()
+    today = date.today()
 
     if earliest_trip:
         # Use end_date (trip completion) or start_date for single-day trips
         visit_date = earliest_trip.end_date or earliest_trip.start_date
         if visit:
-            # Only update if trip date is earlier (preserve check-in dates)
             if visit.first_visit_date is None or visit_date < visit.first_visit_date:
+                # Earlier trip found, or no date yet
+                visit.first_visit_date = visit_date
+            elif visit.first_visit_date > today:
+                # Planned visit with no check-in data to protect: follow the trip
                 visit.first_visit_date = visit_date
         else:
             db.add(Visit(tcc_destination_id=tcc_destination_id, first_visit_date=visit_date))
-    # If no trips, don't clear existing visit date (may have been set by check-in)
+    elif visit is not None and visit.first_visit_date is not None:
+        if visit.first_visit_date > today:
+            # No trip left to justify a planned visit
+            db.delete(visit)
 
 
 def _trip_to_data(trip: Trip, *, drone_flights_count: int = 0) -> TripData:

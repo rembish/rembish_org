@@ -1,12 +1,12 @@
 """Tests for trip management and country-info endpoints."""
 
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from src.models import TCCDestination, Trip, TripDestination, UNCountry
+from src.models import TCCDestination, Trip, TripDestination, UNCountry, Visit
 
 
 def _create_country(
@@ -101,6 +101,117 @@ def _create_trip(
     db.commit()
     db.refresh(trip)
     return trip
+
+
+# --- Planned-visit bookkeeping ---
+
+
+def _visit_for(db: Session, tcc: TCCDestination) -> Visit | None:
+    return db.query(Visit).filter(Visit.tcc_destination_id == tcc.id).first()
+
+
+def _seed_visit(db: Session, tcc: TCCDestination, when: date) -> None:
+    """Record the Visit a trip save would have produced (_create_trip bypasses that)."""
+    db.add(Visit(tcc_destination_id=tcc.id, first_visit_date=when))
+    db.commit()
+
+
+def test_dropping_a_planned_destination_removes_its_visit(
+    admin_client: TestClient, db_session: Session
+) -> None:
+    """A cancelled plan must stop counting towards planned countries."""
+    future = date.today() + timedelta(days=60)
+    dropped = _create_tcc(db_session, name="Dropped", tcc_index=9101)
+    kept = _create_tcc(db_session, name="Kept", tcc_index=9102)
+    trip = _create_trip(
+        db_session,
+        start=future.isoformat(),
+        end=(future + timedelta(days=5)).isoformat(),
+        destinations=[dropped, kept],
+    )
+    _seed_visit(db_session, dropped, future + timedelta(days=5))
+    _seed_visit(db_session, kept, future + timedelta(days=5))
+
+    response = admin_client.put(
+        f"/api/v1/travels/trips/{trip.id}",
+        json={"destinations": [{"tcc_destination_id": kept.id}]},
+    )
+    assert response.status_code == 200
+
+    db_session.expire_all()
+    assert _visit_for(db_session, dropped) is None
+    assert _visit_for(db_session, kept) is not None
+
+
+def test_deleting_a_planned_trip_removes_its_visits(
+    admin_client: TestClient, db_session: Session
+) -> None:
+    future = date.today() + timedelta(days=60)
+    tcc = _create_tcc(db_session, name="Planned", tcc_index=9103)
+    trip = _create_trip(
+        db_session,
+        start=future.isoformat(),
+        end=(future + timedelta(days=5)).isoformat(),
+        destinations=[tcc],
+    )
+    _seed_visit(db_session, tcc, future + timedelta(days=5))
+
+    assert admin_client.delete(f"/api/v1/travels/trips/{trip.id}").status_code == 200
+
+    db_session.expire_all()
+    assert _visit_for(db_session, tcc) is None
+
+
+def test_deleting_a_past_trip_keeps_its_visit(
+    admin_client: TestClient, db_session: Session
+) -> None:
+    """A past visit is historical fact and may have come from a check-in."""
+    past = date.today() - timedelta(days=60)
+    tcc = _create_tcc(db_session, name="Been There", tcc_index=9104)
+    trip = _create_trip(
+        db_session,
+        start=past.isoformat(),
+        end=(past + timedelta(days=5)).isoformat(),
+        destinations=[tcc],
+    )
+    _seed_visit(db_session, tcc, past + timedelta(days=5))
+
+    assert admin_client.delete(f"/api/v1/travels/trips/{trip.id}").status_code == 200
+
+    db_session.expire_all()
+    visit = _visit_for(db_session, tcc)
+    assert visit is not None
+    assert visit.first_visit_date == past + timedelta(days=5)
+
+
+def test_postponing_a_planned_trip_moves_its_visit(
+    admin_client: TestClient, db_session: Session
+) -> None:
+    """A planned visit follows its trip, so it cannot flip to visited on the old date."""
+    soon = date.today() + timedelta(days=30)
+    later = date.today() + timedelta(days=200)
+    tcc = _create_tcc(db_session, name="Postponed", tcc_index=9105)
+    trip = _create_trip(
+        db_session,
+        start=soon.isoformat(),
+        end=(soon + timedelta(days=5)).isoformat(),
+        destinations=[tcc],
+    )
+    _seed_visit(db_session, tcc, soon + timedelta(days=5))
+
+    response = admin_client.put(
+        f"/api/v1/travels/trips/{trip.id}",
+        json={
+            "start_date": later.isoformat(),
+            "end_date": (later + timedelta(days=5)).isoformat(),
+        },
+    )
+    assert response.status_code == 200
+
+    db_session.expire_all()
+    visit = _visit_for(db_session, tcc)
+    assert visit is not None
+    assert visit.first_visit_date == later + timedelta(days=5)
 
 
 # --- Trip CRUD tests ---
