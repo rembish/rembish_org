@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.47.11 (2026-09-21)
+
+- Fixed: a cancelled or re-routed trip no longer keeps counting towards planned countries — dropping a destination from a trip, or deleting the trip, now clears the planned visit it created
+- Fixed: postponing a planned trip moves the planned visit with it, instead of marking the destination visited on the trip's original date
+
 ## 0.47.10 (2026-09-21)
 
 - Security: updated every dependency carrying a published advisory — Pillow, cryptography, anyio, pyasn1, pydantic-settings on the backend; vite, react-router-dom, puppeteer and transitive packages on the frontend
