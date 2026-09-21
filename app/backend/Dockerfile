@@ -4,8 +4,11 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir uv
 
-COPY pyproject.toml .
-RUN uv pip install --system -e .
+# Install runtime deps from the lockfile so dev matches production
+# (Dockerfile.prod does the same). Installing from pyproject alone
+# re-resolves to the newest releases and drifts away from prod.
+COPY pyproject.toml requirements.lock ./
+RUN uv pip install --system -r requirements.lock
 
 COPY alembic.ini .
 COPY alembic/ ./alembic/

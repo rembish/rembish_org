@@ -36,7 +36,9 @@ Personal website and travel management platform.
 
 ## Development
 
-Prerequisites: Docker and Docker Compose.
+Prerequisites: Docker and Docker Compose. For the local toolchain (`make check`, `pytest`),
+also [uv](https://docs.astral.sh/uv/) — `make venv` uses it to pin the virtualenv to
+Python 3.12, matching CI, the dev container and production.
 
 ```bash
 # Start dev environment

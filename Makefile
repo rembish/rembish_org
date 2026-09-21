@@ -22,9 +22,13 @@ help: ## Show this help message
 		/^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2 } \
 		/^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
 
-venv: ## Create .venv and install backend dependencies
-	python3 -m venv .venv
-	$(VENV)/pip install -e "$(BACKEND_DIR)[dev]"
+# Pinned to 3.12: CI, the dev container and Dockerfile.prod all run 3.12, and the
+# coverage gate reports different totals on 3.12 vs 3.14. Bare `python3` follows
+# whatever the host happens to have. Requires uv (https://docs.astral.sh/uv/).
+venv: ## Create .venv on Python 3.12 (matching CI and production) and install backend deps
+	uv venv --python 3.12 .venv
+	uv pip install --python .venv/bin/python -e "$(BACKEND_DIR)[dev]" \
+		-c $(BACKEND_DIR)/requirements.lock
 
 install: venv frontend-install ## Install all dependencies (backend + frontend)
 
