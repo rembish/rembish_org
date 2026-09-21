@@ -331,6 +331,9 @@ export default function Travels() {
     x: number;
     y: number;
   } | null>(null);
+  // react-simple-maps v5 dropped the style={{ default, hover, pressed }} API,
+  // so the hover highlight is tracked here instead.
+  const [hoveredGeoKey, setHoveredGeoKey] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [showOnlyVisited, setShowOnlyVisited] = useState(() => {
     const stored = localStorage.getItem("travels-show-only-visited");
@@ -771,18 +774,18 @@ export default function Travels() {
                     <Geography
                       key={geo.rsmKey}
                       geography={geo}
-                      fill={fillColor}
+                      fill={
+                        hoveredGeoKey === geo.rsmKey
+                          ? isHighlighted
+                            ? "#e0c080"
+                            : "#d0d4d9"
+                          : fillColor
+                      }
                       stroke="#ffffff"
                       strokeWidth={0.5}
-                      style={{
-                        default: { outline: "none", cursor: "pointer" },
-                        hover: {
-                          outline: "none",
-                          fill: isHighlighted ? "#e0c080" : "#d0d4d9",
-                        },
-                        pressed: { outline: "none" },
-                      }}
+                      style={{ outline: "none", cursor: "pointer" }}
                       onMouseEnter={(e) => {
+                        setHoveredGeoKey(geo.rsmKey);
                         setTooltip({
                           name: countryName,
                           visitCount: isHighlighted ? visitCount : undefined,
@@ -790,7 +793,10 @@ export default function Travels() {
                           y: e.clientY,
                         });
                       }}
-                      onMouseLeave={() => setTooltip(null)}
+                      onMouseLeave={() => {
+                        setHoveredGeoKey(null);
+                        setTooltip(null);
+                      }}
                       onMouseMove={(e) => {
                         if (tooltip)
                           setTooltip({

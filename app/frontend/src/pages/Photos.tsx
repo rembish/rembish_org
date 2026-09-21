@@ -256,6 +256,9 @@ export default function Photos() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  // react-simple-maps v5 dropped the style={{ default, hover, pressed }} API,
+  // so the hover highlight is tracked here instead.
+  const [hoveredGeoId, setHoveredGeoId] = useState<string | null>(null);
   const [lightboxPhotos, setLightboxPhotos] = useState<PhotoData[]>([]);
   const [showHidden, setShowHidden] = useState(() => {
     return localStorage.getItem("photos-show-hidden") === "true";
@@ -999,10 +1002,22 @@ export default function Photos() {
                               fill={
                                 hasPhotos
                                   ? `url(#photo-fill-${geoId})`
-                                  : "#e6e9ec"
+                                  : hoveredGeoId === geoId
+                                    ? "#d0d4d9"
+                                    : "#e6e9ec"
                               }
-                              stroke={hasPhotos ? "#ffffff" : "#ffffff"}
-                              strokeWidth={hasPhotos ? 0.8 : 0.5}
+                              stroke={
+                                hasPhotos && hoveredGeoId === geoId
+                                  ? "#fbbf24"
+                                  : "#ffffff"
+                              }
+                              strokeWidth={
+                                hasPhotos
+                                  ? hoveredGeoId === geoId
+                                    ? 1.5
+                                    : 0.8
+                                  : 0.5
+                              }
                               onClick={
                                 hasPhotos
                                   ? () =>
@@ -1011,21 +1026,11 @@ export default function Photos() {
                                       )
                                   : undefined
                               }
+                              onMouseEnter={() => setHoveredGeoId(geoId)}
+                              onMouseLeave={() => setHoveredGeoId(null)}
                               style={{
-                                default: {
-                                  outline: "none",
-                                  cursor: hasPhotos ? "pointer" : "default",
-                                },
-                                hover: {
-                                  outline: "none",
-                                  fill: hasPhotos
-                                    ? `url(#photo-fill-${geoId})`
-                                    : "#d0d4d9",
-                                  stroke: hasPhotos ? "#fbbf24" : "#ffffff",
-                                  strokeWidth: hasPhotos ? 1.5 : 0.5,
-                                  cursor: hasPhotos ? "pointer" : "default",
-                                },
-                                pressed: { outline: "none" },
+                                outline: "none",
+                                cursor: hasPhotos ? "pointer" : "default",
                               }}
                             />
                           );
@@ -1047,14 +1052,7 @@ export default function Photos() {
                                   )
                               : undefined
                           }
-                          style={
-                            hasPhotos
-                              ? {
-                                  default: { cursor: "pointer" },
-                                  hover: { cursor: "pointer" },
-                                }
-                              : undefined
-                          }
+                          style={hasPhotos ? { cursor: "pointer" } : undefined}
                         >
                           <circle
                             r={1.5}
