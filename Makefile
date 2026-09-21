@@ -26,7 +26,7 @@ help: ## Show this help message
 # coverage gate reports different totals on 3.12 vs 3.14. Bare `python3` follows
 # whatever the host happens to have. Requires uv (https://docs.astral.sh/uv/).
 venv: ## Create .venv on Python 3.12 (matching CI and production) and install backend deps
-	uv venv --python 3.12 .venv
+	uv venv --python 3.12 --clear .venv
 	uv pip install --python .venv/bin/python -e "$(BACKEND_DIR)[dev]" \
 		-c $(BACKEND_DIR)/requirements.lock
 
