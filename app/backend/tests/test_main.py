@@ -5,7 +5,9 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
+from starlette.middleware.sessions import SessionMiddleware
 
+from src.config import settings
 from src.database import get_db
 from src.main import app
 
@@ -21,6 +23,19 @@ def bare_client(db_session: Session) -> Generator[TestClient, None, None]:
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
+
+
+# ---------------------------------------------------------------------------
+# Session cookie
+# ---------------------------------------------------------------------------
+
+
+def test_session_cookie_is_short_lived_and_scheme_aware() -> None:
+    """The OAuth-state cookie must not inherit Starlette's 14-day, non-Secure default."""
+    session_mw = next(m for m in app.user_middleware if m.cls is SessionMiddleware)
+
+    assert session_mw.kwargs["max_age"] == 600
+    assert session_mw.kwargs["https_only"] is (settings.env == "production")
 
 
 # ---------------------------------------------------------------------------

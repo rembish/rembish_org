@@ -33,8 +33,15 @@ app = FastAPI(
     openapi_url="/openapi.json" if settings.debug else None,
 )
 
-# Session middleware for OAuth state
-app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
+# Session middleware for OAuth state. Nothing else stores anything in the session,
+# so the cookie only needs to outlive a redirect to Google and back; the Starlette
+# default is 14 days and is not Secure-flagged.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.secret_key,
+    https_only=settings.env == "production",
+    max_age=600,
+)
 
 app.add_middleware(
     CORSMiddleware,
