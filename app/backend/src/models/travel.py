@@ -97,6 +97,18 @@ class TCCDestination(Base):
     # ISO code override (Kosovo=XK, Vatican=VA, England=gb-eng, etc.)
     iso_alpha2: Mapped[str | None] = mapped_column(String(10), nullable=True)
 
+    # Country-info overrides for dependencies whose reality differs from their
+    # sovereign's: the US Virgin Islands drive on the left, Hong Kong uses Type D/G
+    # sockets, Reunion has its own timezone and weather. NULL means "inherit from
+    # un_country". lat/lng are the point used for weather and sunrise, not a capital.
+    socket_types: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    voltage: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    driving_side: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    tap_water: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    timezone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lng: Mapped[float | None] = mapped_column(Float, nullable=True)
+
     visit: Mapped["Visit | None"] = relationship(back_populates="tcc_destination")
     trip_destinations: Mapped[list["TripDestination"]] = relationship(
         back_populates="tcc_destination"

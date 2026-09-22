@@ -2823,6 +2823,18 @@ a {
   }
 }
 
+/* Marks a dependency's card: the fields it does not set itself come from its
+   sovereign, so the values are approximate. */
+.country-inherited {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  background: #f3f4f6;
+  border-radius: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  white-space: nowrap;
+}
+
 .country-tcc-tags {
   display: flex;
   flex-wrap: wrap;

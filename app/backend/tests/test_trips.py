@@ -574,6 +574,153 @@ def test_country_info_destination_without_sovereign_stays_minimal(
     assert card["socket_types"] is None
 
 
+@patch(
+    "src.travels.trips_country_info._fetch_currency_rates",
+    return_value={"EUR": 1.0, "CZK": 25.5, "USD": 1.08},
+)
+@patch(
+    "src.travels.trips_country_info._fetch_weather",
+    return_value={
+        "avg_temp_c": 15.0,
+        "min_temp_c": 8.0,
+        "max_temp_c": 22.0,
+        "avg_precipitation_mm": 2.5,
+        "rainy_days": 7,
+    },
+)
+@patch("src.travels.trips_country_info._fetch_sunrise_sunset", return_value=None)
+@patch("src.travels.trips_country_info._fetch_holidays_for_country", return_value=[])
+def test_country_info_territory_overrides_split_into_own_card(
+    _mock_holidays: object,
+    _mock_sunrise: object,
+    _mock_weather: object,
+    _mock_currency: object,
+    admin_client: TestClient,
+    db_session: Session,
+) -> None:
+    """A territory that contradicts its sovereign gets its own card, flagged."""
+    uk = _create_country(
+        db_session,
+        name="United Kingdom",
+        iso2="GB",
+        iso3="GBR",
+        iso_num="826",
+        socket_types="G",
+        driving_side="left",
+    )
+    london = _create_tcc(db_session, name="United Kingdom", tcc_index=9301, un_country=uk)
+    # Cayman drives on the left like the UK but runs 120V on Type A/B.
+    cayman = _create_tcc(db_session, name="Cayman Islands", tcc_index=9302, un_country=uk)
+    cayman.socket_types = "A,B"
+    cayman.voltage = "120V 60Hz"
+    db_session.commit()
+    trip = _create_trip(db_session, destinations=[london, cayman])
+
+    response = admin_client.get(f"/api/v1/travels/trips/{trip.id}/country-info")
+    assert response.status_code == 200
+    cards = {c["country_name"]: c for c in response.json()["countries"]}
+
+    assert set(cards) == {"United Kingdom", "Cayman Islands"}
+    assert cards["United Kingdom"]["inherited_from"] is None
+    assert cards["United Kingdom"]["socket_types"] == "G"
+
+    cayman_card = cards["Cayman Islands"]
+    assert cayman_card["inherited_from"] == "United Kingdom"
+    assert cayman_card["socket_types"] == "A,B"
+    # Not overridden, so it falls through to the sovereign.
+    assert cayman_card["driving_side"] == "left"
+
+
+@patch(
+    "src.travels.trips_country_info._fetch_currency_rates",
+    return_value={"EUR": 1.0, "CZK": 25.5, "USD": 1.08},
+)
+@patch(
+    "src.travels.trips_country_info._fetch_weather",
+    return_value={
+        "avg_temp_c": 15.0,
+        "min_temp_c": 8.0,
+        "max_temp_c": 22.0,
+        "avg_precipitation_mm": 2.5,
+        "rainy_days": 7,
+    },
+)
+@patch("src.travels.trips_country_info._fetch_sunrise_sunset", return_value=None)
+@patch("src.travels.trips_country_info._fetch_holidays_for_country", return_value=[])
+def test_country_info_territory_without_overrides_shares_the_card(
+    _mock_holidays: object,
+    _mock_sunrise: object,
+    _mock_weather: object,
+    _mock_currency: object,
+    admin_client: TestClient,
+    db_session: Session,
+) -> None:
+    """Ceuta/Melilla really is Spain, so it stays on Spain's card unflagged."""
+    spain = _create_country(db_session, name="Spain", iso2="ES", iso3="ESP", iso_num="724")
+    mainland = _create_tcc(db_session, name="Spain", tcc_index=9303, un_country=spain)
+    ceuta = _create_tcc(db_session, name="Ceuta, Melilla", tcc_index=9304, un_country=spain)
+    trip = _create_trip(db_session, destinations=[mainland, ceuta])
+
+    response = admin_client.get(f"/api/v1/travels/trips/{trip.id}/country-info")
+    cards = response.json()["countries"]
+
+    assert len(cards) == 1
+    assert cards[0]["country_name"] == "Spain"
+    assert cards[0]["inherited_from"] is None
+    assert sorted(d["name"] for d in cards[0]["tcc_destinations"]) == ["Ceuta, Melilla", "Spain"]
+
+
+@patch(
+    "src.travels.trips_country_info._fetch_currency_rates",
+    return_value={"EUR": 1.0, "CZK": 25.5, "USD": 1.08},
+)
+@patch(
+    "src.travels.trips_country_info._fetch_weather",
+    return_value={
+        "avg_temp_c": 15.0,
+        "min_temp_c": 8.0,
+        "max_temp_c": 22.0,
+        "avg_precipitation_mm": 2.5,
+        "rainy_days": 7,
+    },
+)
+@patch("src.travels.trips_country_info._fetch_sunrise_sunset", return_value=None)
+@patch("src.travels.trips_country_info._fetch_holidays_for_country", return_value=[])
+def test_country_info_territory_uses_its_own_coordinates(
+    _mock_holidays: object,
+    _mock_sunrise: object,
+    _mock_weather: object,
+    _mock_currency: object,
+    admin_client: TestClient,
+    db_session: Session,
+) -> None:
+    """Weather and sunrise must come from the territory, not the sovereign's capital."""
+    france = _create_country(
+        db_session,
+        name="France",
+        iso2="FR",
+        iso3="FRA",
+        iso_num="250",
+        capital_lat=48.86,
+        capital_lng=2.35,
+    )
+    reunion = _create_tcc(db_session, name="Reunion", tcc_index=9305, un_country=france)
+    reunion.lat = -20.88
+    reunion.lng = 55.45
+    db_session.commit()
+    trip = _create_trip(db_session, destinations=[reunion])
+
+    response = admin_client.get(f"/api/v1/travels/trips/{trip.id}/country-info")
+    assert response.status_code == 200
+    card = response.json()["countries"][0]
+    assert card["country_name"] == "Reunion"
+    assert card["inherited_from"] == "France"
+
+    # _fetch_weather is patched, so assert on the coordinates it was handed.
+    lat, lng = _mock_weather.call_args[0][0], _mock_weather.call_args[0][1]
+    assert (lat, lng) == (-20.88, 55.45)
+
+
 def test_country_info_trip_not_found(admin_client: TestClient) -> None:
     response = admin_client.get("/api/v1/travels/trips/99999/country-info")
     assert response.status_code == 404

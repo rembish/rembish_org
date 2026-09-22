@@ -185,6 +185,8 @@ export function tapWaterLabel(value: string): {
   switch (value) {
     case "safe":
       return { text: "Safe", className: "tap-safe" };
+    case "generally_safe":
+      return { text: "Generally safe", className: "tap-caution" };
     case "caution":
       return { text: "Caution", className: "tap-caution" };
     case "unsafe":

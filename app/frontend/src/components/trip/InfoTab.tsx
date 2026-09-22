@@ -75,6 +75,14 @@ export default function InfoTab({ tripId, readOnly }: InfoTabProps) {
       <div className="country-info-header">
         <Flag code={country.iso_alpha2} size={24} />
         <h3>{country.country_name}</h3>
+        {country.inherited_from && (
+          <span
+            className="country-inherited"
+            title={`Only the values this territory sets itself are its own; the rest come from ${country.inherited_from}.`}
+          >
+            inherited from {country.inherited_from}
+          </span>
+        )}
       </div>
 
       {country.tcc_destinations.length > 0 && (
@@ -687,7 +695,7 @@ export default function InfoTab({ tripId, readOnly }: InfoTabProps) {
       <div className="country-flag-tabs">
         {countryInfo.map((c, i) => (
           <button
-            key={c.iso_alpha2 || c.country_name}
+            key={`${c.iso_alpha2}-${c.country_name}`}
             className={`country-flag-tab ${i === safeIndex ? "active" : ""}`}
             onClick={() => setSelectedInfoCountry(i)}
             title={c.country_name}

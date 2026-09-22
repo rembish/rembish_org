@@ -1,9 +1,10 @@
 import calendar
 import json
 import logging
+from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any, cast
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -304,6 +305,123 @@ def get_trip_vaccination_needs(
     return needs
 
 
+_OVERRIDE_FIELDS = (
+    "socket_types",
+    "voltage",
+    "driving_side",
+    "tap_water",
+    "timezone",
+    "lat",
+    "lng",
+)
+
+
+def _has_overrides(tcc: TCCDestination) -> bool:
+    """True if this destination contradicts its sovereign on anything."""
+    return any(getattr(tcc, field) is not None for field in _OVERRIDE_FIELDS)
+
+
+@dataclass(frozen=True)
+class _CardSource:
+    """Effective country-info values behind one Info-tab card.
+
+    Either a UN country on its own, or a dependency that overrides some of its
+    sovereign's values — Hong Kong's Type D/G sockets, Reunion's timezone and
+    weather. Anything the territory leaves NULL falls through to the sovereign,
+    which is what `inherited_from` exists to warn the reader about.
+    """
+
+    un_country: UNCountry
+    territory: TCCDestination | None = None
+
+    @property
+    def name(self) -> str:
+        return self.territory.name if self.territory else self.un_country.name
+
+    @property
+    def iso_alpha2(self) -> str:
+        # Always the sovereign's: health requirements, advisories, drone rules,
+        # fixers and travel documents are all keyed by UN country code.
+        return self.un_country.iso_alpha2
+
+    @property
+    def inherited_from(self) -> str | None:
+        return self.un_country.name if self.territory else None
+
+    def _pick(self, field: str) -> Any:
+        if self.territory is not None:
+            value = getattr(self.territory, field, None)
+            if value is not None:
+                return value
+        return getattr(self.un_country, field)
+
+    @property
+    def socket_types(self) -> str | None:
+        return cast("str | None", self._pick("socket_types"))
+
+    @property
+    def voltage(self) -> str | None:
+        return cast("str | None", self._pick("voltage"))
+
+    @property
+    def driving_side(self) -> str | None:
+        return cast("str | None", self._pick("driving_side"))
+
+    @property
+    def tap_water(self) -> str | None:
+        return cast("str | None", self._pick("tap_water"))
+
+    @property
+    def timezone(self) -> str | None:
+        return cast("str | None", self._pick("timezone"))
+
+    @property
+    def phone_code(self) -> str | None:
+        return self.un_country.phone_code
+
+    @property
+    def emergency_number(self) -> str | None:
+        return self.un_country.emergency_number
+
+    @property
+    def currency_code(self) -> str | None:
+        # No per-territory source yet, so Aruba still shows the euro. See the
+        # note in migration 072.
+        return self.un_country.currency_code
+
+    @property
+    def languages(self) -> str | None:
+        return self.un_country.languages
+
+    @property
+    def tipping(self) -> str | None:
+        return self.un_country.tipping
+
+    @property
+    def speed_limits(self) -> str | None:
+        return self.un_country.speed_limits
+
+    @property
+    def visa_free_days(self) -> int | None:
+        return self.un_country.visa_free_days
+
+    @property
+    def eu_roaming(self) -> bool | None:
+        return self.un_country.eu_roaming
+
+    @property
+    def lat(self) -> float | None:
+        if self.territory is not None and self.territory.lat is not None:
+            return self.territory.lat
+        return self.un_country.capital_lat
+
+    @property
+    def lng(self) -> float | None:
+        if self.territory is not None and self.territory.lng is not None:
+            return self.territory.lng
+        return self.un_country.capital_lng
+
+
 @router.get("/trips/{trip_id}/country-info", response_model=TripCountryInfoResponse)
 def get_trip_country_info(
     trip_id: int,
@@ -391,15 +509,24 @@ def get_trip_country_info(
             cc = fc.country_code.upper()
             trip_fixers.setdefault(cc, []).append((fixer, False))
 
-    # Group TCC destinations by UN country
-    # Key: un_country_id (or negative tcc_id for orphans)
-    grouped: dict[int, tuple[UNCountry | None, list[tuple[str, bool]]]] = {}
+    # One card per UN country — except that a territory contradicting its sovereign
+    # gets its own, since it cannot share a card whose sockets, driving side or
+    # timezone say something different. Destinations with no UN country behind them
+    # (Kosovo, Taiwan) keep a card of their own with nothing to show.
+    grouped: dict[tuple[str, int], tuple[_CardSource | None, list[tuple[str, bool]]]] = {}
     for td in trip.destinations:
         tcc = td.tcc_destination
         un = tcc.un_country
-        key = un.id if un else -tcc.id
+        key: tuple[str, int]
+        source: _CardSource | None
+        if un is None:
+            key, source = ("orphan", tcc.id), None
+        elif _has_overrides(tcc):
+            key, source = ("territory", tcc.id), _CardSource(un, tcc)
+        else:
+            key, source = ("country", un.id), _CardSource(un)
         if key not in grouped:
-            grouped[key] = (un, [])
+            grouped[key] = (source, [])
         grouped[key][1].append((tcc.name, td.is_partial))
 
     trip_start = trip.start_date
@@ -409,28 +536,28 @@ def get_trip_country_info(
     trip_month = mid_trip.month
 
     countries: list[CountryInfoData] = []
-    for _key, (un_country, tcc_dests) in sorted(
+    for _key, (source, tcc_dests) in sorted(
         grouped.items(),
         key=lambda x: x[1][0].name if x[1][0] else x[1][1][0][0],
     ):
-        if un_country:
-            country_name = un_country.name
-            iso = un_country.iso_alpha2
+        if source:
+            country_name = source.name
+            iso = source.iso_alpha2
 
             # Currency
             currency = None
-            if un_country.currency_code:
-                rates = _fetch_currency_rates(un_country.currency_code)
+            if source.currency_code:
+                rates = _fetch_currency_rates(source.currency_code)
                 currency = CurrencyInfo(
-                    code=un_country.currency_code,
-                    name=_get_currency_name(un_country.currency_code),
+                    code=source.currency_code,
+                    name=_get_currency_name(source.currency_code),
                     rates=rates,
                 )
 
             # Weather
             weather = None
-            if un_country.capital_lat is not None and un_country.capital_lng is not None:
-                w = _fetch_weather(un_country.capital_lat, un_country.capital_lng, trip_month)
+            if source.lat is not None and source.lng is not None:
+                w = _fetch_weather(source.lat, source.lng, trip_month)
                 rainy_days_val = w.get("rainy_days")
                 weather = WeatherInfo(
                     avg_temp_c=w.get("avg_temp_c"),
@@ -443,18 +570,18 @@ def get_trip_country_info(
 
             # Timezone
             tz_offset = None
-            if un_country.timezone:
-                tz_offset = _compute_timezone_offset(un_country.timezone, trip_start)
+            if source.timezone:
+                tz_offset = _compute_timezone_offset(source.timezone, trip_start)
 
             # Holidays
             holidays = _fetch_holidays_for_country(iso, trip_start, trip_end)
 
             # Sunrise/sunset for mid-trip date
             sunrise_sunset = None
-            if un_country.capital_lat is not None and un_country.capital_lng is not None:
+            if source.lat is not None and source.lng is not None:
                 sunrise_sunset = _fetch_sunrise_sunset(
-                    un_country.capital_lat,
-                    un_country.capital_lng,
+                    source.lat,
+                    source.lng,
                     mid_trip,
                     tz_offset,
                 )
@@ -463,25 +590,26 @@ def get_trip_country_info(
                 CountryInfoData(
                     country_name=country_name,
                     iso_alpha2=iso,
+                    inherited_from=source.inherited_from,
                     tcc_destinations=[
                         CountryInfoTCCDestination(name=n, is_partial=p) for n, p in tcc_dests
                     ],
-                    socket_types=un_country.socket_types,
-                    voltage=un_country.voltage,
-                    phone_code=un_country.phone_code,
-                    driving_side=un_country.driving_side,
-                    emergency_number=un_country.emergency_number,
-                    tap_water=un_country.tap_water,
+                    socket_types=source.socket_types,
+                    voltage=source.voltage,
+                    phone_code=source.phone_code,
+                    driving_side=source.driving_side,
+                    emergency_number=source.emergency_number,
+                    tap_water=source.tap_water,
                     currency=currency,
                     weather=weather,
                     timezone_offset_hours=tz_offset,
                     holidays=holidays,
-                    languages=un_country.languages,
-                    tipping=un_country.tipping,
-                    speed_limits=un_country.speed_limits,
-                    visa_free_days=un_country.visa_free_days,
-                    eu_roaming=un_country.eu_roaming,
-                    adapter_needed=_needs_adapter(un_country.socket_types),
+                    languages=source.languages,
+                    tipping=source.tipping,
+                    speed_limits=source.speed_limits,
+                    visa_free_days=source.visa_free_days,
+                    eu_roaming=source.eu_roaming,
+                    adapter_needed=_needs_adapter(source.socket_types),
                     sunrise_sunset=sunrise_sunset,
                     health=_get_health_requirements(iso, user_vax_names),
                     drone_rules=_get_drone_rules(iso),
@@ -525,6 +653,7 @@ def get_trip_country_info(
                 CountryInfoData(
                     country_name=name,
                     iso_alpha2="",
+                    inherited_from=None,
                     tcc_destinations=[
                         CountryInfoTCCDestination(name=n, is_partial=p) for n, p in tcc_dests
                     ],

@@ -179,6 +179,9 @@ export interface TripFixerInfo {
 export interface CountryInfoData {
   country_name: string;
   iso_alpha2: string;
+  // Set when the card is a dependency: fields it does not override come
+  // from this country, so the values are approximate.
+  inherited_from: string | null;
   tcc_destinations: CountryInfoTCCDest[];
   socket_types: string | null;
   voltage: string | null;

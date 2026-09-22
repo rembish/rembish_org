@@ -356,6 +356,9 @@ class TripFixerInfo(BaseModel):
 class CountryInfoData(BaseModel):
     country_name: str
     iso_alpha2: str
+    # Set when the card is titled with a dependency: the fields it does not
+    # override come from this UN country, so the values are approximate.
+    inherited_from: str | None = None
     tcc_destinations: list[CountryInfoTCCDestination]
     socket_types: str | None
     voltage: str | None
