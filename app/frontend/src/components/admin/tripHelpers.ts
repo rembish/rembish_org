@@ -1,14 +1,6 @@
 import type { Trip, Holiday, TCCDestinationOption } from "./types";
 
 // Check if trip overlaps with a given year (for NY trips spanning Dec-Jan)
-export function countryFlag(iso: string): string {
-  return iso
-    .toUpperCase()
-    .split("")
-    .map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
-    .join("");
-}
-
 export function tripOverlapsYear(trip: Trip, year: number): boolean {
   const startYear = new Date(trip.start_date).getFullYear();
   const endYear = trip.end_date

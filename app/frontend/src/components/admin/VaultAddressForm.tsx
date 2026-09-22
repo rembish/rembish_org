@@ -1,18 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { VaultAddress, VaultUser } from "./types";
+import Flag from "../Flag";
 
 interface AddressSearchResult {
   display_name: string;
   country_code: string | null;
-}
-
-function countryFlag(code: string): string {
-  return String.fromCodePoint(
-    ...code
-      .toUpperCase()
-      .split("")
-      .map((c) => 0x1f1e6 - 65 + c.charCodeAt(0)),
-  );
 }
 
 export default function AddressFormModal({
@@ -192,7 +184,7 @@ export default function AddressFormModal({
                   >
                     {r.country_code && (
                       <span className="address-search-flag">
-                        {countryFlag(r.country_code)}
+                        <Flag code={r.country_code} />
                       </span>
                     )}
                     <span className="address-search-name">

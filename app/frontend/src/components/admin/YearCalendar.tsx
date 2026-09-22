@@ -6,7 +6,7 @@ import type {
   PersonalEvent,
   TCCDestinationOption,
 } from "./types";
-import { countryFlag } from "./tripHelpers";
+import Flag from "../Flag";
 
 interface YearCalendarViewProps {
   year: number;
@@ -281,7 +281,9 @@ export default function YearCalendarView({
           {hasTripOnHoliday && <BiParty className="day-icon day-icon-right" />}
           {foreignCountries && foreignCountries.length > 0 ? (
             <span className="day-icon day-icon-bottom">
-              {foreignCountries.map((cc) => countryFlag(cc)).join("")}
+              {foreignCountries.map((cc) => (
+                <Flag key={cc} code={cc} size={12} title={cc} />
+              ))}
             </span>
           ) : trip && flightDates.has(dateStr) ? (
             <BiPaperPlane className="day-icon day-icon-bottom" />

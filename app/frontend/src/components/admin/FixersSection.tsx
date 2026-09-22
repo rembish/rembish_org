@@ -12,6 +12,7 @@ import {
   FIXER_RATING_LABELS,
   FIXER_TYPE_LABELS,
 } from "./types";
+import Flag from "../Flag";
 
 const LINK_ICONS: Record<string, React.ReactNode> = {
   website: <FaGlobe />,
@@ -23,15 +24,6 @@ const LINK_ICONS: Record<string, React.ReactNode> = {
   nomadmania: "NM",
   other: <BiLink />,
 };
-
-function countryFlag(code: string): string {
-  return String.fromCodePoint(
-    ...code
-      .toUpperCase()
-      .split("")
-      .map((c) => 0x1f1e6 - 65 + c.charCodeAt(0)),
-  );
-}
 
 function whatsappUrl(num: string): string {
   return `https://wa.me/${num.replace(/[^0-9]/g, "")}`;
@@ -93,7 +85,7 @@ export default function FixersSection({
               </span>
               {f.country_codes.map((cc) => (
                 <span key={cc} className="fixer-card-type" title={cc}>
-                  {countryFlag(cc)}
+                  <Flag code={cc} />
                 </span>
               ))}
             </div>

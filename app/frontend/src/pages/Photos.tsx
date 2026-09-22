@@ -26,6 +26,7 @@ import {
 } from "react-simple-maps";
 import { useAuth } from "../hooks/useAuth";
 import { apiFetch } from "../lib/api";
+import Flag from "../components/Flag";
 
 const geoUrl = "/world-110m.json";
 
@@ -219,13 +220,6 @@ function isTripCurrent(startDate: string, endDate: string | null): boolean {
 }
 
 /** Get flag emoji from ISO alpha2 code */
-function countryFlag(iso: string): string {
-  return iso
-    .toUpperCase()
-    .split("")
-    .map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
-    .join("");
-}
 
 export default function Photos() {
   const { param, countryId: countryIdParam } = useParams<{
@@ -826,7 +820,8 @@ export default function Photos() {
               </button>
             </div>
             <h2 className="photo-country-header">
-              {countryFlag(countryData.iso_alpha2)} {countryData.country_name}
+              <Flag code={countryData.iso_alpha2} size={22} />{" "}
+              {countryData.country_name}
             </h2>
             <p className="photos-trip-dates">
               {countryData.photo_count} photos from {countryData.trips.length}{" "}
@@ -1086,7 +1081,7 @@ export default function Photos() {
                   }
                 >
                   <span className="photo-map-legend-flag">
-                    {countryFlag(country.iso_alpha2)}
+                    <Flag code={country.iso_alpha2} />
                   </span>
                   <span className="photo-map-legend-name">
                     {country.country_name}

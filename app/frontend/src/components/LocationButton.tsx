@@ -3,6 +3,7 @@ import { BiCurrentLocation } from "react-icons/bi";
 import { useAuth } from "../hooks/useAuth";
 import { apiFetch } from "../lib/api";
 import LocationModal from "./LocationModal";
+import Flag from "./Flag";
 
 interface CurrentLocation {
   city_id: number;
@@ -14,15 +15,6 @@ interface CurrentLocation {
   recorded_at: string;
   admin_nickname: string | null;
   admin_picture: string | null;
-}
-
-function countryCodeToFlag(code: string | null): string {
-  if (!code || code.length !== 2) return "";
-  const codePoints = code
-    .toUpperCase()
-    .split("")
-    .map((char) => 0x1f1e6 - 65 + char.charCodeAt(0));
-  return String.fromCodePoint(...codePoints);
 }
 
 function formatDate(isoDate: string): string {
@@ -86,7 +78,7 @@ export default function LocationButton() {
           {!loadingLocation && currentLocation && (
             <span className="location-fab-badge">
               {currentLocation.city_name}{" "}
-              {countryCodeToFlag(currentLocation.country_code)}
+              <Flag code={currentLocation.country_code} size={14} />
             </span>
           )}
         </button>
@@ -103,7 +95,6 @@ export default function LocationButton() {
   // Non-admin view: avatar with location text
   if (!currentLocation || loadingLocation) return null;
 
-  const flag = countryCodeToFlag(currentLocation.country_code);
   const hoverText = `${currentLocation.admin_nickname || "Admin"} has been seen in ${currentLocation.city_name} on ${formatDate(currentLocation.recorded_at)}`;
 
   return (
@@ -116,7 +107,8 @@ export default function LocationButton() {
         />
       )}
       <span className="location-widget-text">
-        in {currentLocation.city_name} {flag}
+        in {currentLocation.city_name}{" "}
+        <Flag code={currentLocation.country_code} size={14} />
       </span>
     </div>
   );

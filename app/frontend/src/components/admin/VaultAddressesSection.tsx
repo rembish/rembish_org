@@ -1,5 +1,6 @@
 import { BiEnvelope, BiNote, BiPencil, BiPlus, BiTrash } from "react-icons/bi";
 import type { VaultAddress } from "./types";
+import Flag from "../Flag";
 
 interface Props {
   addresses: VaultAddress[];
@@ -7,15 +8,6 @@ interface Props {
   onEditAddress: (addr: VaultAddress) => void;
   onAddAddress: () => void;
   onDeleteAddress: (id: number) => void;
-}
-
-function countryFlag(code: string): string {
-  return String.fromCodePoint(
-    ...code
-      .toUpperCase()
-      .split("")
-      .map((c) => 0x1f1e6 - 65 + c.charCodeAt(0)),
-  );
 }
 
 export default function VaultAddressesSection({
@@ -48,7 +40,7 @@ export default function VaultAddressesSection({
               <div className="vault-card-label">
                 {addr.country_code && (
                   <span title={addr.country_code}>
-                    {countryFlag(addr.country_code)}{" "}
+                    <Flag code={addr.country_code} />{" "}
                   </span>
                 )}
                 {addr.name}

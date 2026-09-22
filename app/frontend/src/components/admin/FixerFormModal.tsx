@@ -12,15 +12,7 @@ import {
   FIXER_RATING_LABELS,
   FIXER_TYPE_LABELS,
 } from "./types";
-
-function countryFlag(code: string): string {
-  return String.fromCodePoint(
-    ...code
-      .toUpperCase()
-      .split("")
-      .map((c) => 0x1f1e6 - 65 + c.charCodeAt(0)),
-  );
-}
+import Flag from "../Flag";
 
 interface CountryOption {
   code: string;
@@ -288,7 +280,7 @@ export default function FixerFormModal({
                       className="fixer-country-dropdown-item"
                       onClick={() => addCountry(c.code)}
                     >
-                      {countryFlag(c.code)} {c.name} ({c.code})
+                      <Flag code={c.code} /> {c.name} ({c.code})
                     </div>
                   ))}
                 </div>
@@ -300,7 +292,7 @@ export default function FixerFormModal({
                   const opt = countryOptions.find((c) => c.code === cc);
                   return (
                     <span key={cc} className="fixer-country-tag">
-                      {countryFlag(cc)} {cc}
+                      <Flag code={cc} /> {cc}
                       {opt && (
                         <span className="fixer-country-tag-name">
                           {opt.name}
