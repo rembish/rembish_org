@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.48.2 (2026-09-22)
+
+- Fixed: clicking Memes quickly after opening Media could bounce you back to Instagram with a post open — a slow request finishing after the switch was rewriting the address bar
+
 ## 0.48.1 (2026-09-22)
 
 - Fixed: flags showed as two-letter codes ("DK", "FO") instead of flags on Windows — in the year calendar, the fixers list and form, vault addresses, the location widget and the photos pages. Flags are now drawn as images everywhere rather than emoji, which Windows has no font for
