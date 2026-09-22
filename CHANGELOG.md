@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.48.0 (2026-09-22)
+
+- Trip Info tab: dependent territories now show country information instead of an empty card — Ceuta/Melilla under Spain, the Faroe Islands under Denmark, and 84 others
+- Territories that genuinely differ from their sovereign now get their own card with their own values: the U.S. Virgin Islands drive on the left, Hong Kong and Macau use Type D/G sockets, and every territory with its own timezone shows its own weather, sunrise and local time rather than the sovereign capital's
+- Cards built from a territory are labelled "inherited from ⟨country⟩", so the fields it does not define itself are visibly approximate
+- Tap water can now read "Generally safe" as well as safe, caution and unsafe
+
 ## 0.47.11 (2026-09-21)
 
 - Fixed: a cancelled or re-routed trip no longer keeps counting towards planned countries — dropping a destination from a trip, or deleting the trip, now clears the planned visit it created
