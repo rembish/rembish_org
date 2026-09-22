@@ -36,6 +36,16 @@ export default function InstagramTab({
 
   // Preloaded posts cache (keyed by ig_id)
   const preloadedPosts = useRef<Map<string, InstagramPost>>(new Map());
+  // Loading a post is two chained fetches, and onIgIdChange rewrites the URL to
+  // /admin/media/<ig_id>. Switching to the Memes sub-tab before they settle used to
+  // let the late response navigate back here, throwing the user out of Memes.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const preloadedImages = useRef<Set<string>>(new Set());
 
   // TCC options for destination selection
@@ -162,6 +172,7 @@ export default function InstagramTab({
         // Czech Republic default is handled by effect when tccOptions loads
         setTccSearch("");
         setTccSearchFocused(false);
+        if (!mounted.current) return;
         onIgIdChange(igId);
         fetchNavigation(igId);
         if (cached.posted_at) {
@@ -205,6 +216,7 @@ export default function InstagramTab({
           // Czech Republic default is handled by effect when tccOptions loads
           setTccSearch("");
           setTccSearchFocused(false);
+          if (!mounted.current) return;
           onIgIdChange(igId);
           fetchNavigation(igId);
           // Fetch trips filtered by post date
