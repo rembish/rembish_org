@@ -489,6 +489,91 @@ def test_country_info_multiple_countries(
     assert beta["weather"] is None
 
 
+@patch(
+    "src.travels.trips_country_info._fetch_currency_rates",
+    return_value={"EUR": 1.0, "CZK": 25.5, "USD": 1.08},
+)
+@patch(
+    "src.travels.trips_country_info._fetch_weather",
+    return_value={
+        "avg_temp_c": 15.0,
+        "min_temp_c": 8.0,
+        "max_temp_c": 22.0,
+        "avg_precipitation_mm": 2.5,
+        "rainy_days": 7,
+    },
+)
+@patch("src.travels.trips_country_info._fetch_sunrise_sunset", return_value=None)
+@patch("src.travels.trips_country_info._fetch_holidays_for_country", return_value=[])
+def test_country_info_territory_inherits_sovereign(
+    _mock_holidays: object,
+    _mock_sunrise: object,
+    _mock_weather: object,
+    _mock_currency: object,
+    admin_client: TestClient,
+    db_session: Session,
+) -> None:
+    """A dependency shows its sovereign's card, not an empty one.
+
+    Territories such as the Faroe Islands or Ceuta/Melilla reach the info tab only
+    through un_country_id; without it they rendered a card with nothing in it.
+    """
+    denmark = _create_country(db_session, name="Denmark", iso2="DK", iso3="DNK", iso_num="208")
+    faroe = _create_tcc(db_session, name="Faroe Islands", tcc_index=9201, un_country=denmark)
+    trip = _create_trip(db_session, destinations=[faroe])
+
+    response = admin_client.get(f"/api/v1/travels/trips/{trip.id}/country-info")
+    assert response.status_code == 200
+    countries = response.json()["countries"]
+
+    assert len(countries) == 1
+    card = countries[0]
+    assert card["country_name"] == "Denmark"
+    assert card["iso_alpha2"] == "DK"
+    assert [d["name"] for d in card["tcc_destinations"]] == ["Faroe Islands"]
+    # The point of the fix: the practical fields are populated, not None.
+    assert card["socket_types"] == "C,F"
+    assert card["driving_side"] == "right"
+    assert card["emergency_number"] == "112"
+
+
+@patch(
+    "src.travels.trips_country_info._fetch_currency_rates",
+    return_value={"EUR": 1.0, "CZK": 25.5, "USD": 1.08},
+)
+@patch(
+    "src.travels.trips_country_info._fetch_weather",
+    return_value={
+        "avg_temp_c": 15.0,
+        "min_temp_c": 8.0,
+        "max_temp_c": 22.0,
+        "avg_precipitation_mm": 2.5,
+        "rainy_days": 7,
+    },
+)
+@patch("src.travels.trips_country_info._fetch_sunrise_sunset", return_value=None)
+@patch("src.travels.trips_country_info._fetch_holidays_for_country", return_value=[])
+def test_country_info_destination_without_sovereign_stays_minimal(
+    _mock_holidays: object,
+    _mock_sunrise: object,
+    _mock_weather: object,
+    _mock_currency: object,
+    admin_client: TestClient,
+    db_session: Session,
+) -> None:
+    """Destinations with no UN member behind them (Kosovo, Taiwan) keep a bare card."""
+    orphan = _create_tcc(db_session, name="Kosovo", tcc_index=9202, un_country=None)
+    trip = _create_trip(db_session, destinations=[orphan])
+
+    response = admin_client.get(f"/api/v1/travels/trips/{trip.id}/country-info")
+    assert response.status_code == 200
+    card = response.json()["countries"][0]
+
+    assert card["country_name"] == "Kosovo"
+    assert card["iso_alpha2"] == ""
+    assert card["socket_types"] is None
+
+
 def test_country_info_trip_not_found(admin_client: TestClient) -> None:
     response = admin_client.get("/api/v1/travels/trips/99999/country-info")
     assert response.status_code == 404

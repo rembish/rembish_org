@@ -516,7 +516,10 @@ def get_trip_country_info(
                 )
             )
         else:
-            # Orphan TCC destination (e.g., Kosovo) — minimal card
+            # No UN member behind this destination, so there is nothing to inherit:
+            # Kosovo, Taiwan, Palestine, Vatican City, the disputed states and the
+            # Antarctic territories. Dependencies of a UN member are linked through
+            # un_country_id and take the branch above.
             name = tcc_dests[0][0] if tcc_dests else "Unknown"
             countries.append(
                 CountryInfoData(
