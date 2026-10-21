@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.48.3 (2026-10-21)
+
+- Security: the site's servers no longer trust certificates from eMudhra's G3B/G3C intermediate CAs, whose private keys were found to be recoverable from the public certificates (disclosed 17 October 2026). Until now, anyone holding those keys could have impersonated the services the site connects to
+- Security: the frontend now checks the backend's certificate before forwarding requests to it. Before, it accepted any certificate
+
 ## 0.48.2 (2026-09-22)
 
 - Fixed: clicking Memes quickly after opening Media could bounce you back to Instagram with a post open — a slow request finishing after the switch was rewriting the address bar
