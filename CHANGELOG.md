@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.48.4 (2026-10-21)
+
+- Security: updated Pillow, the image library, to fix eight newly published vulnerabilities. This release also carries the 0.48.3 fixes below, which were held back before they reached the site
+
 ## 0.48.3 (2026-10-21)
 
 - Security: the site's servers no longer trust certificates from eMudhra's G3B/G3C intermediate CAs, whose private keys were found to be recoverable from the public certificates (disclosed 17 October 2026). Until now, anyone holding those keys could have impersonated the services the site connects to
