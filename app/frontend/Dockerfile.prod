@@ -17,6 +17,14 @@ RUN npm run build
 # Stage 2: Runtime
 FROM nginx:alpine
 
+# Distrust emSign ECC Root CA - G3: it cross-signs eMudhra intermediates whose
+# private keys leaked in Oct 2026, and Alpine's ca-certificates still ships it.
+# nginx only ever talks to the Cloud Run backend, so nothing legitimate needs it.
+# The grep fails the build once Alpine drops the root — then delete this step.
+RUN sed -i 's|^mozilla/emSign_ECC_Root_CA_-_G3.crt|!&|' /etc/ca-certificates.conf \
+    && grep -qx '!mozilla/emSign_ECC_Root_CA_-_G3.crt' /etc/ca-certificates.conf \
+    && update-ca-certificates
+
 # Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html
 
