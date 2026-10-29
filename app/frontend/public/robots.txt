@@ -9,6 +9,8 @@ Allow: /$
 Allow: /cv
 Allow: /projects/web
 Allow: /projects/modules
+Allow: /projects/games
+Allow: /projects/experiments
 Disallow: /
 
 # AI search crawlers: same rules
@@ -17,6 +19,8 @@ Allow: /$
 Allow: /cv
 Allow: /projects/web
 Allow: /projects/modules
+Allow: /projects/games
+Allow: /projects/experiments
 Disallow: /
 
 # AI training crawlers: block everything

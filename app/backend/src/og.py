@@ -50,6 +50,16 @@ STATIC_PAGES: dict[str, tuple[str, str | None]] = {
         "Python packages: pydjirecord, xcodeproj-creator, fit, cfb, Miette. "
         "TopoJSON Maps: ISO, TCC, NM UN+. PHP: TextAtAnyCost.",
     ),
+    "/projects/games": (
+        "Games \u2014 Alex Rembish",
+        "Decompiled DOS classics, ported to C and the browser: Elite Plus (Witchspace), "
+        "BlockOut, Welltris, King and Color Lines.",
+    ),
+    "/projects/experiments": (
+        "Experiments \u2014 Alex Rembish",
+        "fruit-fly: a desktop fly driven by the complete FlyWire connectome of a real "
+        "fruit fly, 139k neurons simulated live.",
+    ),
     "/contact": ("Contact \u2014 Alex Rembish", None),
     "/changelog": (f"Changelog \u2014 {SITE_NAME}", None),
     "/travels": ("Travels \u2014 Alex Rembish", None),

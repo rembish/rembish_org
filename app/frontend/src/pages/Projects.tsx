@@ -2,6 +2,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   BiGlobe,
   BiCodeAlt,
+  BiJoystick,
+  BiTestTube,
   BiLinkExternal,
   BiLogoGithub,
   BiSolidStar,
@@ -26,7 +28,7 @@ interface Project {
   packages?: Package[];
 }
 
-type TabType = "web" | "modules";
+type TabType = "web" | "modules" | "games" | "experiments";
 
 const webProjects: Project[] = [
   {
@@ -506,6 +508,161 @@ const moduleProjects: Project[] = [
   },
 ];
 
+const gameProjects: Project[] = [
+  {
+    title: "Witchspace",
+    description:
+      "A free reimplementation of Elite Plus (1991), the PC version of David Braben and Ian Bell's Elite, written in assembly by Chris Sawyer. Witchspace rebuilds it routine by routine as portable C and runs it on today's computers and in the browser: trading, combat, missions, docking, hyperspace, the AdLib music. None of the original is included; it reads the game's data from your copy, or from the one the Internet Archive preserves.",
+    starred: true,
+    features: [
+      "The whole game rebuilt from the original's machine code: the galaxy, markets, ships and their AI, combat, the station screens, saving and loading, and the AdLib music driver",
+      "Checked against the original running in an x86 emulator: each routine must leave the same memory, draw the same primitives and make the same sounds, byte for byte",
+      "Whole-game tests boot the original, fly from the title into space, and compare the title screen frame by frame",
+      "A deterministic C99 core that says what to draw, not how, so another renderer could draw the same stream its own way",
+      "Plays in the browser, with commanders kept between visits and .CDR saved games to import and export",
+    ],
+    techStack: ["C99", "SDL2", "WebAssembly", "Ghidra", "Unicorn", "Python"],
+    status: "completed",
+    links: [
+      {
+        label: "Play",
+        url: "https://rembish.github.io/witchspace/",
+        icon: BiJoystick,
+      },
+      {
+        label: "GitHub",
+        url: "https://github.com/rembish/witchspace",
+        icon: BiLogoGithub,
+      },
+    ],
+  },
+  {
+    title: "BlockOut",
+    description:
+      "The 3D Tetris for DOS (California Dreams, 1989), decompiled and ported to portable C and SDL2. The game logic is reconstructed faithfully from the original; the rendering, input and sound are new. Runs on Linux, Windows and macOS, and in the browser, including on phones. No original files are needed to play.",
+    features: [
+      "Piece sets, the random number generator and its reroll quirk, wall kicks, rotation, gravity, scoring and every timing, in the original's timer ticks",
+      "A differential test runs the original in the Unicorn CPU emulator and compares the complete game state with the port on every frame",
+      "The original's 1989 demo AI, ported and playing",
+      "Touch controls with an eight-way pad and six rotation buttons; native builds for Windows, macOS and Linux",
+    ],
+    techStack: ["C", "SDL2", "WebAssembly", "Ghidra", "Unicorn", "Python"],
+    status: "completed",
+    links: [
+      {
+        label: "Play",
+        url: "https://rembish.github.io/blockout-revamp/",
+        icon: BiJoystick,
+      },
+      {
+        label: "GitHub",
+        url: "https://github.com/rembish/blockout-revamp",
+        icon: BiLogoGithub,
+      },
+    ],
+  },
+  {
+    title: "Welltris",
+    description:
+      "Alexey Pajitnov's three-dimensional follow-up to Tetris (Spectrum HoloByte, 1989): pieces slide down the four walls of a well onto its floor, where full rows and columns clear. A decompilation of the DOS version, ported to C and SDL2, with new artwork as a homage: the original's Moscow became Prague.",
+    features: [
+      "Game logic decompiled from WELLTRIS.EXE: the Turbo C random number generator, rotation quirks, wall freezing and thawing, gravity on the original's 187 Hz timer, scoring and level ups",
+      "Compared with the original in an emulator after every pass of the play loop, using random keys and a search bot that clears lines",
+      "Mutation tests break the core in 15 ways and check the comparison catches each one",
+      "Prague pictures for the five speeds; on-screen controls for phones and tablets",
+    ],
+    techStack: ["C99", "SDL2", "WebAssembly", "Ghidra", "Unicorn", "Python"],
+    status: "beta",
+    links: [
+      {
+        label: "Play",
+        url: "https://rembish.github.io/welltris-revamp/",
+        icon: BiJoystick,
+      },
+      {
+        label: "GitHub",
+        url: "https://github.com/rembish/welltris-revamp",
+        icon: BiLogoGithub,
+      },
+    ],
+  },
+  {
+    title: "King (Кинг)",
+    description:
+      "The trick-taking card game that Komsomolskaya Pravda gave its readers in 1993, on half the PCs of the former USSR: four players, 32 cards, 14 games. A decompilation of the full variant, KING2.EXE, ported to C and SDL2 and drawn with the original's own cards and fonts, read from your copy.",
+    features: [
+      "The Turbo Pascal random number generator and every call to it, the deal, the computer players' contract choices and search, and the scoring",
+      "Whole games recorded from the original in an emulator and replayed through the port deal by deal, random numbers included",
+      "Mutation tests break the core in 22 ways and check the replays catch each one",
+      "A global table of millionaires, served from Cloudflare",
+    ],
+    techStack: ["C", "SDL2", "WebAssembly", "Ghidra", "Unicorn", "Cloudflare"],
+    status: "beta",
+    links: [
+      { label: "Play", url: "https://king.rembi.sh/", icon: BiJoystick },
+      {
+        label: "GitHub",
+        url: "https://github.com/rembish/king-card-game",
+        icon: BiLogoGithub,
+      },
+    ],
+  },
+  {
+    title: "Color Lines",
+    description:
+      "Gamos's Color Lines (Moscow, 1992), the game of every mom and dad in the 90s: a 9×9 board, balls of seven colours, lines of five vanish. A decompilation of LINES.EXE ported to C and SDL2, with the original's pictures fetched from the Internet Archive or read from your copy.",
+    features: [
+      "Where new balls land, the line check and the score, which depends on how long you thought and is computed in Turbo Pascal's 6-byte Reals, reproduced bit for bit",
+      "Games recorded from the original in an emulator and compared turn by turn, including the moves the original refuses",
+      "Mutation tests break the core in 20 ways and check the comparison catches each one",
+      "A global Top Ten, served from Cloudflare",
+    ],
+    techStack: ["C", "SDL2", "WebAssembly", "Ghidra", "Unicorn", "Cloudflare"],
+    status: "beta",
+    links: [
+      { label: "Play", url: "https://lines.rembi.sh/", icon: BiJoystick },
+      {
+        label: "GitHub",
+        url: "https://github.com/rembish/color-lines-game",
+        icon: BiLogoGithub,
+      },
+    ],
+  },
+];
+
+const experimentProjects: Project[] = [
+  {
+    title: "fruit-fly",
+    description:
+      "A fly that lives on your desktop, driven by the complete brain of a real fruit fly: the FlyWire connectome of adult Drosophila melanogaster, 139,255 neurons and about 34 million synapses, simulated live while the sprite buzzes over your windows. No scripted behaviour: when it dodges your cursor, your cursor reached its looming-detector neurons and they fired the giant fiber escape neuron, the same circuit a living fly uses to dodge a rolled-up newspaper.",
+    features: [
+      "Whole-brain leaky integrate-and-fire simulation in real time, following Shiu et al. 2024 (Nature): weights from synapse counts, signs from predicted neurotransmitters",
+      "Retinotopic eyes: 785 + 796 real eye columns and 6,670 mapped photoreceptors, each driven by the pixels its column sees, so an approaching cursor looms",
+      "Takeoffs, landings, saccades and escapes come from descending neurons reaching threshold, logged as they fire",
+      "Poke the circuit: type a population (GF, MDN, DNa02_L and 32 more) and watch the body answer",
+      "Honest science notes: what is real, what is corrected (photoreceptor histamine), and what is approximated",
+      "Linux (GTK), macOS (Cocoa) and Windows backends over a shared brain and cairo-drawn sprite",
+    ],
+    techStack: [
+      "Python",
+      "NumPy",
+      "cairo",
+      "FlyWire connectome",
+      "GTK",
+      "Cocoa",
+      "Win32",
+    ],
+    status: "alpha",
+    links: [
+      {
+        label: "GitHub",
+        url: "https://github.com/rembish/fruit-fly",
+        icon: BiLogoGithub,
+      },
+    ],
+  },
+];
+
 function getStatusLabel(status: Project["status"]) {
   switch (status) {
     case "active":
@@ -525,8 +682,14 @@ export default function Projects() {
   const { tab } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
 
-  const activeTab: TabType = tab === "modules" ? "modules" : "web";
-  const projects = activeTab === "web" ? webProjects : moduleProjects;
+  const activeTab: TabType =
+    tab === "modules" || tab === "games" || tab === "experiments" ? tab : "web";
+  const projects = {
+    web: webProjects,
+    modules: moduleProjects,
+    games: gameProjects,
+    experiments: experimentProjects,
+  }[activeTab];
 
   return (
     <section id="projects" className="projects">
@@ -548,6 +711,18 @@ export default function Projects() {
             onClick={() => navigate("/projects/modules")}
           >
             <BiCodeAlt /> Modules
+          </button>
+          <button
+            className={`travel-tab ${activeTab === "games" ? "active" : ""}`}
+            onClick={() => navigate("/projects/games")}
+          >
+            <BiJoystick /> Games
+          </button>
+          <button
+            className={`travel-tab ${activeTab === "experiments" ? "active" : ""}`}
+            onClick={() => navigate("/projects/experiments")}
+          >
+            <BiTestTube /> Experiments
           </button>
         </div>
 

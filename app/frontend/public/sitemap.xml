@@ -16,4 +16,12 @@
     <loc>https://rembish.org/projects/modules</loc>
     <priority>0.8</priority>
   </url>
+  <url>
+    <loc>https://rembish.org/projects/games</loc>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://rembish.org/projects/experiments</loc>
+    <priority>0.8</priority>
+  </url>
 </urlset>
