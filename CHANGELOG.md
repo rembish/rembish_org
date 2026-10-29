@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.49.4 (2026-10-29)
+
+- Fixed: a long Instagram sync reported a timeout after a minute even though it went on to finish in the background. Admin requests now get up to five minutes
+
 ## 0.49.3 (2026-10-29)
 
 - Maintenance: removed a temporary security workaround from October's eMudhra certificate fix. The system's own certificate list now leaves out the compromised authority, so the workaround is no longer needed. This release ships 0.49.0–0.49.2, which never reached the site
