@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.49.5 (2026-10-29)
+
+- Projects: a new Games tab with five classic DOS games, decompiled and playable in the browser: Elite Plus (as Witchspace), BlockOut, Welltris, King and Color Lines
+- Projects: a new Experiments tab, starting with fruit-fly, a desktop fly driven by the complete brain wiring of a real fruit fly
+
 ## 0.49.4 (2026-10-29)
 
 - Fixed: a long Instagram sync reported a timeout after a minute even though it went on to finish in the background. Admin requests now get up to five minutes
