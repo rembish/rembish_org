@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.49.3 (2026-10-29)
+
+- Maintenance: removed a temporary security workaround from October's eMudhra certificate fix. The system's own certificate list now leaves out the compromised authority, so the workaround is no longer needed. This release ships 0.49.0–0.49.2, which never reached the site
+
 ## 0.49.2 (2026-10-29)
 
 - Maintenance: the automated test run broke after an update to the test tools, which held back 0.49.0 and 0.49.1. This release ships both
