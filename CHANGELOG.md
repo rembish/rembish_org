@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.49.1 (2026-10-29)
+
+- Security: updated three libraries (Authlib, which handles sign-in, plus dnspython and OpenTelemetry) to fix eight newly published vulnerabilities. This release also carries the 0.49.0 changes below, which were held back before they reached the site
+
 ## 0.49.0 (2026-10-29)
 
 - Trips: a new admin-only Tracks tab. Upload a GPS logger's day files and each day is shown on a map, split into legs (on foot, by vehicle, stops), with a legend and a list of legs, per day or for the whole trip
