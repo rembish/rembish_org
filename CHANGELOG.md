@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.49.2 (2026-10-29)
+
+- Maintenance: the automated test run broke after an update to the test tools, which held back 0.49.0 and 0.49.1. This release ships both
+
 ## 0.49.1 (2026-10-29)
 
 - Security: updated three libraries (Authlib, which handles sign-in, plus dnspython and OpenTelemetry) to fix eight newly published vulnerabilities. This release also carries the 0.49.0 changes below, which were held back before they reached the site
