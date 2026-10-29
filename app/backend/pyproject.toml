@@ -52,7 +52,12 @@ select = ["E", "F", "I", "UP"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--cov=src --cov-report=term-missing --cov-fail-under=80"
-filterwarnings = ["error"]
+filterwarnings = [
+    "error",
+    # anyio's pytest plugin (held below 4.15, see Starlette) imports the CallSpec2 alias
+    # that pytest 9.2 deprecates. Drop this once anyio is upgraded.
+    "ignore:_pytest.python.CallSpec2 has been renamed:pytest.PytestRemovedIn10Warning",
+]
 
 [tool.mypy]
 python_version = "3.12"
