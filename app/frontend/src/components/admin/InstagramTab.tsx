@@ -374,6 +374,8 @@ export default function InstagramTab({
       }
       const data = await res.json();
       fetchStats();
+      // Meta stopped the run part way; what was synced is kept
+      if (data.message?.includes("then stopped")) alert(data.message);
       if (data.fetched > 0) {
         // Navigate to the newest post (the one we just synced)
         fetchLatestPost();

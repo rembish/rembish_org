@@ -1,6 +1,9 @@
 """Instagram post labeling endpoints."""
 
 import json
+import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any, cast
@@ -593,81 +596,116 @@ class FetchResponse(BaseModel):
 
 
 def _load_cursor() -> str | None:
-    """Load saved pagination cursor."""
+    """Load the saved `after` cursor of the older-posts fetch."""
     if CURSOR_FILE.exists():
         try:
             data: dict[str, str] = json.loads(CURSOR_FILE.read_text())
-            return data.get("next_url")
-        except (json.JSONDecodeError, KeyError):
+            return data.get("after")
+        except (json.JSONDecodeError, KeyError, AttributeError):
             pass
     return None
 
 
-def _save_cursor(next_url: str | None) -> None:
-    """Save pagination cursor for next fetch."""
-    CURSOR_FILE.write_text(json.dumps({"next_url": next_url}))
+def _save_cursor(after: str | None) -> None:
+    """Save the `after` cursor for the next fetch."""
+    CURSOR_FILE.write_text(json.dumps({"after": after}))
+
+
+# Graph API throttling codes (app, user, page and Instagram business use case limits)
+RATE_LIMIT_CODES = {4, 17, 32, 613, 80001, 80002, 80006}
+
+
+class MetaAPIError(Exception):
+    """A Graph API failure, described by Meta's own message.
+
+    Never built from httpx's exception text: that includes the request URL, and the
+    URL carries the access token.
+    """
+
+    def __init__(self, message: str, code: int | None = None, retry_minutes: int = 0) -> None:
+        super().__init__(message)
+        self.code = code
+        self.retry_minutes = retry_minutes
+
+    @property
+    def rate_limited(self) -> bool:
+        return self.code in RATE_LIMIT_CODES or self.retry_minutes > 0
+
+    @property
+    def hint(self) -> str:
+        if self.retry_minutes:
+            return f" Try again in about {self.retry_minutes} min."
+        return " Try again later." if self.rate_limited else ""
+
+
+def _meta_error(response: httpx.Response) -> MetaAPIError:
+    try:
+        error = response.json().get("error") or {}
+    except ValueError:
+        error = {}
+    retry = 0
+    try:
+        usage = json.loads(response.headers.get("x-business-use-case-usage") or "{}")
+        for entries in usage.values():
+            for entry in entries:
+                retry = max(retry, int(entry.get("estimated_time_to_regain_access") or 0))
+    except (ValueError, AttributeError, TypeError):
+        pass
+    message = error.get("message") or response.reason_phrase
+    return MetaAPIError(
+        f"Instagram API {response.status_code}: {message}", error.get("code"), retry
+    )
 
 
 def _api_request_with_retry(
     url: str, params: dict[str, Any] | None = None, max_retries: int = 3
 ) -> dict[str, Any]:
-    """Make API request with retry logic."""
+    """GET a Graph API URL, retrying timeouts and connection errors; MetaAPIError otherwise."""
     import time
 
-    last_error: Exception | None = None
     for attempt in range(max_retries):
         try:
             response = httpx.get(url, params=params or {}, timeout=60)
-            response.raise_for_status()
-            return cast(dict[str, Any], response.json())
         except (httpx.TimeoutException, httpx.ConnectError) as e:
-            last_error = e
             log.warning(
-                "Instagram API request failed (attempt %d/%d): %s %s",
+                "Instagram API request failed (attempt %d/%d): %s",
                 attempt + 1,
                 max_retries,
                 type(e).__name__,
-                e,
             )
             if attempt < max_retries - 1:
                 time.sleep(2**attempt)  # Exponential backoff: 1s, 2s, 4s
                 continue
-            raise e
-    # Should not reach here, but satisfy mypy
-    raise last_error or RuntimeError("Request failed")
+            raise MetaAPIError(f"Instagram API unreachable ({type(e).__name__})") from None
+        if response.is_error:
+            error = _meta_error(response)
+            log.warning("%s (code %s)", error, error.code)
+            raise error
+        return cast(dict[str, Any], response.json())
+    raise MetaAPIError("Instagram API request failed")
 
 
-def _fetch_posts_from_api(
-    limit: int, cursor_url: str | None = None
-) -> tuple[list[dict[str, Any]], str | None]:
-    """Fetch posts from Instagram Graph API."""
-    posts: list[dict[str, Any]] = []
+MEDIA_FIELDS = "id,caption,media_type,timestamp,permalink,location"
 
-    if cursor_url:
-        url = cursor_url
-        params: dict[str, Any] = {}
-    else:
-        url = f"{GRAPH_API_URL}/{settings.instagram_account_id}/media"
-        params = {
-            "fields": "id,caption,media_type,timestamp,permalink,location",
-            "limit": min(limit, 100),
-            "access_token": settings.instagram_page_token or "",
-        }
 
-    while len(posts) < limit:
-        data = _api_request_with_retry(url, params if params else None)
+def _media_page(limit: int, after: str | None = None) -> tuple[list[dict[str, Any]], str | None]:
+    """One page of the account's posts, newest first, and the cursor of the next page.
 
-        posts.extend(data.get("data", []))
-
-        paging = data.get("paging", {})
-        next_url = paging.get("next") if isinstance(paging, dict) else None
-        if not next_url or len(posts) >= limit:
-            return posts[:limit], str(next_url) if next_url else None
-
-        url = str(next_url)
-        params = {}
-
-    return posts[:limit], None
+    Pages are requested with our own parameters plus Meta's `after` cursor. The ready-made
+    `paging.next` URL fails with "(#200) Provide valid app ID" (seen October 2026), while
+    the same request built from the cursor works.
+    """
+    params: dict[str, Any] = {
+        "fields": MEDIA_FIELDS,
+        "limit": limit,
+        "access_token": settings.instagram_page_token or "",
+    }
+    if after:
+        params["after"] = after
+    data = _api_request_with_retry(f"{GRAPH_API_URL}/{settings.instagram_account_id}/media", params)
+    paging = data.get("paging") or {}
+    cursor = (paging.get("cursors") or {}).get("after") if paging.get("next") else None
+    return data.get("data", []), cursor
 
 
 def _fetch_carousel_children(post_id: str) -> list[dict[str, Any]]:
@@ -810,6 +848,63 @@ def _process_single_post(db: Session, post_data: dict, storage: StorageBackend) 
     return True
 
 
+def _add_post(db: Session, post_data: dict, storage: StorageBackend) -> str:
+    """Store one post and commit it: "added", "exists" or "failed".
+
+    Committing each post keeps the progress of a run that stops half way. A rate limit
+    is raised to stop the run; any other failure only skips the post.
+    """
+    try:
+        added = _process_single_post(db, post_data, storage)
+        db.commit()
+        return "added" if added else "exists"
+    except IntegrityError:
+        db.rollback()  # added meanwhile by another run
+        return "exists"
+    except MetaAPIError as e:
+        db.rollback()
+        if e.rate_limited:
+            raise
+        log.error("Skipped Instagram post %s: %s", post_data.get("id", "unknown"), e)
+        return "failed"
+    except Exception:
+        db.rollback()
+        log.error(
+            "Failed to process Instagram post %s", post_data.get("id", "unknown"), exc_info=True
+        )
+        return "failed"
+
+
+_sync_lock = threading.Lock()
+
+
+@contextmanager
+def _one_sync_at_a_time() -> Iterator[None]:
+    """Overlapping syncs double the memory use (two ran out of it in prod) and the quota."""
+    if not _sync_lock.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="An Instagram sync is already running")
+    try:
+        yield
+    finally:
+        _sync_lock.release()
+
+
+def _require_api() -> None:
+    if not settings.instagram_account_id or not settings.instagram_page_token:
+        raise HTTPException(status_code=500, detail="Instagram API not configured")
+
+
+def _stopped(e: MetaAPIError, verb: str, fetched: int, skipped: int) -> FetchResponse:
+    """Report a run that Meta stopped: an error if nothing was saved, else what was."""
+    if not fetched:
+        raise HTTPException(status_code=429 if e.rate_limited else 502, detail=f"{e}.{e.hint}")
+    return FetchResponse(
+        fetched=fetched,
+        skipped=skipped,
+        message=f"{verb} new posts, then stopped: {e}.{e.hint}",
+    )
+
+
 @router.post("/fetch")
 def fetch_more_posts(
     _user: Annotated[User, Depends(get_admin_user)],
@@ -817,87 +912,57 @@ def fetch_more_posts(
     count: int = 10,
 ) -> FetchResponse:
     """Fetch older posts from Instagram API (continues from cursor)."""
-    if not settings.instagram_account_id or not settings.instagram_page_token:
-        raise HTTPException(status_code=500, detail="Instagram API not configured")
+    _require_api()
+    with _one_sync_at_a_time():
+        storage = get_storage()
+        cursor = _load_cursor()
 
-    storage = get_storage()
+        # Without a cursor, calibrate: page until we pass the oldest post we have
+        oldest_ig_id = None
+        if not cursor:
+            oldest_post = db.query(InstagramPost).order_by(InstagramPost.posted_at.asc()).first()
+            if oldest_post:
+                oldest_ig_id = oldest_post.ig_id
 
-    # Load cursor to continue from last position
-    cursor = _load_cursor()
+        fetched = 0
+        skipped = 0
+        calibrating = oldest_ig_id is not None
+        found_oldest = False
+        max_pages = 50  # Higher limit for calibration
 
-    # If no cursor, we need to calibrate: find the oldest post we have
-    # and page until we pass it
-    oldest_ig_id = None
-    if not cursor:
-        oldest_post = db.query(InstagramPost).order_by(InstagramPost.posted_at.asc()).first()
-        if oldest_post:
-            oldest_ig_id = oldest_post.ig_id
-
-    fetched = 0
-    skipped = 0
-    calibrating = oldest_ig_id is not None and cursor is None
-    found_oldest = False
-    max_pages = 50  # Higher limit for calibration
-
-    try:
-        for _ in range(max_pages):
-            posts, next_cursor = _fetch_posts_from_api(100, cursor)
-
-            if not posts:
-                _save_cursor(None)
-                break
-
-            for post_data in posts:
-                ig_id = post_data["id"]
-
-                # If calibrating, skip until we pass our oldest post
-                if calibrating and not found_oldest:
-                    if ig_id == oldest_ig_id:
-                        found_oldest = True
-                    continue
-
-                try:
-                    if _process_single_post(db, post_data, storage):
-                        fetched += 1
-                        if fetched >= count:
-                            db.commit()
-                            _save_cursor(next_cursor)
-                            msg = f"Fetched {fetched} new posts"
-                            if calibrating:
-                                msg += f" (calibrated, skipped {skipped} existing)"
-                            return FetchResponse(fetched=fetched, skipped=skipped, message=msg)
-                    else:
+        try:
+            for _ in range(max_pages):
+                # Resume from this page's cursor if we stop inside it: posts already
+                # stored are skipped, the rest of the page isn't lost
+                page_cursor = cursor
+                posts, cursor = _media_page(100, page_cursor)
+                for post_data in posts:
+                    if calibrating and not found_oldest:
+                        found_oldest = post_data["id"] == oldest_ig_id
+                        continue
+                    result = _add_post(db, post_data, storage)
+                    if result != "added":
                         skipped += 1
-                except IntegrityError:
-                    # Duplicate entry - rollback to clear session state and continue
-                    db.rollback()
-                    skipped += 1
-                    continue
-                except Exception:
-                    log.error(
-                        "Failed to process post %s in fetch",
-                        post_data.get("id", "unknown"),
-                        exc_info=True,
-                    )
-                    db.rollback()
-                    skipped += 1
-                    continue
+                        continue
+                    fetched += 1
+                    if fetched >= count:
+                        _save_cursor(page_cursor)
+                        msg = f"Fetched {fetched} new posts"
+                        if calibrating:
+                            msg += f" (calibrated, skipped {skipped} existing)"
+                        return FetchResponse(fetched=fetched, skipped=skipped, message=msg)
+                if not cursor:
+                    break
+        except MetaAPIError as e:
+            _save_cursor(page_cursor)
+            return _stopped(e, f"Fetched {fetched}", fetched, skipped)
 
-            cursor = next_cursor
-            if not cursor:
-                break
-
-    except httpx.HTTPError as e:
-        raise HTTPException(status_code=502, detail=f"Instagram API error: {e}")
-
-    db.commit()
-    _save_cursor(cursor)
-
-    return FetchResponse(
-        fetched=fetched,
-        skipped=skipped,
-        message=f"Fetched {fetched} new posts" + (f" (skipped {skipped})" if skipped else ""),
-    )
+        _save_cursor(cursor)
+        return FetchResponse(
+            fetched=fetched,
+            skipped=skipped,
+            message=f"Fetched {fetched} new posts" + (f" (skipped {skipped})" if skipped else ""),
+        )
 
 
 @router.get("/fill-gaps")
@@ -912,41 +977,40 @@ def fill_gaps_stream(
     """
     from starlette.responses import StreamingResponse
 
-    if not settings.instagram_account_id or not settings.instagram_page_token:
-        raise HTTPException(status_code=500, detail="Instagram API not configured")
-
+    _require_api()
     storage = get_storage()
 
+    def event(msg: dict[str, Any]) -> str:
+        return f"data: {json.dumps(msg)}\n\n"
+
     def generate() -> Any:
-        # Get the oldest post in DB to know when to stop
+        if not _sync_lock.acquire(blocking=False):
+            yield event({"error": "An Instagram sync is already running"})
+            return
+        try:
+            yield from scan()
+        finally:
+            _sync_lock.release()
+
+    def scan() -> Any:
+        # The oldest post in the DB tells us when to stop
         oldest_post = db.query(InstagramPost).order_by(InstagramPost.posted_at.asc()).first()
         oldest_timestamp = None
         if oldest_post and oldest_post.posted_at:
             # Make timezone-aware for comparison with API timestamps
-            if oldest_post.posted_at.tzinfo is None:
-                oldest_timestamp = oldest_post.posted_at.replace(tzinfo=UTC)
-            else:
-                oldest_timestamp = oldest_post.posted_at
+            oldest_timestamp = oldest_post.posted_at
+            if oldest_timestamp.tzinfo is None:
+                oldest_timestamp = oldest_timestamp.replace(tzinfo=UTC)
 
         fetched = 0
         checked = 0
         pages_fetched = 0
-
-        url = f"{GRAPH_API_URL}/{settings.instagram_account_id}/media"
-        params: dict = {
-            "fields": "id,caption,media_type,timestamp,permalink,location",
-            "limit": 50,
-            "access_token": settings.instagram_page_token,
-        }
+        cursor: str | None = None
 
         try:
             while pages_fetched < max_pages:
-                response = httpx.get(url, params=params, timeout=30)
-                response.raise_for_status()
-                data = response.json()
+                posts, cursor = _media_page(50, cursor)
                 pages_fetched += 1
-
-                posts = data.get("data", [])
                 if not posts:
                     break
 
@@ -955,66 +1019,32 @@ def fill_gaps_stream(
                     post_timestamp = datetime.fromisoformat(
                         post_data["timestamp"].replace("+0000", "+00:00")
                     )
-
-                    # If we've gone past our oldest post, we're done
+                    # Past our oldest post: done
                     if oldest_timestamp and post_timestamp < oldest_timestamp:
-                        db.commit()
-                        msg = {
-                            "done": True,
-                            "fetched": fetched,
-                            "checked": checked,
-                            "page": pages_fetched,
-                        }
-                        yield f"data: {json.dumps(msg)}\n\n"
+                        yield event(
+                            {
+                                "done": True,
+                                "fetched": fetched,
+                                "checked": checked,
+                                "page": pages_fetched,
+                            }
+                        )
                         return
+                    if _add_post(db, post_data, storage) == "added":
+                        fetched += 1
+                        # Progress update whenever a gap is filled
+                        yield event({"fetched": fetched, "checked": checked, "page": pages_fetched})
 
-                    # Check if this post exists
-                    existing = (
-                        db.query(InstagramPost)
-                        .filter(InstagramPost.ig_id == post_data["id"])
-                        .first()
-                    )
-                    if existing:
-                        continue
-
-                    # Post is missing - try to add it
-                    try:
-                        if _process_single_post(db, post_data, storage):
-                            fetched += 1
-                            db.commit()  # Commit each successful post
-                            # Send progress update when we find a gap
-                            msg = {"fetched": fetched, "checked": checked, "page": pages_fetched}
-                            yield f"data: {json.dumps(msg)}\n\n"
-                    except IntegrityError:
-                        # Post was added by another process - that's fine
-                        db.rollback()
-                        continue
-                    except Exception as e:
-                        db.rollback()
-                        # Log but continue - we want to find all gaps
-                        log.error(f"Failed to fetch post {post_data['id']}: {e}")
-                        continue
-
-                # Send page progress update
-                msg = {"fetched": fetched, "checked": checked, "page": pages_fetched}
-                yield f"data: {json.dumps(msg)}\n\n"
-
-                # Check for next page
-                paging = data.get("paging", {})
-                next_url = paging.get("next")
-                if not next_url:
+                yield event({"fetched": fetched, "checked": checked, "page": pages_fetched})
+                if not cursor:
                     break
-
-                url = next_url
-                params = {}
-
-        except httpx.HTTPError as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        except MetaAPIError as e:
+            yield event(
+                {"error": f"{e}.{e.hint}" + (f" Filled {fetched} gaps first." if fetched else "")}
+            )
             return
 
-        db.commit()
-        msg = {"done": True, "fetched": fetched, "checked": checked, "page": pages_fetched}
-        yield f"data: {json.dumps(msg)}\n\n"
+        yield event({"done": True, "fetched": fetched, "checked": checked, "page": pages_fetched})
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
@@ -1023,91 +1053,52 @@ def fill_gaps_stream(
 def sync_new_posts(
     _user: Annotated[User, Depends(get_admin_user)],
     db: Session = Depends(get_db),
-    max_pages: int = 5,
+    max_pages: int = 20,
 ) -> FetchResponse:
-    """Fetch new posts from Instagram (from the beginning until we hit existing posts)."""
-    if not settings.instagram_account_id or not settings.instagram_page_token:
-        raise HTTPException(status_code=500, detail="Instagram API not configured")
+    """Fetch the posts newer than the newest one stored.
 
-    storage = get_storage()
-    fetched = 0
-    skipped = 0
-    consecutive_skips = 0
-    pages_fetched = 0
+    Lists them first (one call per 50 posts), then stores them oldest first: a run that
+    Meta stops part way leaves no gap, so the next run simply continues.
+    """
+    _require_api()
+    with _one_sync_at_a_time():
+        storage = get_storage()
+        newest = db.query(func.max(InstagramPost.posted_at)).scalar()
+        if newest is not None and newest.tzinfo is None:
+            newest = newest.replace(tzinfo=UTC)
 
-    url = f"{GRAPH_API_URL}/{settings.instagram_account_id}/media"
-    params: dict = {
-        "fields": "id,caption,media_type,timestamp,permalink,location",
-        "limit": 50,
-        "access_token": settings.instagram_page_token,
-    }
-
-    try:
-        while pages_fetched < max_pages:
-            response = httpx.get(url, params=params, timeout=30)
-            response.raise_for_status()
-            data = response.json()
-            pages_fetched += 1
-
-            posts = data.get("data", [])
-            if not posts:
-                break
-
-            for post_data in posts:
-                try:
-                    if _process_single_post(db, post_data, storage):
-                        fetched += 1
-                        consecutive_skips = 0
-                    else:
-                        skipped += 1
-                        consecutive_skips += 1
-                        # If we hit 10 consecutive existing posts, we've caught up
-                        if consecutive_skips >= 10:
-                            db.commit()
-                            return FetchResponse(
-                                fetched=fetched,
-                                skipped=skipped,
-                                message=f"Synced {fetched} new posts (caught up with existing)",
-                            )
-                except IntegrityError:
-                    # Duplicate entry - rollback to clear session state and continue
-                    db.rollback()
-                    skipped += 1
-                    consecutive_skips += 1
-                    if consecutive_skips >= 10:
-                        return FetchResponse(
-                            fetched=fetched,
-                            skipped=skipped,
-                            message=f"Synced {fetched} new posts (caught up with existing)",
-                        )
-                    continue
-                except Exception:
-                    log.error(
-                        "Failed to process post %s in sync-new",
-                        post_data.get("id", "unknown"),
-                        exc_info=True,
+        backlog: list[dict[str, Any]] = []
+        fetched = 0
+        skipped = 0
+        try:
+            cursor: str | None = None
+            caught_up = False
+            for _ in range(max_pages):
+                posts, cursor = _media_page(50, cursor)
+                for post_data in posts:
+                    posted = datetime.fromisoformat(
+                        post_data["timestamp"].replace("+0000", "+00:00")
                     )
-                    db.rollback()
+                    if newest is not None and posted < newest:
+                        caught_up = True
+                        break
+                    backlog.append(post_data)
+                if caught_up or not posts or not cursor:
+                    break
+            if newest is not None and not caught_up and cursor:
+                log.warning("Instagram sync: more than %d new posts listed", len(backlog))
+
+            for post_data in reversed(backlog):
+                if _add_post(db, post_data, storage) == "added":
+                    fetched += 1
+                else:
                     skipped += 1
-                    continue
+        except MetaAPIError as e:
+            return _stopped(e, f"Synced {fetched} of {len(backlog)}", fetched, skipped)
 
-            # Check for next page
-            paging = data.get("paging", {})
-            next_url = paging.get("next")
-            if not next_url:
-                break
-
-            url = next_url
-            params = {}
-
-    except httpx.HTTPError as e:
-        raise HTTPException(status_code=502, detail=f"Instagram API error: {e}")
-
-    db.commit()
-
-    return FetchResponse(
-        fetched=fetched,
-        skipped=skipped,
-        message=f"Synced {fetched} new posts"
-        + (f" ({skipped} already existed)" if skipped else ""),
-    )
+        return FetchResponse(
+            fetched=fetched,
+            skipped=skipped,
+            message=f"Synced {fetched} new posts"
+            + (f" ({skipped} already existed or failed)" if skipped else ""),
+        )
