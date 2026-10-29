@@ -8,6 +8,7 @@ from .data import router as data_router
 from .drones import router as drones_router
 from .events import router as events_router
 from .flights import router as flights_router
+from .gps_tracks import router as gps_tracks_router
 from .location import router as location_router
 from .map_image import router as map_image_router
 from .photos import router as photos_router
@@ -26,6 +27,7 @@ router.include_router(data_router)
 router.include_router(drones_router)
 router.include_router(events_router)
 router.include_router(flights_router)
+router.include_router(gps_tracks_router)
 router.include_router(location_router)
 router.include_router(map_image_router)
 router.include_router(photos_router)

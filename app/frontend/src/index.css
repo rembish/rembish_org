@@ -9270,6 +9270,336 @@ a {
   padding: 0.75rem 1rem;
 }
 
+/* GPS Tracks (trip tab) */
+
+.gps-upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: normal;
+}
+
+.gps-tz-chip,
+.gps-tz-input {
+  width: 9.5rem;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-family: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
+.gps-tz-chip {
+  width: auto;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+}
+
+.gps-tz-input {
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+.gps-upload-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8rem;
+  color: #2e7d32;
+  background: rgba(46, 125, 50, 0.08);
+  border-radius: 6px;
+
+  &.has-errors {
+    color: #c62828;
+    background: rgba(198, 40, 40, 0.08);
+  }
+}
+
+.gps-upload-dismiss {
+  display: inline-flex;
+  margin-left: auto;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0.7;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.gps-upload-error {
+  flex-basis: 100%;
+  font-size: 0.75rem;
+}
+
+.gps-day-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 0.75rem;
+}
+
+.gps-day-pill {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--color-text);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  cursor: pointer;
+
+  & small {
+    font-size: 0.7rem;
+    color: var(--color-text-secondary);
+  }
+
+  &.active {
+    color: #fff;
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+
+    & small {
+      color: rgba(255, 255, 255, 0.85);
+    }
+  }
+}
+
+.gps-day-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin-bottom: 0.5rem;
+
+  & strong {
+    font-size: 1rem;
+    color: var(--color-text);
+  }
+
+  & span {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+  }
+}
+
+.gps-day-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  margin-bottom: 0.75rem;
+}
+
+.gps-day-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+
+  & .btn-add-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    text-decoration: none;
+  }
+}
+
+.gps-actions-hint {
+  align-self: center;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.gps-day-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 0.75rem;
+  height: 620px;
+
+  &.map-only {
+    grid-template-columns: 1fr;
+    height: max(560px, calc(100vh - 220px));
+  }
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+    height: auto;
+
+    &.map-only .gps-map {
+      height: 75vh;
+    }
+  }
+}
+
+.gps-map {
+  position: relative;
+  min-height: 420px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+
+  & .leaflet-container {
+    height: 100%;
+    width: 100%;
+  }
+}
+
+.gps-legend {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 500;
+  min-width: 7.5rem;
+  font-size: 0.75rem;
+  color: #272829;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+
+  & ul {
+    margin: 0;
+    padding: 0 0.625rem 0.5rem;
+    list-style: none;
+  }
+
+  & li {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0;
+    white-space: nowrap;
+  }
+}
+
+.gps-legend-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem;
+  width: 100%;
+  padding: 0.375rem 0.625rem;
+  font: inherit;
+  font-weight: 500;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.gps-swatch {
+  flex-shrink: 0;
+}
+
+.gps-legs {
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+
+  @media (max-width: 900px) {
+    max-height: 420px;
+  }
+}
+
+.gps-legs-day-header em {
+  font-style: normal;
+  font-weight: normal;
+  color: var(--color-text-secondary);
+}
+
+.gps-legs-day-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.375rem 0.625rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text);
+  background: var(--color-bg-nav);
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-primary);
+  }
+}
+
+.gps-leg {
+  display: grid;
+  grid-template-columns: 22px 6.5rem 1fr;
+  gap: 0.5rem;
+  align-items: start;
+  padding: 0.4rem 0.625rem;
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &.hovered {
+    background: var(--color-bg-secondary);
+  }
+
+  &.selected {
+    background: var(--bg-tertiary);
+    box-shadow: inset 3px 0 0 var(--color-primary);
+  }
+}
+
+.gps-leg-time {
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.gps-leg-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.gps-leg-title {
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.gps-leg-hidden {
+  margin-left: 0.375rem;
+  font-size: 0.7rem;
+  font-weight: normal;
+  color: var(--color-text-secondary);
+}
+
+.gps-leg-stats,
+.gps-leg-note {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
 /* My Drones */
 
 .drone-cards {

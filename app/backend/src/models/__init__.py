@@ -2,6 +2,7 @@ from .cosplay import CosplayCostume, CosplayPhoto
 from .drone import Battery, Drone, DroneFlight
 from .event import PersonalEvent
 from .fixer import Fixer, FixerCountry, TripFixer
+from .gps import GpsTrack, GpsTrackLeg
 from .instagram import InstagramMedia, InstagramPost
 from .location import UserLastLocation
 from .meme import Meme
@@ -50,6 +51,8 @@ __all__ = [
     "Fixer",
     "FixerCountry",
     "Flight",
+    "GpsTrack",
+    "GpsTrackLeg",
     "InstagramMedia",
     "InstagramPost",
     "Meme",

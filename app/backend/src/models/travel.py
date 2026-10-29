@@ -233,6 +233,7 @@ class Trip(Base):
     drone_flights: Mapped[list["DroneFlight"]] = relationship(
         back_populates="trip", passive_deletes=True
     )
+    gps_tracks: Mapped[list["GpsTrack"]] = relationship(back_populates="trip", passive_deletes=True)
     travel_docs: Mapped[list["TripTravelDoc"]] = relationship(
         back_populates="trip", cascade="all, delete-orphan"
     )
@@ -527,5 +528,6 @@ class TripDocument(Base):
 # Import to complete relationships
 from .drone import DroneFlight  # noqa: E402, F401
 from .fixer import TripFixer  # noqa: E402, F401
+from .gps import GpsTrack  # noqa: E402, F401
 from .user import User  # noqa: E402, F401
 from .vault import TripPassport, TripTravelDoc  # noqa: E402, F401

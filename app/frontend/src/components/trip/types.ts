@@ -4,7 +4,8 @@ export type TripTab =
   | "transport"
   | "stays"
   | "documents"
-  | "drone-flights";
+  | "drone-flights"
+  | "tracks";
 
 export interface TCCDestinationOption {
   id: number;
