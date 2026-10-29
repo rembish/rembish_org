@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.49.0 (2026-10-29)
+
+- Trips: a new admin-only Tracks tab. Upload a GPS logger's day files and each day is shown on a map, split into legs (on foot, by vehicle, stops), with a legend and a list of legs, per day or for the whole trip
+- Tracks can then be annotated: an analysis file names and types each leg (walk, car, bus, boat, camel ride and more), and the site rebuilds the day from the recorded points. Nothing is changed unless every day in the file checks out
+- Fixed: syncing new Instagram posts failed once more than one page of posts was waiting, and every retry started over. Sync now saves posts as it goes, carries on from where it stopped, runs one at a time, and says plainly when Instagram asks it to wait
+
 ## 0.48.4 (2026-10-21)
 
 - Security: updated Pillow, the image library, to fix eight newly published vulnerabilities. This release also carries the 0.48.3 fixes below, which were held back before they reached the site
