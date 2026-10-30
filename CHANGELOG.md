@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.50.0 (2026-10-30)
+
+- The site now runs on React 19, the latest version of the library it is built with, together with the newest map component for it
+- Fixed: opening a trip's Transport tab sent the page into an endless refresh loop in the background
+- Maintenance: updated the build, test and deployment tooling to current versions
+
 ## 0.49.7 (2026-10-30)
 
 - Fixed: the Travels page asked the server for drone flight cities even when nobody was signed in, and logged an error in the browser for every visitor. It now asks only for signed-in users who can see them
