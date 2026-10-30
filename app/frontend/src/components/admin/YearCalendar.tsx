@@ -157,7 +157,7 @@ export default function YearCalendarView({
   const renderMonth = (month: number) => {
     const daysInMonth = getDaysInMonth(month);
     const firstDay = getFirstDayOfMonth(month);
-    const days: JSX.Element[] = [];
+    const days: React.JSX.Element[] = [];
 
     // Empty cells for days before the 1st
     for (let i = 0; i < firstDay; i++) {
