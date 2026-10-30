@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.49.7 (2026-10-30)
+
+- Fixed: the Travels page asked the server for drone flight cities even when nobody was signed in, and logged an error in the browser for every visitor. It now asks only for signed-in users who can see them
+
 ## 0.49.6 (2026-10-30)
 
 - Security: updated the site's page navigation library (React Router) to its current major version, fixing an open redirect and an injection issue, and updated the development tools behind six further alerts. No known vulnerabilities remain in the site's dependencies
