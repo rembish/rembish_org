@@ -285,7 +285,7 @@ interface TravelStatsData {
 type TabType = "map" | "un" | "tcc" | "stats" | "flights";
 
 export default function Travels() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { tab } = useParams<{ tab?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -424,7 +424,6 @@ export default function Travels() {
         citiesRes,
         flightsRes,
         flightStatsRes,
-        droneCitiesRes,
         droneStatsRes,
       ] = await Promise.all([
         apiFetch("/api/v1/travels/un-countries"),
@@ -433,7 +432,6 @@ export default function Travels() {
         apiFetch("/api/v1/travels/map-cities"),
         apiFetch("/api/v1/travels/map-flights"),
         apiFetch("/api/v1/travels/flight-stats"),
-        apiFetch("/api/v1/travels/drone-flights/map-cities"),
         apiFetch("/api/v1/travels/drone-stats"),
       ]);
 
@@ -468,11 +466,6 @@ export default function Travels() {
       if (flightStatsRes.ok) {
         const flightStatsResult: FlightStatsData = await flightStatsRes.json();
         setFlightStatsData(flightStatsResult);
-      }
-
-      if (droneCitiesRes.ok) {
-        const droneCitiesResult = await droneCitiesRes.json();
-        setDroneCityMarkers(droneCitiesResult.cities || []);
       }
 
       if (droneStatsRes.ok) {
@@ -521,6 +514,19 @@ export default function Travels() {
   useEffect(() => {
     fetchAllData();
   }, []);
+
+  // Drone flight cities are for admins and viewers only: don't ask otherwise
+  useEffect(() => {
+    if (authLoading) return;
+    if (user?.role !== "admin" && user?.role !== "viewer") {
+      setDroneCityMarkers([]);
+      return;
+    }
+    apiFetch("/api/v1/travels/drone-flights/map-cities")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setDroneCityMarkers(data?.cities || []))
+      .catch(() => setDroneCityMarkers([]));
+  }, [user, authLoading]);
 
   // Fetch current location for logged-in users
   useEffect(() => {
