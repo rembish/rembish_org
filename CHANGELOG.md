@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.49.6 (2026-10-30)
+
+- Security: updated the site's page navigation library (React Router) to its current major version, fixing an open redirect and an injection issue, and updated the development tools behind six further alerts. No known vulnerabilities remain in the site's dependencies
+
 ## 0.49.5 (2026-10-29)
 
 - Projects: a new Games tab with five classic DOS games, decompiled and playable in the browser: Elite Plus (as Witchspace), BlockOut, Welltris, King and Color Lines
