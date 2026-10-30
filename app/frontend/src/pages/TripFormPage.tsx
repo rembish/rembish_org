@@ -503,7 +503,13 @@ export default function TripFormPage() {
           tripCitiesDisplay={tripCitiesDisplay}
           readOnly={readOnly}
           onFlightsCountChange={(count) =>
-            setFormData((prev) => ({ ...prev, flights_count: count }))
+            // Unchanged count: keep the same state, or the new callback this render
+            // makes reruns TransportTab's sync effect and loops forever
+            setFormData((prev) =>
+              prev.flights_count === count
+                ? prev
+                : { ...prev, flights_count: count },
+            )
           }
         />
       ) : activeTab === "stays" && isEdit ? (
