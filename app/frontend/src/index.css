@@ -7683,6 +7683,13 @@ a {
   white-space: nowrap;
 }
 
+/* Bars are sized relative to the space after the label, not the whole row:
+   otherwise every bar wider than that space gets shrunk to the same length */
+.flight-stats-bar-track {
+  flex: 1;
+  min-width: 0;
+}
+
 .flight-stats-bar-outlier {
   width: 100%;
 }

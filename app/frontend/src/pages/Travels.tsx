@@ -1519,26 +1519,28 @@ export default function Travels() {
               <span className="flight-stats-label">
                 {renderLabel ? renderLabel(item) : item.name}
               </span>
-              {isOutlier ? (
-                <div
-                  className="flight-stats-bar flight-stats-bar-outlier"
-                  style={{
-                    background: `linear-gradient(to right, ${color}, #e74c3c 50%, #e67e22)`,
-                  }}
-                >
-                  <span className="flight-stats-bar-value">{item.count}</span>
-                </div>
-              ) : (
-                <div
-                  className="flight-stats-bar"
-                  style={{
-                    width: `${Math.max((item.count / scaleMax) * 100, 2)}%`,
-                    background: color,
-                  }}
-                >
-                  <span className="flight-stats-bar-value">{item.count}</span>
-                </div>
-              )}
+              <div className="flight-stats-bar-track">
+                {isOutlier ? (
+                  <div
+                    className="flight-stats-bar flight-stats-bar-outlier"
+                    style={{
+                      background: `linear-gradient(to right, ${color}, #e74c3c 50%, #e67e22)`,
+                    }}
+                  >
+                    <span className="flight-stats-bar-value">{item.count}</span>
+                  </div>
+                ) : (
+                  <div
+                    className="flight-stats-bar"
+                    style={{
+                      width: `${Math.max((item.count / scaleMax) * 100, 2)}%`,
+                      background: color,
+                    }}
+                  >
+                    <span className="flight-stats-bar-value">{item.count}</span>
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}
