@@ -632,6 +632,36 @@ const gameProjects: Project[] = [
 
 const experimentProjects: Project[] = [
   {
+    title: "obscure-tetrises",
+    description:
+      "The same falling-block puzzle game, implemented in Unix tools that were never meant to run games: bc, dc, jq, m4, make, sed, gnuplot, CMake, plain TeX, troff and even sendmail.cf rewriting rules. Each engine draws the whole game itself (board, gravity, rotation, line clears, scoring and the colour frame) and is driven by key presses from a small bash launcher. sedtris from 2008 started it all.",
+    features: [
+      "11 engines: bctris, cmaketris, dctris, gnuplottris, jqtris, m4tris, maketris, sedtris, sendmailtris, textris and trofftris",
+      "One shared spec: the same event protocol, random number generator, rules and output, down to the byte",
+      "An executable Python reference that every engine is replayed against, frame by frame, with bot games and fuzzed key streams",
+      "A golfed version of every engine, checked to produce exactly the same bytes",
+      "Playable with a single curl | bash one-liner per engine",
+    ],
+    techStack: [
+      "bash",
+      "sed",
+      "jq",
+      "bc / dc",
+      "m4",
+      "GNU make",
+      "TeX / troff",
+      "sendmail.cf",
+    ],
+    status: "active",
+    links: [
+      {
+        label: "GitHub",
+        url: "https://github.com/rembish/obscure-tetrises",
+        icon: BiLogoGithub,
+      },
+    ],
+  },
+  {
     title: "fruit-fly",
     description:
       "A fly that lives on your desktop, driven by the complete brain of a real fruit fly: the FlyWire connectome of adult Drosophila melanogaster, 139,255 neurons and about 34 million synapses, simulated live while the sprite buzzes over your windows. No scripted behaviour: when it dodges your cursor, your cursor reached its looming-detector neurons and they fired the giant fiber escape neuron, the same circuit a living fly uses to dodge a rolled-up newspaper.",
