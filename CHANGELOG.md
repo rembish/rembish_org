@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.51.1 (2026-11-05)
+
+- Fixed: the flight statistics bars weren't to scale. Every long bar was cut to the same length, so the top two airlines and drones looked equal
+- Fixed: aircraft types spelled differently by different sources (e.g. "Airbus Industrie A320", "Airbus 321 Neo", "Boeing B777", the A220 variants) now merge into their family in the Aircraft Types chart
+- New experiment on the Projects page: obscure-tetrises, the same falling-block game written in sed, jq, bc, dc, m4, make, TeX, troff and even sendmail rewriting rules
+- Security: updated two backend libraries (joserfc, pyasn1) with newly published vulnerabilities; this had blocked the 0.51.0 deployment
+
 ## 0.51.0 (2026-11-05)
 
 - Uploading a ticket or booking now checks its dates against the trip. Tickets often print a date without the year, and the year used to be guessed (a November 2026 trip got its flights saved in 2024). A wrong year is now corrected automatically, and any date outside the trip is highlighted before you save, for flights, car rentals, trains/buses/ferries and accommodation
