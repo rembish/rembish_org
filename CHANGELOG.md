@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.51.0 (2026-11-05)
+
+- Uploading a ticket or booking now checks its dates against the trip. Tickets often print a date without the year, and the year used to be guessed (a November 2026 trip got its flights saved in 2024). A wrong year is now corrected automatically, and any date outside the trip is highlighted before you save, for flights, car rentals, trains/buses/ferries and accommodation
+- Document reading (tickets, bookings, travel documents, memes) now uses Claude Haiku 5.5, a newer and cheaper model
+
 ## 0.50.0 (2026-10-30)
 
 - The site now runs on React 19, the latest version of the library it is built with, together with the newest map component for it
