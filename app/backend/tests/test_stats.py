@@ -10,6 +10,15 @@ def test_airbus_a320_family() -> None:
     assert _aircraft_family("Airbus A318") == "Airbus A320 family"
 
 
+def test_spelling_variants_join_their_family() -> None:
+    assert _aircraft_family("Airbus Industrie A320-100/200") == "Airbus A320 family"
+    assert _aircraft_family("Airbus 321 Neo") == "Airbus A320 family"
+    assert _aircraft_family("Boeing B777") == "Boeing 777"
+    assert _aircraft_family("Airbus A220-100") == "Airbus A220"
+    assert _aircraft_family("Airbus A220-300") == "Airbus A220"
+    assert _aircraft_family("Embraer RJ145") == "Embraer 145"
+
+
 def test_airbus_widebody() -> None:
     assert _aircraft_family("Airbus A330-300") == "Airbus A330"
     assert _aircraft_family("Airbus A340-600") == "Airbus A340"

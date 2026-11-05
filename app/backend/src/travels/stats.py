@@ -320,6 +320,11 @@ def _aircraft_family(aircraft_type: str) -> str:
     """Group aircraft type into family. E.g. 'Airbus A321neo' -> 'Airbus A320 family'."""
     t = aircraft_type.strip()
     low = t.lower()
+    # Normalize spelling variants from different sources before grouping:
+    # "Airbus Industrie A320-100/200", "Airbus 321 Neo", "Boeing B777"
+    low = re.sub(r"\s+", " ", low.replace(" industrie ", " "))
+    low = re.sub(r"^airbus (\d{3})", r"airbus a\1", low)
+    low = re.sub(r"^boeing b(\d{3})", r"boeing \1", low)
 
     # Airbus A3xx family grouping
     if low.startswith("airbus a3"):
@@ -332,10 +337,11 @@ def _aircraft_family(aircraft_type: str) -> str:
         if m:
             base = "A3" + m.group(1) + "0"
             return f"Airbus {base}"
-        # A350, A380 etc.
-        m = re.match(r"airbus\s+(a\d{3})", low)
-        if m:
-            return f"Airbus {m.group(1).upper()}"
+
+    # A220, A350, A380 etc.
+    m = re.match(r"airbus\s+(a\d{3})", low)
+    if m:
+        return f"Airbus {m.group(1).upper()}"
 
     # Boeing 7x7 grouping
     if low.startswith("boeing"):
@@ -352,7 +358,7 @@ def _aircraft_family(aircraft_type: str) -> str:
 
     # Embraer
     if low.startswith("embraer") or low.startswith("erj"):
-        m = re.match(r"(?:embraer|erj)\s*[-\s]?(\d{3})", low)
+        m = re.match(r"(?:embraer|erj)\s*[-\s]?(?:e?rj\s*)?(\d{3})", low)
         if m:
             model = int(m.group(1))
             if 170 <= model <= 195:
