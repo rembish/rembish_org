@@ -204,6 +204,11 @@ export default function CarRentalModal({
                           .filter(Boolean)
                           .join(" · ")}
                       </span>
+                      {extractedRental.date_warning && (
+                        <span className="extracted-date-warning">
+                          {extractedRental.date_warning}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <button

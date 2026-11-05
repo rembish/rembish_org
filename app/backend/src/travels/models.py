@@ -511,6 +511,7 @@ class ExtractedFlightResponse(BaseModel):
     seat: str | None = None
     booking_reference: str | None = None
     is_duplicate: bool = False
+    date_warning: str | None = None
 
 
 class FlightExtractResponse(BaseModel):
@@ -568,6 +569,7 @@ class ExtractedCarRentalResponse(BaseModel):
     confirmation_number: str | None = None
     notes: str | None = None
     is_duplicate: bool = False
+    date_warning: str | None = None
 
 
 class CarRentalExtractResponse(BaseModel):
@@ -650,6 +652,7 @@ class ExtractedTransportBookingResponse(BaseModel):
     booking_reference: str | None = None
     notes: str | None = None
     is_duplicate: bool = False
+    date_warning: str | None = None
 
 
 class TransportBookingExtractResponse(BaseModel):
@@ -714,6 +717,7 @@ class ExtractedAccommodationResponse(BaseModel):
     confirmation_code: str | None = None
     notes: str | None = None
     is_duplicate: bool = False
+    date_warning: str | None = None
 
 
 class AccommodationExtractResponse(BaseModel):

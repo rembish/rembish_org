@@ -252,6 +252,7 @@ export interface ExtractedFlightData {
   seat: string | null;
   booking_reference: string | null;
   is_duplicate: boolean;
+  date_warning?: string | null;
 }
 
 export interface FlightLookupLeg {
@@ -300,6 +301,7 @@ export interface ExtractedCarRentalData {
   confirmation_number: string | null;
   notes: string | null;
   is_duplicate: boolean;
+  date_warning?: string | null;
 }
 
 export interface TransportBookingItem {
@@ -335,6 +337,7 @@ export interface ExtractedTransportBookingData {
   booking_reference: string | null;
   notes: string | null;
   is_duplicate: boolean;
+  date_warning?: string | null;
 }
 
 export interface AccommodationItem {
@@ -373,6 +376,7 @@ export interface ExtractedAccommodationData {
   confirmation_code: string | null;
   notes: string | null;
   is_duplicate: boolean;
+  date_warning?: string | null;
 }
 
 // Trip documents tab types

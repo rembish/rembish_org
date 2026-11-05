@@ -10244,3 +10244,17 @@ a {
 .cosplay-admin-photo:hover .cosplay-admin-photo-delete {
   opacity: 1;
 }
+
+/* AI extraction: date corrected or outside the trip window */
+.extracted-date-warning {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #b9620f;
+}
+
+@media (prefers-color-scheme: dark) {
+  .extracted-date-warning {
+    color: #f0a04b;
+  }
+}

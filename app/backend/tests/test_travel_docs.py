@@ -430,6 +430,7 @@ def test_extraction_returns_parsed_metadata(
     mock_response = MagicMock()
     mock_response.content = [
         MagicMock(
+            type="text",
             text='{"doc_type": "e_visa", "label": "India e-Visa", "country_code": "IN", '
             '"valid_from": "2026-01-01", "valid_until": "2026-12-31", '
             '"entry_type": "multiple", "notes": "Ref: ABC123"}'

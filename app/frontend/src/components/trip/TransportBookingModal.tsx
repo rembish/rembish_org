@@ -208,6 +208,11 @@ export default function TransportBookingModal({
                           .filter(Boolean)
                           .join(" \u00b7 ")}
                       </span>
+                      {extractedTransport.date_warning && (
+                        <span className="extracted-date-warning">
+                          {extractedTransport.date_warning}
+                        </span>
+                      )}
                     </div>
                     <button
                       className="btn-use-extracted"

@@ -3,14 +3,51 @@
 import base64
 import json
 import re
-from typing import Any
+from datetime import date
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
 from .config import settings
 from .log_config import get_logger
 
+if TYPE_CHECKING:
+    from anthropic.types import OutputConfigParam
+
 log = get_logger(__name__)
+
+
+EXTRACTION_MODEL = "claude-haiku-5-5"
+# Haiku 5.5 thinks by default and thinking counts toward max_tokens: leave room for it
+EXTRACTION_MAX_TOKENS = 8192
+EXTRACTION_OUTPUT_CONFIG: "OutputConfigParam" = {"effort": "low"}
+
+
+def _response_text(response: Any) -> str:
+    """Join the text blocks of a response, skipping thinking blocks."""
+    if response.stop_reason == "refusal":
+        raise RuntimeError("Model declined to process the document")
+    if response.stop_reason == "max_tokens":
+        log.warning("Extraction response hit max_tokens")
+    return "".join(b.text for b in response.content if b.type == "text").strip()
+
+
+def trip_date_context(trip_start: date | None, trip_end: date | None) -> str:
+    """Prompt suffix telling the model which dates the document should fall in.
+
+    Tickets often print dates without a year ("13NOV"); without this the model
+    guesses the year, and guesses wrong.
+    """
+    if trip_start is None:
+        return ""
+    end = trip_end or trip_start
+    return (
+        f"\n\nContext: this document belongs to a trip from {trip_start.isoformat()} "
+        f"to {end.isoformat()} (today is {date.today().isoformat()}). "
+        "If a date on the document has no year, use the year that places it within "
+        "or next to this trip. Never invent a year that contradicts the document."
+    )
+
 
 EXTRACTION_PROMPT = """\
 You are a travel document metadata extractor. \
@@ -331,13 +368,14 @@ def extract_document_metadata(file_content: bytes, mime_type: str) -> Extraction
         content.append({"type": "text", "text": EXTRACTION_PROMPT})
 
         response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1024,
+            model=EXTRACTION_MODEL,
+            max_tokens=EXTRACTION_MAX_TOKENS,
+            output_config=EXTRACTION_OUTPUT_CONFIG,
             messages=[{"role": "user", "content": content}],  # type: ignore[typeddict-item]
         )
 
         # Parse response text
-        text = response.content[0].text.strip()  # type: ignore[union-attr]
+        text = _response_text(response)
 
         # Strip markdown code fences if present
         text = re.sub(r"^```(?:json)?\s*", "", text)
@@ -359,7 +397,12 @@ def extract_document_metadata(file_content: bytes, mime_type: str) -> Extraction
         return ExtractionResult(error="Extraction failed")
 
 
-def extract_flight_data(file_content: bytes, mime_type: str) -> FlightExtractionResult:
+def extract_flight_data(
+    file_content: bytes,
+    mime_type: str,
+    trip_start: date | None = None,
+    trip_end: date | None = None,
+) -> FlightExtractionResult:
     """Extract flight data from a PDF or image using Claude Haiku."""
     if not settings.anthropic_api_key:
         return FlightExtractionResult(error="API key not configured")
@@ -395,15 +438,21 @@ def extract_flight_data(file_content: bytes, mime_type: str) -> FlightExtraction
         else:
             return FlightExtractionResult(error=f"Unsupported file type: {mime_type}")
 
-        content.append({"type": "text", "text": FLIGHT_EXTRACTION_PROMPT})
+        content.append(
+            {
+                "type": "text",
+                "text": FLIGHT_EXTRACTION_PROMPT + trip_date_context(trip_start, trip_end),
+            }
+        )
 
         response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=2048,
+            model=EXTRACTION_MODEL,
+            max_tokens=EXTRACTION_MAX_TOKENS,
+            output_config=EXTRACTION_OUTPUT_CONFIG,
             messages=[{"role": "user", "content": content}],  # type: ignore[typeddict-item]
         )
 
-        text = response.content[0].text.strip()  # type: ignore[union-attr]
+        text = _response_text(response)
 
         # Strip markdown code fences if present
         text = re.sub(r"^```(?:json)?\s*", "", text)
@@ -428,7 +477,12 @@ def extract_flight_data(file_content: bytes, mime_type: str) -> FlightExtraction
         return FlightExtractionResult(error="Extraction failed")
 
 
-def extract_car_rental_data(file_content: bytes, mime_type: str) -> CarRentalExtractionResult:
+def extract_car_rental_data(
+    file_content: bytes,
+    mime_type: str,
+    trip_start: date | None = None,
+    trip_end: date | None = None,
+) -> CarRentalExtractionResult:
     """Extract car rental data from a PDF or image using Claude Haiku."""
     if not settings.anthropic_api_key:
         return CarRentalExtractionResult(error="API key not configured")
@@ -464,15 +518,21 @@ def extract_car_rental_data(file_content: bytes, mime_type: str) -> CarRentalExt
         else:
             return CarRentalExtractionResult(error=f"Unsupported file type: {mime_type}")
 
-        content.append({"type": "text", "text": CAR_RENTAL_EXTRACTION_PROMPT})
+        content.append(
+            {
+                "type": "text",
+                "text": CAR_RENTAL_EXTRACTION_PROMPT + trip_date_context(trip_start, trip_end),
+            }
+        )
 
         response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1024,
+            model=EXTRACTION_MODEL,
+            max_tokens=EXTRACTION_MAX_TOKENS,
+            output_config=EXTRACTION_OUTPUT_CONFIG,
             messages=[{"role": "user", "content": content}],  # type: ignore[typeddict-item]
         )
 
-        text = response.content[0].text.strip()  # type: ignore[union-attr]
+        text = _response_text(response)
 
         # Strip markdown code fences if present
         text = re.sub(r"^```(?:json)?\s*", "", text)
@@ -495,7 +555,10 @@ def extract_car_rental_data(file_content: bytes, mime_type: str) -> CarRentalExt
 
 
 def extract_transport_booking_data(
-    file_content: bytes, mime_type: str
+    file_content: bytes,
+    mime_type: str,
+    trip_start: date | None = None,
+    trip_end: date | None = None,
 ) -> TransportBookingExtractionResult:
     """Extract transport booking data from a PDF or image using Claude Haiku."""
     if not settings.anthropic_api_key:
@@ -532,15 +595,22 @@ def extract_transport_booking_data(
         else:
             return TransportBookingExtractionResult(error=f"Unsupported file type: {mime_type}")
 
-        content.append({"type": "text", "text": TRANSPORT_BOOKING_EXTRACTION_PROMPT})
+        content.append(
+            {
+                "type": "text",
+                "text": TRANSPORT_BOOKING_EXTRACTION_PROMPT
+                + trip_date_context(trip_start, trip_end),
+            }
+        )
 
         response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1024,
+            model=EXTRACTION_MODEL,
+            max_tokens=EXTRACTION_MAX_TOKENS,
+            output_config=EXTRACTION_OUTPUT_CONFIG,
             messages=[{"role": "user", "content": content}],  # type: ignore[typeddict-item]
         )
 
-        text = response.content[0].text.strip()  # type: ignore[union-attr]
+        text = _response_text(response)
 
         # Strip markdown code fences if present
         text = re.sub(r"^```(?:json)?\s*", "", text)
@@ -563,7 +633,10 @@ def extract_transport_booking_data(
 
 
 def extract_accommodation_data(
-    file_content: bytes, mime_type: str
+    file_content: bytes,
+    mime_type: str,
+    trip_start: date | None = None,
+    trip_end: date | None = None,
 ) -> AccommodationExtractionResult:
     """Extract accommodation booking data from a PDF or image using Claude Haiku."""
     if not settings.anthropic_api_key:
@@ -600,15 +673,21 @@ def extract_accommodation_data(
         else:
             return AccommodationExtractionResult(error=f"Unsupported file type: {mime_type}")
 
-        content.append({"type": "text", "text": ACCOMMODATION_EXTRACTION_PROMPT})
+        content.append(
+            {
+                "type": "text",
+                "text": ACCOMMODATION_EXTRACTION_PROMPT + trip_date_context(trip_start, trip_end),
+            }
+        )
 
         response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1024,
+            model=EXTRACTION_MODEL,
+            max_tokens=EXTRACTION_MAX_TOKENS,
+            output_config=EXTRACTION_OUTPUT_CONFIG,
             messages=[{"role": "user", "content": content}],  # type: ignore[typeddict-item]
         )
 
-        text = response.content[0].text.strip()  # type: ignore[union-attr]
+        text = _response_text(response)
 
         # Strip markdown code fences if present
         text = re.sub(r"^```(?:json)?\s*", "", text)
@@ -656,12 +735,13 @@ def extract_meme_metadata(file_content: bytes, mime_type: str) -> MemeExtraction
         ]
 
         response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1024,
+            model=EXTRACTION_MODEL,
+            max_tokens=EXTRACTION_MAX_TOKENS,
+            output_config=EXTRACTION_OUTPUT_CONFIG,
             messages=[{"role": "user", "content": content}],  # type: ignore[typeddict-item]
         )
 
-        text = response.content[0].text.strip()  # type: ignore[union-attr]
+        text = _response_text(response)
 
         # Strip markdown code fences if present
         text = re.sub(r"^```(?:json)?\s*", "", text)

@@ -28,6 +28,7 @@ def test_extract_image_success(mock_settings: MagicMock) -> None:
 
     mock_response = MagicMock()
     mock_content_block = MagicMock()
+    mock_content_block.type = "text"
     mock_content_block.text = '{"doc_type": "eta", "label": "UK ETA", "country_code": "GB"}'
     mock_response.content = [mock_content_block]
 
@@ -48,6 +49,7 @@ def test_extract_pdf_with_code_fences(mock_settings: MagicMock) -> None:
 
     mock_response = MagicMock()
     mock_content_block = MagicMock()
+    mock_content_block.type = "text"
     mock_content_block.text = '```json\n{"doc_type": "e_visa", "label": "India e-Visa"}\n```'
     mock_response.content = [mock_content_block]
 
@@ -67,6 +69,7 @@ def test_extract_invalid_json(mock_settings: MagicMock) -> None:
 
     mock_response = MagicMock()
     mock_content_block = MagicMock()
+    mock_content_block.type = "text"
     mock_content_block.text = "This is not JSON"
     mock_response.content = [mock_content_block]
 
@@ -155,6 +158,7 @@ def test_extract_flights_single_leg(mock_settings: MagicMock) -> None:
 
     mock_response = MagicMock()
     mock_content_block = MagicMock()
+    mock_content_block.type = "text"
     mock_content_block.text = json.dumps(flight_data)
     mock_response.content = [mock_content_block]
 
@@ -191,6 +195,7 @@ def test_extract_flights_multi_leg(mock_settings: MagicMock) -> None:
 
     mock_response = MagicMock()
     mock_content_block = MagicMock()
+    mock_content_block.type = "text"
     mock_content_block.text = json.dumps(flight_data)
     mock_response.content = [mock_content_block]
 
@@ -221,6 +226,7 @@ def test_extract_flights_with_code_fences(mock_settings: MagicMock) -> None:
 
     mock_response = MagicMock()
     mock_content_block = MagicMock()
+    mock_content_block.type = "text"
     mock_content_block.text = f"```json\n{json.dumps(flight_data)}\n```"
     mock_response.content = [mock_content_block]
 
@@ -241,6 +247,7 @@ def test_extract_flights_invalid_json(mock_settings: MagicMock) -> None:
 
     mock_response = MagicMock()
     mock_content_block = MagicMock()
+    mock_content_block.type = "text"
     mock_content_block.text = "Sorry, I cannot read this document"
     mock_response.content = [mock_content_block]
 

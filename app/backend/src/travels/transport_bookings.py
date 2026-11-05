@@ -14,6 +14,7 @@ from ..crypto import decrypt, encrypt, mask_value
 from ..database import get_db
 from ..extraction import extract_transport_booking_data
 from ..models import TransportBooking, Trip, User
+from .date_check import check_dates
 from .models import (
     ExtractedTransportBookingResponse,
     TransportBookingCreateRequest,
@@ -97,11 +98,21 @@ async def extract_transport_booking(
     if len(content) > MAX_EXTRACT_SIZE:
         return TransportBookingExtractResponse(error="File too large (max 10 MB)")
 
-    result = extract_transport_booking_data(content, content_type)
+    result = extract_transport_booking_data(
+        content, content_type, trip_start=trip.start_date, trip_end=trip.end_date
+    )
     if result.error:
         return TransportBookingExtractResponse(error=result.error)
     if not result.booking:
         return TransportBookingExtractResponse(error="No booking data extracted")
+
+    booking = result.booking
+    fixed, date_warning = check_dates(
+        {"dep": booking.departure_datetime, "arr": booking.arrival_datetime},
+        trip.start_date,
+        trip.end_date,
+    )
+    booking.departure_datetime, booking.arrival_datetime = fixed["dep"], fixed["arr"]
 
     # Check for duplicates: same departure_datetime + operator + type
     is_dup = False
@@ -131,6 +142,7 @@ async def extract_transport_booking(
         booking_reference=result.booking.booking_reference,
         notes=result.booking.notes,
         is_duplicate=is_dup,
+        date_warning=date_warning,
     )
 
     return TransportBookingExtractResponse(booking=extracted)

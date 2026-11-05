@@ -325,6 +325,11 @@ export default function FlightModal({
                         {ef.flight_date}
                       </span>
                     )}
+                    {ef.date_warning && (
+                      <span className="extracted-date-warning">
+                        {ef.date_warning}
+                      </span>
+                    )}
                   </div>
                 </label>
               ))}

@@ -218,6 +218,11 @@ export default function AccommodationModal({
                           .filter(Boolean)
                           .join(" · ")}
                       </span>
+                      {extractedAccommodation.date_warning && (
+                        <span className="extracted-date-warning">
+                          {extractedAccommodation.date_warning}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <button

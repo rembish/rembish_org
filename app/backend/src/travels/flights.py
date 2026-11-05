@@ -18,6 +18,7 @@ from ..crypto import decrypt, encrypt, mask_value
 from ..database import get_db
 from ..extraction import extract_flight_data
 from ..models import Airport, Flight, Trip, User
+from .date_check import check_dates
 from .models import (
     AirportData,
     ExtractedFlightResponse,
@@ -309,7 +310,9 @@ async def extract_flights_from_ticket(
     if len(content) > MAX_EXTRACT_SIZE:
         return FlightExtractResponse(error="File too large (max 10 MB)")
 
-    result = extract_flight_data(content, content_type)
+    result = extract_flight_data(
+        content, content_type, trip_start=trip.start_date, trip_end=trip.end_date
+    )
     if result.error:
         return FlightExtractResponse(error=result.error)
     if not result.flights:
@@ -326,6 +329,12 @@ async def extract_flights_from_ticket(
 
     extracted: list[ExtractedFlightResponse] = []
     for flight in result.flights:
+        fixed, date_warning = check_dates(
+            {"dep": flight.flight_date, "arr": flight.arrival_date},
+            trip.start_date,
+            trip.end_date,
+        )
+        flight.flight_date, flight.arrival_date = fixed["dep"], fixed["arr"]
         is_dup = (
             flight.flight_date,
             (flight.departure_iata or "").upper(),
@@ -347,6 +356,7 @@ async def extract_flights_from_ticket(
                 seat=flight.seat,
                 booking_reference=flight.booking_reference,
                 is_duplicate=is_dup,
+                date_warning=date_warning,
             )
         )
 

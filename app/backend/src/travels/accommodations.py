@@ -14,6 +14,7 @@ from ..crypto import decrypt, encrypt, mask_value
 from ..database import get_db
 from ..extraction import extract_accommodation_data
 from ..models import Accommodation, Trip, User
+from .date_check import check_dates, shift_years
 from .models import (
     AccommodationCreateRequest,
     AccommodationData,
@@ -100,11 +101,24 @@ async def extract_accommodation(
     if len(content) > MAX_EXTRACT_SIZE:
         return AccommodationExtractResponse(error="File too large (max 10 MB)")
 
-    result = extract_accommodation_data(content, content_type)
+    result = extract_accommodation_data(
+        content, content_type, trip_start=trip.start_date, trip_end=trip.end_date
+    )
     if result.error:
         return AccommodationExtractResponse(error=result.error)
     if not result.accommodation:
         return AccommodationExtractResponse(error="No accommodation data extracted")
+
+    acc = result.accommodation
+    fixed, date_warning = check_dates(
+        {"in": acc.checkin_date, "out": acc.checkout_date}, trip.start_date, trip.end_date
+    )
+    # payment_date is a deadline, usually well before the trip: not window-checked,
+    # but if the stay's year was corrected, the deadline's year was guessed the same way
+    if acc.checkin_date and fixed["in"] and fixed["in"] != acc.checkin_date:
+        years = int(fixed["in"][:4]) - int(acc.checkin_date[:4])
+        acc.payment_date = shift_years(acc.payment_date, years)
+    acc.checkin_date, acc.checkout_date = fixed["in"], fixed["out"]
 
     # Check for duplicates: same checkin_date + property_name
     is_dup = False
@@ -134,6 +148,7 @@ async def extract_accommodation(
         confirmation_code=result.accommodation.confirmation_code,
         notes=result.accommodation.notes,
         is_duplicate=is_dup,
+        date_warning=date_warning,
     )
 
     return AccommodationExtractResponse(accommodation=extracted)

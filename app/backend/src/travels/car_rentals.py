@@ -14,6 +14,7 @@ from ..crypto import decrypt, encrypt, mask_value
 from ..database import get_db
 from ..extraction import extract_car_rental_data
 from ..models import CarRental, Trip, User
+from .date_check import check_dates
 from .models import (
     CarRentalCreateRequest,
     CarRentalData,
@@ -88,11 +89,21 @@ async def extract_car_rental_from_pdf(
     if len(content) > MAX_EXTRACT_SIZE:
         return CarRentalExtractResponse(error="File too large (max 10 MB)")
 
-    result = extract_car_rental_data(content, content_type)
+    result = extract_car_rental_data(
+        content, content_type, trip_start=trip.start_date, trip_end=trip.end_date
+    )
     if result.error:
         return CarRentalExtractResponse(error=result.error)
     if not result.rental:
         return CarRentalExtractResponse(error="No rental data extracted")
+
+    rental = result.rental
+    fixed, date_warning = check_dates(
+        {"pickup": rental.pickup_datetime, "dropoff": rental.dropoff_datetime},
+        trip.start_date,
+        trip.end_date,
+    )
+    rental.pickup_datetime, rental.dropoff_datetime = fixed["pickup"], fixed["dropoff"]
 
     # Check for duplicates: same pickup_datetime + rental_company
     is_dup = False
@@ -121,6 +132,7 @@ async def extract_car_rental_from_pdf(
         confirmation_number=result.rental.confirmation_number,
         notes=result.rental.notes,
         is_duplicate=is_dup,
+        date_warning=date_warning,
     )
 
     return CarRentalExtractResponse(rental=extracted)
