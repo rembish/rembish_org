@@ -596,11 +596,16 @@ def get_holidays(
     year: int,
     country_code: str,
     admin: Annotated[User, Depends(get_trips_viewer)],
+    db: Session = Depends(get_db),
 ) -> HolidaysResponse:
     """Get public holidays for a year/country from Nager.Date API (admin only).
 
     Uses in-memory cache with 24h TTL.
     """
+    # Auth is done; hand the DB connection back before the external call.
+    # The trips calendar fires one request per country in parallel, and
+    # holding connections while waiting on Nager exhausted the pool.
+    db.close()
     country_code = country_code.upper()
     cache_key = (year, country_code)
 
@@ -643,6 +648,7 @@ def get_holidays(
             ]
         )
     except Exception:
+        log.warning("Nager.Date holidays failed for %s %s", year, country_code, exc_info=True)
         return HolidaysResponse(holidays=[])
 
 
@@ -652,8 +658,10 @@ def get_advisories(
     admin: Annotated[User, Depends(get_trips_viewer)],
     start_date: str = Query(..., description="ISO date YYYY-MM-DD"),
     end_date: str = Query(..., description="ISO date YYYY-MM-DD"),
+    db: Session = Depends(get_db),
 ) -> TravelAdvisoriesResponse:
     """Get travel advisories for a country and date range."""
+    db.close()  # external lookups only; don't hold a pool connection
     from .travel_advisories import get_travel_advisories
 
     try:

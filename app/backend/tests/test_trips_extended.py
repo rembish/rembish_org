@@ -506,3 +506,33 @@ def test_parse_date_from_datetime() -> None:
     assert _parse_date_from_datetime(None) is None
     assert _parse_date_from_datetime("2026-03-10 06:30+01:00") == "2026-03-10"
     assert _parse_date_from_datetime("2026-03-10T06:30+01:00") == "2026-03-10"
+
+
+def test_holidays_releases_db_before_external_call(admin_client: TestClient) -> None:
+    """The DB session is closed before Nager is called, so parallel holiday
+    requests don't hold pool connections while waiting on the network."""
+    from src.database import get_db
+    from src.main import app
+    from src.travels.trips import _holidays_cache
+
+    _holidays_cache.clear()
+    session = MagicMock()
+    events: list[str] = []
+    session.close.side_effect = lambda: events.append("close")
+
+    def fake_get(*_args: object, **_kwargs: object) -> MagicMock:
+        events.append("http")
+        resp = MagicMock(status_code=200)
+        resp.json.return_value = []
+        return resp
+
+    previous = app.dependency_overrides.get(get_db)
+    app.dependency_overrides[get_db] = lambda: session
+    try:
+        with patch("httpx.get", side_effect=fake_get):
+            res = admin_client.get("/api/v1/travels/holidays/2026/CZ")
+    finally:
+        if previous is not None:
+            app.dependency_overrides[get_db] = previous
+    assert res.status_code == 200
+    assert events[:2] == ["close", "http"]

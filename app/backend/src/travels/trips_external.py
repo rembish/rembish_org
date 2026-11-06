@@ -242,7 +242,7 @@ def _fetch_frankfurter(currency_code: str) -> dict[str, float] | None:
     try:
         targets = {"CZK", "EUR", "USD"} - {currency_code}
         resp = httpx.get(
-            f"https://api.frankfurter.app/latest?from={currency_code}&to={','.join(sorted(targets))}",
+            f"https://api.frankfurter.dev/v1/latest?from={currency_code}&to={','.join(sorted(targets))}",
             timeout=5.0,
         )
         resp.raise_for_status()
