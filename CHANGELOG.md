@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.51.3 (2026-11-06)
+
+- Fixed: opening the trips calendar for a year with many countries could make the site fail for about half a minute. Each country's public holidays were looked up at the same time, and every lookup kept a database connection busy while waiting for the holiday service, until none were left
+- Fixed: exchange rates for trips in euro, pound and yen countries always failed on the first try, because the rates service moved to a new address
+
 ## 0.51.2 (2026-11-06)
 
 - Privacy: the CV, the Contact page, the PDF CV and the downloadable contact card no longer show the full home address, only the neighbourhood (Ládví, Prague 8). The map pin now marks the neighbourhood, not the building
