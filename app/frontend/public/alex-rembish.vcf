@@ -4,18 +4,16 @@ FN:Alex Rembish
 N:Rembish;Alex;;;
 GENDER:M
 BDAY:19850512
-EMAIL;type=HOME,INTERNET:alex@rembish.org
-EMAIL;type=WORK,INTERNET:rembish@shoptet.cz
-KEY;PGP:https://rembish.org/static/files/alex-rembish.asc
-TEL;TYPE=CELL:+420775054554
-ADR;TYPE=HOME:;;Wichterlova 2372/8;Prague;;18200;Czech Republic
-ADR;CHARSET=UTF-8;TYPE=WORK:;;Rohanské nábřeží 670/17;Prague;;18600;Czech Republic
-TITLE:Software Achitect
+EMAIL;TYPE=home:alex@rembish.org
+KEY;MEDIATYPE=application/pgp-keys:https://rembish.org/alex-rembish.asc
+TEL;VALUE=uri;TYPE=cell:tel:+420775054554
+ADR;TYPE=home:;;Ládví;Prague 8;;;Czechia
+TITLE:Member of Technical Staff
 ROLE:Programmer
-ORG:Shoptet, a.s.
+ORG:Everpure
 URL:https://rembish.org
-URL;type=WORK:https://shoptet.cz
+URL;TYPE=work:https://everpuredata.com
 TZ:Europe/Prague
-SOURCE:https://rembish.org/static/files/alex-rembish.vcf
-REV:2022-05-01T09:46:00.000Z
+SOURCE:https://rembish.org/alex-rembish.vcf
+REV:20261106T000000Z
 END:VCARD

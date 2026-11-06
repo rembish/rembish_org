@@ -34,7 +34,7 @@ export default function CV() {
                 </a>
               </p>
               <p>
-                <BiMap /> Wichterlova 2372/8, Prague 8, Czechia
+                <BiMap /> Ládví, Prague 8, Czechia
               </p>
               <p>
                 <BiPhone /> <a href="tel:00420775054554">+420 775 054 554</a>

@@ -26,8 +26,8 @@ const markerIcon = new L.Icon({
   shadowSize: [41, 41],
 });
 
-// Wichterlova 2372/8, Prague 8
-const LOCATION: [number, number] = [50.12237421115734, 14.467198995032321];
+// Ládví neighbourhood, Prague 8 (not the exact address)
+const LOCATION: [number, number] = [50.127, 14.469];
 // Prague center (Old Town Square area)
 const PRAGUE_CENTER: [number, number] = [50.0875, 14.4213];
 
@@ -166,7 +166,7 @@ export default function Contact() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <Marker position={LOCATION} icon={markerIcon}>
-              <Popup>Wichterlova 2372/8, Prague 8</Popup>
+              <Popup>Ládví, Prague 8</Popup>
             </Marker>
           </MapContainer>
         </div>
@@ -177,7 +177,7 @@ export default function Contact() {
               <BiMap className="info-icon" />
               <div>
                 <h4>Location</h4>
-                <p>Wichterlova 2372/8, Prague 8, Czechia</p>
+                <p>Ládví, Prague 8, Czechia</p>
               </div>
             </div>
 
