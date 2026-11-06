@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.51.2 (2026-11-06)
+
+- Privacy: the CV, the Contact page, the PDF CV and the downloadable contact card no longer show the full home address, only the neighbourhood (Ládví, Prague 8). The map pin now marks the neighbourhood, not the building
+- Fixed: the downloadable contact card was out of date. It now has the current job, no longer lists old work contacts, and its PGP key and self links point to files that exist
+
 ## 0.51.1 (2026-11-05)
 
 - Fixed: the flight statistics bars weren't to scale. Every long bar was cut to the same length, so the top two airlines and drones looked equal
