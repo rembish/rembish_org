@@ -43,32 +43,132 @@ function UploadStatus({
   );
 }
 
-function csvStatus(results: UploadResult[]): Status {
+const plural = (n: number, word: string) => `${n} ${word}${n !== 1 ? "s" : ""}`;
+
+function csvStatus(results: UploadResult[], card: boolean): Status {
   const errors = results.filter((r) => r.status === "error");
-  const created = results.filter((r) => r.status === "created").length;
-  const replaced = results.filter((r) => r.status === "replaced").length;
-  const parts = [
-    created && `${created} new`,
-    replaced && `${replaced} replaced`,
-  ].filter(Boolean);
-  const done = created + replaced;
+  const done = results.filter(
+    (r) => r.status === "created" || r.status === "replaced",
+  );
+  const created = done.filter((r) => r.status === "created").length;
+  const replaced = done.length - created;
+  const skipped = results.filter((r) => r.status === "skipped").length;
+  let parts: (string | false)[];
+  if (card) {
+    // Where the new days went: trips by number, the rest to days out
+    const trips = [
+      ...new Set(done.filter((r) => r.trip_id).map((r) => `#${r.trip_id}`)),
+    ];
+    const out = done.filter((r) => !r.trip_id).length;
+    parts = [
+      trips.length > 0 && `to trip ${trips.join(", ")}`,
+      out > 0 && `${out} day${out !== 1 ? "s" : ""} out`,
+    ];
+  } else {
+    parts = [
+      created > 0 && `${created} new`,
+      replaced > 0 && `${replaced} replaced`,
+    ];
+  }
   return {
     message: [
-      done > 0 &&
-        `Uploaded ${done} day${done !== 1 ? "s" : ""} (${parts.join(", ")})`,
+      done.length > 0 &&
+        `Uploaded ${plural(done.length, "day")} (${parts.filter(Boolean).join(", ")})`,
+      skipped > 0 && `${skipped} already on the site`,
       errors.length > 0 && `${errors.length} failed`,
     ]
       .filter(Boolean)
       .join(" · "),
-    errors: errors.map((r) => `${r.file}: ${r.detail}`),
+    // Notes on uploaded days (e.g. a day in two trips) are shown with the errors
+    errors: [
+      ...errors.map((r) => `${r.file}: ${r.detail}`),
+      ...done.filter((r) => r.detail).map((r) => `${r.file}: ${r.detail}`),
+    ],
   };
 }
 
+/** Title and trip controls for one day out. */
+function DayOutControls({
+  track,
+  onChanged,
+}: {
+  track: GpsTrack;
+  onChanged: () => void;
+}) {
+  const [title, setTitle] = useState(track.title ?? "");
+  const [tripId, setTripId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const patch = async (body: Record<string, unknown>) => {
+    setError(null);
+    const r = await apiFetch(`/api/v1/travels/gps-tracks/${track.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      setError(String((await r.json()).detail || "Update failed"));
+      return;
+    }
+    onChanged();
+  };
+
+  const attach = () => {
+    const id = Number(tripId.replace("#", ""));
+    if (!Number.isInteger(id) || id <= 0) {
+      setError("Enter a trip number");
+      return;
+    }
+    patch({ trip_id: id });
+  };
+
+  return (
+    <div className="gps-dayout-controls">
+      <input
+        value={title}
+        placeholder="Title for this day"
+        maxLength={200}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && patch({ title })}
+      />
+      <button
+        className="btn-add-inline"
+        onClick={() => patch({ title })}
+        disabled={title === (track.title ?? "")}
+      >
+        Save title
+      </button>
+      <input
+        className="gps-dayout-trip"
+        value={tripId}
+        placeholder="Trip #"
+        inputMode="numeric"
+        onChange={(e) => setTripId(e.target.value.trim())}
+        onKeyDown={(e) => e.key === "Enter" && attach()}
+      />
+      <button className="btn-add-inline" onClick={attach} disabled={!tripId}>
+        Attach to trip
+      </button>
+      {error && <span className="gps-upload-error">{error}</span>}
+    </div>
+  );
+}
+
+// Days out are listed newest first, a page at a time (the API caps a page at 100).
+const DAYS_OUT_PAGE = 20;
+const thisYear = String(new Date().getFullYear());
+const MAX_PAGE = 100;
+
 interface TripTracksTabProps {
-  tripId: string;
+  /** Without a trip: days out, and the upload takes a whole card. */
+  tripId?: string;
 }
 
 export default function TripTracksTab({ tripId }: TripTracksTabProps) {
+  const base = tripId
+    ? `/api/v1/travels/trips/${tripId}/gps-tracks`
+    : "/api/v1/travels/gps-tracks";
+  const listUrl = tripId ? base : `${base}/unassigned`;
   const [tracks, setTracks] = useState<GpsTrack[]>([]);
   const [defaultTz, setDefaultTz] = useState("UTC");
   const [timezone, setTimezone] = useState("");
@@ -84,29 +184,61 @@ export default function TripTracksTab({ tripId }: TripTracksTabProps) {
   // "all" is the overview of every day
   const [activeId, setActiveId] = useState<number | "all" | null>(null);
 
+  const [total, setTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
+  // How many days out are on screen; a reload after a change keeps them all.
+  const shownRef = useRef(DAYS_OUT_PAGE);
+
+  const pageUrl = (limit: number, offset: number) =>
+    tripId ? listUrl : `${listUrl}?limit=${limit}&offset=${offset}`;
+
   const load = () =>
-    apiFetch(`/api/v1/travels/trips/${tripId}/gps-tracks`)
+    apiFetch(pageUrl(Math.min(MAX_PAGE, shownRef.current), 0))
       .then((r) => r.json())
       .then((data) => {
         const list: GpsTrack[] = data.tracks || [];
         setTracks(list);
+        setTotal(data.total ?? list.length);
         setDefaultTz(data.default_timezone || "UTC");
         setActiveId((cur) => {
           if (list.length === 0) return null;
-          if (cur === "all" || (cur && list.some((t) => t.id === cur)))
+          if (
+            (cur === "all" && tripId) ||
+            (cur && list.some((t) => t.id === cur))
+          )
             return cur;
           const fromUrl = list.find((t) => t.local_date === dayParam);
-          return fromUrl ? fromUrl.id : "all";
+          if (fromUrl) return fromUrl.id;
+          // A trip opens on its overview; days out on the newest day
+          return tripId ? "all" : list[0].id;
         });
       })
       .catch((err) => console.error("Failed to load GPS tracks:", err))
       .finally(() => setLoading(false));
 
+  const loadOlder = () => {
+    setLoadingMore(true);
+    apiFetch(pageUrl(DAYS_OUT_PAGE, tracks.length))
+      .then((r) => r.json())
+      .then((data) => {
+        const more: GpsTrack[] = data.tracks || [];
+        setTracks((cur) => {
+          const known = new Set(cur.map((t) => t.id));
+          const next = [...cur, ...more.filter((t) => !known.has(t.id))];
+          shownRef.current = next.length;
+          return next;
+        });
+        setTotal(data.total ?? total);
+      })
+      .catch((err) => console.error("Failed to load older days:", err))
+      .finally(() => setLoadingMore(false));
+  };
+
   useEffect(() => {
     setLoading(true);
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only per trip
-  }, [tripId]);
+  }, [listUrl]);
 
   const active = tracks.find((t) => t.id === activeId) ?? null;
 
@@ -126,17 +258,14 @@ export default function TripTracksTab({ tripId }: TripTracksTabProps) {
     setUploading(true);
     setStatus(null);
     try {
-      const r = await apiFetch(
-        `/api/v1/travels/trips/${tripId}/gps-tracks/upload`,
-        {
-          method: "POST",
-          body: form,
-        },
-      );
+      const r = await apiFetch(`${base}/upload`, {
+        method: "POST",
+        body: form,
+      });
       const data = await r.json();
       setStatus(
         r.ok
-          ? csvStatus(data.results)
+          ? csvStatus(data.results, !tripId)
           : { message: "Upload failed", errors: [String(data.detail)] },
       );
       await load();
@@ -159,14 +288,11 @@ export default function TripTracksTab({ tripId }: TripTracksTabProps) {
         setStatus({ message: `${file.name} is not valid JSON`, errors: [] });
         return;
       }
-      const r = await apiFetch(
-        `/api/v1/travels/trips/${tripId}/gps-tracks/analysis`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        },
-      );
+      const r = await apiFetch(`${base}/analysis`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
       const data = await r.json();
       if (r.ok) {
         const n = data.days.length;
@@ -205,7 +331,10 @@ export default function TripTracksTab({ tripId }: TripTracksTabProps) {
     <div className="trip-transport-tab gps-tracks-tab">
       <div className="form-section">
         <h3 className="section-header-with-action">
-          <span>GPS Tracks ({tracks.length})</span>
+          <span>
+            {tripId ? "GPS Tracks" : "Days out"} (
+            {tripId ? tracks.length : total})
+          </span>
           <span className="gps-upload">
             {editingTz ? (
               <input
@@ -221,7 +350,11 @@ export default function TripTracksTab({ tripId }: TripTracksTabProps) {
               <button
                 className="gps-tz-chip"
                 onClick={() => setEditingTz(true)}
-                title="Time zone for the uploaded days — click to change"
+                title={
+                  tripId
+                    ? "Time zone for the uploaded days — click to change"
+                    : "Time zone for days that fall in no trip (trip days use the trip's) — click to change"
+                }
               >
                 {timezone || defaultTz}
               </button>
@@ -231,7 +364,12 @@ export default function TripTracksTab({ tripId }: TripTracksTabProps) {
               onClick={() => fileInput.current?.click()}
               disabled={uploading}
             >
-              <BiUpload /> {uploading ? "Uploading..." : "Upload CSVs"}
+              <BiUpload />{" "}
+              {uploading
+                ? "Uploading..."
+                : tripId
+                  ? "Upload CSVs"
+                  : "Upload card"}
             </button>
             <input
               ref={fileInput}
@@ -265,20 +403,25 @@ export default function TripTracksTab({ tripId }: TripTracksTabProps) {
 
         {tracks.length === 0 ? (
           <p className="flight-empty">
-            No tracks yet. Upload the logger's day files (one CSV per day).
+            {tripId
+              ? "No tracks yet. Upload the logger's day files (one CSV per day)."
+              : "No days out. Upload the logger's day files: days inside a trip go to that trip, days in no trip appear here."}
           </p>
         ) : (
           <>
             <div className="gps-day-pills">
-              <button
-                className={`gps-day-pill ${activeId === "all" ? "active" : ""}`}
-                onClick={() => choose("all")}
-              >
-                <span>All days</span>
-                <small>
-                  {fmtKm(tracks.reduce((acc, t) => acc + t.distance_km, 0))}
-                </small>
-              </button>
+              {/* The overview is for one trip's days; days out are unrelated */}
+              {tripId && (
+                <button
+                  className={`gps-day-pill ${activeId === "all" ? "active" : ""}`}
+                  onClick={() => choose("all")}
+                >
+                  <span>All days</span>
+                  <small>
+                    {fmtKm(tracks.reduce((acc, t) => acc + t.distance_km, 0))}
+                  </small>
+                </button>
+              )}
               {tracks.map((t) => (
                 <button
                   key={t.id}
@@ -286,12 +429,28 @@ export default function TripTracksTab({ tripId }: TripTracksTabProps) {
                   onClick={() => choose(t)}
                   title={t.title ?? undefined}
                 >
-                  <span>{fmtDay(t.local_date)}</span>
+                  <span>
+                    {fmtDay(t.local_date)}
+                    {/* Days out span years; a trip's days don't need it */}
+                    {!tripId &&
+                      !t.local_date.startsWith(thisYear) &&
+                      ` ${t.local_date.slice(0, 4)}`}
+                  </span>
                   <small>{fmtKm(t.distance_km)}</small>
                 </button>
               ))}
+              {!tripId && tracks.length < total && (
+                <button
+                  className="gps-day-pill gps-day-more"
+                  onClick={loadOlder}
+                  disabled={loadingMore}
+                >
+                  <span>{loadingMore ? "Loading..." : "Show older"}</span>
+                  <small>{total - tracks.length} more</small>
+                </button>
+              )}
             </div>
-            {activeId === "all" ? (
+            {activeId === "all" && tripId ? (
               <TrackDayView
                 key="all"
                 tracks={tracks}
@@ -301,13 +460,22 @@ export default function TripTracksTab({ tripId }: TripTracksTabProps) {
               />
             ) : (
               active && (
-                <TrackDayView
-                  key={active.id}
-                  tracks={[active]}
-                  all={false}
-                  onChanged={load}
-                  onOpenDay={choose}
-                />
+                <>
+                  {!tripId && (
+                    <DayOutControls
+                      key={`controls-${active.id}`}
+                      track={active}
+                      onChanged={load}
+                    />
+                  )}
+                  <TrackDayView
+                    key={`day-${active.id}`}
+                    tracks={[active]}
+                    all={false}
+                    onChanged={load}
+                    onOpenDay={choose}
+                  />
+                </>
               )
             )}
           </>

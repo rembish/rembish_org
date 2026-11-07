@@ -13,6 +13,7 @@ import {
   DRONE_SUB_TABS,
   MEDIA_SUB_TABS,
   PEOPLE_SECTIONS,
+  TRIPS_SUB_TABS,
 } from "../components/admin/types";
 import TripsTab from "../components/admin/TripsTab";
 import MediaTab from "../components/admin/MediaTab";
@@ -20,6 +21,7 @@ import PeopleTab from "../components/admin/PeopleTab";
 import DocumentsTab from "../components/admin/DocumentsTab";
 import LoyaltyTab from "../components/admin/LoyaltyTab";
 import DronesTab from "../components/admin/DronesTab";
+import TracksTab from "../components/admin/TracksTab";
 
 const validDocSections = new Set<string>(DOC_SECTIONS.map((s) => s.key));
 const validPeopleSections = new Set<string>(PEOPLE_SECTIONS.map((s) => s.key));
@@ -32,15 +34,17 @@ export default function Admin() {
   const navigate = useNavigate();
   const { tab, year } = useParams();
   const activeTab = (tab as AdminTab) || "trips";
-  // For trips tab, 'year' is the year number
+  // For trips tab, 'year' is the year number, or "tracks" for the Tracks sub-tab
   // For media tab, 'year' is the sub-tab (instagram/memes) or ig_id
   // For documents tab, 'year' is the doc section (ids/vaccinations/visas)
   // For people tab, 'year' is the people section (close-ones/addresses)
+  const tripsSubTab = tab === "trips" && year === "tracks" ? "tracks" : "trips";
   const selectedYear =
     tab === "media" ||
     tab === "documents" ||
     tab === "people" ||
-    tab === "drones"
+    tab === "drones" ||
+    tripsSubTab === "tracks"
       ? null
       : year
         ? Number(year)
@@ -240,11 +244,37 @@ export default function Admin() {
 
         <div className="admin-content">
           {activeTab === "trips" && (
-            <TripsTab
-              selectedYear={selectedYear}
-              onYearChange={setSelectedYear}
-              readOnly={readOnly}
-            />
+            <>
+              {/* GPS tracks are admin-only, so viewers get no sub-tabs */}
+              {!readOnly && (
+                <div className="vault-sub-tabs">
+                  {TRIPS_SUB_TABS.map((st) => (
+                    <button
+                      key={st.key}
+                      className={`vault-sub-tab${tripsSubTab === st.key ? " active" : ""}`}
+                      onClick={() =>
+                        navigate(
+                          st.key === "tracks"
+                            ? "/admin/trips/tracks"
+                            : "/admin/trips",
+                        )
+                      }
+                    >
+                      {st.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {tripsSubTab === "tracks" && !readOnly ? (
+                <TracksTab />
+              ) : (
+                <TripsTab
+                  selectedYear={selectedYear}
+                  onYearChange={setSelectedYear}
+                  readOnly={readOnly}
+                />
+              )}
+            </>
           )}
           {activeTab === "media" && (
             <MediaTab

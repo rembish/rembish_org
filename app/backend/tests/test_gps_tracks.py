@@ -447,3 +447,148 @@ def test_discard_analysis_restores_auto_legs(
     assert r.json()["legs_source"] == "auto"
     assert r.json()["title"] is None
     assert [leg["mode"] for leg in r.json()["legs"]] == ["foot", "stop", "vehicle", "gap", "foot"]
+
+
+# ---------------------------------------------------------------------------
+# Whole-card upload and days out
+# ---------------------------------------------------------------------------
+
+OUTSIDE = datetime(2030, 4, 2, 8, 0, 0, tzinfo=UTC)  # in no trip
+
+
+def _card(client: TestClient, files: list[tuple[str, bytes]], **form: str) -> list[dict]:
+    r = client.post(
+        "/api/v1/travels/gps-tracks/upload",
+        files=[("files", (name, content, "text/csv")) for name, content in files],
+        data=form,
+    )
+    assert r.status_code == 200, r.text
+    return r.json()["results"]
+
+
+def test_card_upload_routes_days_and_skips_known_ones(
+    admin_client: TestClient, db_session: Session, storage: FakeStorage
+) -> None:
+    trip = _trip(db_session)
+    files = [("10080000.CSV", _synthetic_day()), ("02080000.CSV", _synthetic_day(OUTSIDE))]
+    in_trip, day_out = _card(admin_client, files)
+
+    assert in_trip["status"] == "created" and in_trip["trip_id"] == trip.id
+    assert day_out["status"] == "created" and day_out["trip_id"] is None
+    t1 = db_session.get(GpsTrack, in_trip["track_id"])
+    t2 = db_session.get(GpsTrack, day_out["track_id"])
+    assert t1 is not None and t1.timezone == "America/Santiago"
+    assert t2 is not None and t2.timezone == "Europe/Prague" and t2.local_date == date(2030, 4, 2)
+
+    again = _card(admin_client, files)
+    assert [r["status"] for r in again] == ["skipped", "skipped"]
+    assert again[0]["detail"] == f"already uploaded (trip #{trip.id})"
+    assert again[1]["detail"] == "already uploaded (days out)"
+    assert db_session.query(GpsTrack).count() == 2
+    assert len(storage.files) == 2  # skipped days store nothing
+
+
+def test_card_upload_day_out_timezone_and_one_day_trip(
+    admin_client: TestClient, db_session: Session, storage: FakeStorage
+) -> None:
+    # A day trip has no end date; the day still matches it.
+    day_trip = Trip(start_date=date(2030, 4, 2), end_date=None, trip_type="regular")
+    db_session.add(day_trip)
+    db_session.commit()
+    [res] = _card(admin_client, [("02080000.CSV", _synthetic_day(OUTSIDE))])
+    assert res["trip_id"] == day_trip.id
+
+    [res] = _card(
+        admin_client, [("05080000.CSV", _synthetic_day(OUTSIDE + timedelta(days=3)))],
+        timezone="Asia/Tokyo",
+    )
+    track = db_session.get(GpsTrack, res["track_id"])
+    assert res["trip_id"] is None and track is not None and track.timezone == "Asia/Tokyo"
+
+
+def test_card_upload_ambiguous_day_stays_out(
+    admin_client: TestClient, db_session: Session, storage: FakeStorage
+) -> None:
+    a = _trip(db_session)
+    b = Trip(start_date=date(2030, 3, 10), end_date=date(2030, 3, 15), trip_type="regular")
+    db_session.add(b)
+    db_session.commit()
+    [res] = _card(admin_client, [("10080000.CSV", _synthetic_day())])
+    assert res["status"] == "created" and res["trip_id"] is None
+    assert f"#{a.id}" in res["detail"] and f"#{b.id}" in res["detail"]
+
+
+def test_days_out_list_attach_detach_and_title(
+    admin_client: TestClient, db_session: Session, storage: FakeStorage
+) -> None:
+    trip = _trip(db_session)
+    _card(admin_client, [("10080000.CSV", _synthetic_day()), ("02080000.CSV", _synthetic_day(OUTSIDE))])
+
+    body = admin_client.get("/api/v1/travels/gps-tracks/unassigned").json()
+    assert body["default_timezone"] == "Europe/Prague"
+    [out] = body["tracks"]
+    assert out["local_date"] == "2030-04-02"
+
+    r = admin_client.patch(f"/api/v1/travels/gps-tracks/{out['id']}", json={"title": " Hills "})
+    assert r.status_code == 200 and r.json()["title"] == "Hills"
+    track = db_session.get(GpsTrack, out["id"])
+    assert track is not None and track.trip_id is None  # title only: trip untouched
+
+    r = admin_client.patch(f"/api/v1/travels/gps-tracks/{out['id']}", json={"trip_id": trip.id})
+    assert r.status_code == 200
+    assert admin_client.get("/api/v1/travels/gps-tracks/unassigned").json()["tracks"] == []
+    trip_days = admin_client.get(f"/api/v1/travels/trips/{trip.id}/gps-tracks").json()["tracks"]
+    assert len(trip_days) == 2
+
+    r = admin_client.patch(f"/api/v1/travels/gps-tracks/{out['id']}", json={"trip_id": None})
+    assert r.status_code == 200
+    assert len(admin_client.get("/api/v1/travels/gps-tracks/unassigned").json()["tracks"]) == 1
+
+    r = admin_client.patch(f"/api/v1/travels/gps-tracks/{out['id']}", json={"trip_id": 999999})
+    assert r.status_code == 404
+
+
+def test_days_out_analysis_only_sees_days_out(
+    admin_client: TestClient, db_session: Session, storage: FakeStorage
+) -> None:
+    trip = _trip(db_session)
+    _upload(admin_client, trip.id, _synthetic_day())  # a trip day named 10080000.CSV
+    r = admin_client.post("/api/v1/travels/gps-tracks/analysis", json=_analysis(SYNTHETIC_LEGS))
+    assert r.status_code == 422
+    assert "no matching track in days out" in r.json()["detail"][0]
+
+    # The same day as a day out takes the analysis.
+    track = db_session.query(GpsTrack).one()
+    admin_client.patch(f"/api/v1/travels/gps-tracks/{track.id}", json={"trip_id": None})
+    r = admin_client.post("/api/v1/travels/gps-tracks/analysis", json=_analysis(SYNTHETIC_LEGS))
+    assert r.status_code == 200, r.text
+    db_session.refresh(track)
+    assert track.legs_source == "annotated" and track.title == "Test day"
+
+
+def test_card_and_days_out_endpoints_are_admin_only(client: TestClient) -> None:
+    assert client.get("/api/v1/travels/gps-tracks/unassigned").status_code in (401, 403)
+    assert client.patch("/api/v1/travels/gps-tracks/1", json={"title": "x"}).status_code in (
+        401,
+        403,
+    )
+    r = client.post(
+        "/api/v1/travels/gps-tracks/upload", files=[("files", ("a.csv", b"x", "text/csv"))]
+    )
+    assert r.status_code in (401, 403)
+
+
+def test_days_out_newest_first_and_paged(
+    admin_client: TestClient, db_session: Session, storage: FakeStorage
+) -> None:
+    files = [
+        (f"{d:02d}080000.CSV", _synthetic_day(OUTSIDE + timedelta(days=d))) for d in range(5)
+    ]
+    _card(admin_client, files)
+    page = admin_client.get("/api/v1/travels/gps-tracks/unassigned?limit=2").json()
+    assert page["total"] == 5
+    assert [t["local_date"] for t in page["tracks"]] == ["2030-04-06", "2030-04-05"]
+    assert all(len(t["legs"]) == 5 for t in page["tracks"])  # legs not cut by the limit
+    last = admin_client.get("/api/v1/travels/gps-tracks/unassigned?limit=2&offset=4").json()
+    assert [t["local_date"] for t in last["tracks"]] == ["2030-04-02"]
+    assert admin_client.get("/api/v1/travels/gps-tracks/unassigned?limit=0").status_code == 422

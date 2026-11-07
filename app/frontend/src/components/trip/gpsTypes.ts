@@ -37,8 +37,11 @@ export interface GpsTrack {
 
 export interface UploadResult {
   file: string;
-  status: "created" | "replaced" | "error";
+  status: "created" | "replaced" | "skipped" | "error";
   detail: string | null;
+  track_id?: number | null;
+  /** Card upload: the trip the day went to; null for a day out. */
+  trip_id?: number | null;
 }
 
 export function fmtTime(iso: string, tz: string): string {

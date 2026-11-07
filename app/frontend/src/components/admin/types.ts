@@ -84,6 +84,13 @@ export type AdminTab =
 
 export type MediaSubTab = "instagram" | "memes" | "cosplay";
 
+export type TripsSubTab = "trips" | "tracks";
+
+export const TRIPS_SUB_TABS: { key: TripsSubTab; label: string }[] = [
+  { key: "trips", label: "Trips" },
+  { key: "tracks", label: "Tracks" },
+];
+
 export const MEDIA_SUB_TABS: { key: MediaSubTab; label: string }[] = [
   { key: "instagram", label: "Instagram" },
   { key: "memes", label: "Memes" },

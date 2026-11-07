@@ -1,16 +1,20 @@
-"""GPS logger tracks: raw CSV upload to a trip, automatic legs, admin-only viewing.
+"""GPS logger tracks: raw CSV upload, automatic legs, admin-only viewing.
+
+Tracks normally belong to a trip. Days that fall in no trip (a day out in Czechia,
+which never becomes a trip) are kept with no trip: "days out".
 
 Raw CSVs are the most sensitive data the site holds (exact positions to the second),
 so they live in private vault storage and every endpoint here is admin-only.
 """
 
 import gzip
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from ..auth.session import get_admin_user
@@ -35,6 +39,8 @@ log = get_logger(__name__)
 router = APIRouter()
 
 MAX_CSV_SIZE = 10 * 1024 * 1024  # a full 1 Hz day is about 1.6 MB
+# Days out are almost always at home; their default zone.
+HOME_TIMEZONE = "Europe/Prague"
 
 
 # ---------------------------------------------------------------------------
@@ -80,13 +86,15 @@ class GpsTrackData(BaseModel):
 class GpsTracksResponse(BaseModel):
     tracks: list[GpsTrackData]
     default_timezone: str
+    total: int | None = None  # days out are paged; total of all of them
 
 
 class GpsUploadResult(BaseModel):
     file: str
-    status: str  # created | replaced | error
+    status: str  # created | replaced | skipped | error
     detail: str | None = None
     track_id: int | None = None
+    trip_id: int | None = None  # where the day went (card upload); None = day out
 
 
 class GpsUploadResponse(BaseModel):
@@ -97,6 +105,13 @@ class GpsReprocessRequest(BaseModel):
     timezone: str | None = None
     # Reprocessing an analysed day replaces its analysis; this makes that explicit.
     discard_analysis: bool = False
+
+
+class GpsTrackUpdate(BaseModel):
+    """Attach a day to a trip (or detach it with null) and/or retitle it."""
+
+    trip_id: int | None = None
+    title: str | None = None
 
 
 class AnalysisLegIn(BaseModel):
@@ -266,6 +281,182 @@ def _replace_legs(db: Session, track: GpsTrack, legs: list[Leg]) -> None:
         )
 
 
+async def _read_upload(file: UploadFile) -> tuple[str, bytes, ProcessedTrack] | tuple[str, str]:
+    """Read and process one uploaded CSV: (name, content, processed) or (name, error)."""
+    name = file.filename or "track.csv"
+    if not name.lower().endswith(".csv"):
+        return name, "Only .csv logger files are accepted"
+    content = await file.read()
+    if not content:
+        return name, "File is empty"
+    if len(content) > MAX_CSV_SIZE:
+        return name, "File too large (max 10 MB)"
+    try:
+        return name, content, process_points(parse_csv(content))
+    except ValueError as e:
+        return name, str(e)
+
+
+def _save_track(
+    db: Session,
+    admin: User,
+    track: GpsTrack | None,
+    name: str,
+    content: bytes,
+    processed: ProcessedTrack,
+    trip_id: int | None,
+    tz: ZoneInfo,
+) -> tuple[GpsTrack, str] | str:
+    """Store the raw file and create or replace the track: (track, status) or an error."""
+    try:
+        key = get_vault_storage().save(
+            admin.id, f"{name}.gz", gzip.compress(content), "application/gzip"
+        )
+    except Exception:
+        log.error("Vault storage save failed for GPS track %s", name, exc_info=True)
+        return "Could not store the raw file"
+
+    old_key = track.raw_path if track else None
+    status = "replaced" if track else "created"
+    if not track:
+        track = GpsTrack(raw_path=key, raw_size=len(content))
+        db.add(track)
+    track.trip_id = trip_id
+    track.source_file = name
+    track.raw_path = key
+    track.raw_size = len(content)
+    _apply(db, track, processed, tz)
+    db.commit()
+    if old_key and old_key != key:
+        _delete_raw(old_key)
+    log.info(
+        "GPS track %s %s (%s): %d points, %d legs",
+        name,
+        status,
+        f"trip {trip_id}" if trip_id else "day out",
+        processed.point_count,
+        len(processed.legs),
+    )
+    return track, status
+
+
+def _trip_zone(trip: Trip) -> ZoneInfo | None:
+    try:
+        return ZoneInfo(_default_timezone(trip))
+    except (ZoneInfoNotFoundError, ValueError):
+        log.warning("Trip %s has an unknown time zone; skipping it for matching", trip.id)
+        return None
+
+
+def _matching_trips(db: Session, processed: ProcessedTrack) -> list[tuple[Trip, ZoneInfo]]:
+    """Trips whose dates cover the day's local date (in each trip's own zone)."""
+    utc_day = processed.started_at.astimezone(UTC).date()
+    candidates = (
+        db.query(Trip)
+        .options(
+            joinedload(Trip.destinations)
+            .joinedload(TripDestination.tcc_destination)
+            .joinedload(TCCDestination.un_country)
+        )
+        .filter(
+            Trip.start_date <= utc_day + timedelta(days=1),
+            func.coalesce(Trip.end_date, Trip.start_date) >= utc_day - timedelta(days=1),
+        )
+        .all()
+    )
+    hits: list[tuple[Trip, ZoneInfo]] = []
+    for trip in candidates:
+        zone = _trip_zone(trip)
+        if zone is None:
+            continue
+        local = processed.started_at.astimezone(zone).date()
+        if trip.start_date <= local <= (trip.end_date or trip.start_date):
+            hits.append((trip, zone))
+    return hits
+
+
+def _apply_analysis(
+    db: Session, tracks: list[GpsTrack], body: AnalysisUpload, scope: str
+) -> AnalysisResponse:
+    """Replace the legs of analysed days with the given windows.
+
+    Every day is validated first; if anything is wrong nothing is applied and the
+    422 lists all problems.
+    """
+    errors: list[str] = []
+    planned: list[tuple[GpsTrack, AnalysisDayIn, list[Leg]]] = []
+    seen: set[int] = set()
+
+    for day in body.days:
+        label = day.source_file
+        matches = [t for t in tracks if t.source_file.lower() == day.source_file.lower()]
+        if day.started_at:
+            try:
+                started = _naive_utc(parse_time(day.started_at))
+            except ValueError as e:
+                errors.append(f"{label}: {e}")
+                continue
+            matches = [t for t in matches if t.started_at == started]
+        if len(matches) != 1:
+            errors.append(
+                f"{label}: {'no' if not matches else 'more than one'} matching track in {scope}"
+            )
+            continue
+        track = matches[0]
+        if track.id in seen:
+            errors.append(f"{label}: listed twice")
+            continue
+        seen.add(track.id)
+
+        try:
+            windows = [
+                Window(
+                    start=parse_time(leg.start),
+                    end=parse_time(leg.end),
+                    mode=leg.mode,
+                    title=(leg.title or "").strip() or None,
+                    note=(leg.note or "").strip() or None,
+                    hidden=leg.hidden,
+                )
+                for leg in day.legs
+            ]
+        except ValueError as e:
+            errors.append(f"{label}: {e}")
+            continue
+        start = track.started_at.replace(tzinfo=UTC)
+        end = track.ended_at.replace(tzinfo=UTC)
+        problems = validate_windows(windows, start, end)
+        if problems:
+            errors.extend(f"{label}: {p}" for p in problems)
+            continue
+        try:
+            points = parse_csv(_read_raw(track))
+        except ValueError as e:
+            errors.append(f"{label}: raw file unreadable: {e}")
+            continue
+        planned.append((track, day, legs_from_windows(points, windows)))
+
+    if errors:
+        raise HTTPException(status_code=422, detail=errors)
+
+    for track, day, legs in planned:
+        _replace_legs(db, track, legs)
+        track.title = (day.title or "").strip() or None
+        track.note = (day.note or "").strip() or None
+        track.legs_source = "annotated"
+        track.distance_km = round(
+            sum(leg.distance_km for leg in legs if leg.mode not in ("gap", "stop")), 3
+        )
+    db.commit()
+    log.info("GPS analysis applied to %s: %d days", scope, len(planned))
+    return AnalysisResponse(
+        days=[
+            AnalysisDayResult(source_file=t.source_file, track_id=t.id, legs=len(legs))
+            for t, _, legs in planned
+        ]
+    )
+
+
 def _read_raw(track: GpsTrack) -> bytes:
     try:
         stored = get_vault_storage().read(track.raw_path)
@@ -321,31 +512,17 @@ async def upload_trip_gps_tracks(
     """Upload logger day CSVs. Re-uploading the same day replaces it."""
     trip = _get_trip(db, trip_id)
     tz = _validate_timezone(timezone or _default_timezone(trip))
-    storage = get_vault_storage()
     results: list[GpsUploadResult] = []
 
     for file in files:
-        name = file.filename or "track.csv"
+        read = await _read_upload(file)
+        if len(read) == 2:
+            results.append(GpsUploadResult(file=read[0], status="error", detail=read[1]))
+            continue
+        name, content, processed = read
 
         def fail(detail: str, name: str = name) -> None:
             results.append(GpsUploadResult(file=name, status="error", detail=detail))
-
-        if not name.lower().endswith(".csv"):
-            fail("Only .csv logger files are accepted")
-            continue
-        content = await file.read()
-        if not content:
-            fail("File is empty")
-            continue
-        if len(content) > MAX_CSV_SIZE:
-            fail("File too large (max 10 MB)")
-            continue
-
-        try:
-            processed = process_points(parse_csv(content))
-        except ValueError as e:
-            fail(str(e))
-            continue
 
         started = _naive_utc(processed.started_at)
         track = db.query(GpsTrack).filter(GpsTrack.started_at == started).first()
@@ -356,36 +533,14 @@ async def upload_trip_gps_tracks(
             fail("This day has an analysis uploaded; delete the track first to replace it")
             continue
 
-        try:
-            key = storage.save(admin.id, f"{name}.gz", gzip.compress(content), "application/gzip")
-        except Exception:
-            log.error("Vault storage save failed for GPS track %s", name, exc_info=True)
-            fail("Could not store the raw file")
+        saved = _save_track(db, admin, track, name, content, processed, trip_id, tz)
+        if isinstance(saved, str):
+            fail(saved)
             continue
-
-        old_key = track.raw_path if track else None
-        status = "replaced" if track else "created"
-        if not track:
-            track = GpsTrack(raw_path=key, raw_size=len(content))
-            db.add(track)
-        track.trip_id = trip_id
-        track.source_file = name
-        track.raw_path = key
-        track.raw_size = len(content)
-        _apply(db, track, processed, tz)
-        db.commit()
-        if old_key and old_key != key:
-            _delete_raw(old_key)
-
-        log.info(
-            "GPS track %s %s for trip %s: %d points, %d legs",
-            name,
-            status,
-            trip_id,
-            processed.point_count,
-            len(processed.legs),
+        track, status = saved
+        results.append(
+            GpsUploadResult(file=name, status=status, track_id=track.id, trip_id=trip_id)
         )
-        results.append(GpsUploadResult(file=name, status=status, track_id=track.id))
 
     return GpsUploadResponse(results=results)
 
@@ -397,85 +552,147 @@ def upload_trip_gps_analysis(
     admin: Annotated[User, Depends(get_admin_user)],
     db: Session = Depends(get_db),
 ) -> AnalysisResponse:
-    """Replace the legs of analysed days with the given windows.
-
-    Every day is validated first; if anything is wrong nothing is applied and the
-    422 lists all problems.
-    """
+    """Replace the legs of analysed days with the given windows (all or nothing)."""
     _get_trip(db, trip_id)
     tracks = db.query(GpsTrack).filter(GpsTrack.trip_id == trip_id).all()
-    errors: list[str] = []
-    planned: list[tuple[GpsTrack, AnalysisDayIn, list[Leg]]] = []
-    seen: set[int] = set()
+    return _apply_analysis(db, tracks, body, "this trip")
 
-    for day in body.days:
-        label = day.source_file
-        matches = [t for t in tracks if t.source_file.lower() == day.source_file.lower()]
-        if day.started_at:
-            try:
-                started = _naive_utc(parse_time(day.started_at))
-            except ValueError as e:
-                errors.append(f"{label}: {e}")
-                continue
-            matches = [t for t in matches if t.started_at == started]
-        if len(matches) != 1:
-            errors.append(
-                f"{label}: {'no' if not matches else 'more than one'} matching track in this trip"
+
+# --- Whole-card upload and days out (tracks with no trip) ---
+
+
+@router.post("/gps-tracks/upload", response_model=GpsUploadResponse)
+async def upload_gps_tracks(
+    files: Annotated[list[UploadFile], File()],
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+    timezone: Annotated[str | None, Form()] = None,
+) -> GpsUploadResponse:
+    """Upload a whole logger card. Each day goes to the trip whose dates cover it, in
+    that trip's time zone; days in no trip become days out (in `timezone`, default
+    Europe/Prague). Days already on the site are skipped, so re-uploading is harmless.
+    """
+    home_tz = _validate_timezone(timezone or HOME_TIMEZONE)
+    results: list[GpsUploadResult] = []
+
+    for file in files:
+        read = await _read_upload(file)
+        if len(read) == 2:
+            results.append(GpsUploadResult(file=read[0], status="error", detail=read[1]))
+            continue
+        name, content, processed = read
+
+        existing = (
+            db.query(GpsTrack)
+            .filter(GpsTrack.started_at == _naive_utc(processed.started_at))
+            .first()
+        )
+        if existing:
+            where = f"trip #{existing.trip_id}" if existing.trip_id else "days out"
+            results.append(
+                GpsUploadResult(
+                    file=name,
+                    status="skipped",
+                    detail=f"already uploaded ({where})",
+                    track_id=existing.id,
+                    trip_id=existing.trip_id,
+                )
             )
             continue
-        track = matches[0]
-        if track.id in seen:
-            errors.append(f"{label}: listed twice")
-            continue
-        seen.add(track.id)
 
-        try:
-            windows = [
-                Window(
-                    start=parse_time(leg.start),
-                    end=parse_time(leg.end),
-                    mode=leg.mode,
-                    title=(leg.title or "").strip() or None,
-                    note=(leg.note or "").strip() or None,
-                    hidden=leg.hidden,
-                )
-                for leg in day.legs
-            ]
-        except ValueError as e:
-            errors.append(f"{label}: {e}")
-            continue
-        start = track.started_at.replace(tzinfo=UTC)
-        end = track.ended_at.replace(tzinfo=UTC)
-        problems = validate_windows(windows, start, end)
-        if problems:
-            errors.extend(f"{label}: {p}" for p in problems)
-            continue
-        try:
-            points = parse_csv(_read_raw(track))
-        except ValueError as e:
-            errors.append(f"{label}: raw file unreadable: {e}")
-            continue
-        planned.append((track, day, legs_from_windows(points, windows)))
+        hits = _matching_trips(db, processed)
+        detail = None
+        if len(hits) == 1:
+            trip_id: int | None = hits[0][0].id
+            tz = hits[0][1]
+        else:
+            trip_id, tz = None, home_tz
+            if hits:
+                ids = ", ".join(f"#{t.id}" for t, _ in hits)
+                detail = f"falls in trips {ids}; kept as a day out, attach it by hand"
 
-    if errors:
-        raise HTTPException(status_code=422, detail=errors)
-
-    for track, day, legs in planned:
-        _replace_legs(db, track, legs)
-        track.title = (day.title or "").strip() or None
-        track.note = (day.note or "").strip() or None
-        track.legs_source = "annotated"
-        track.distance_km = round(
-            sum(leg.distance_km for leg in legs if leg.mode not in ("gap", "stop")), 3
+        saved = _save_track(db, admin, None, name, content, processed, trip_id, tz)
+        if isinstance(saved, str):
+            results.append(GpsUploadResult(file=name, status="error", detail=saved))
+            continue
+        track, status = saved
+        results.append(
+            GpsUploadResult(
+                file=name, status=status, detail=detail, track_id=track.id, trip_id=trip_id
+            )
         )
-    db.commit()
-    log.info("GPS analysis applied to trip %s: %d days", trip_id, len(planned))
-    return AnalysisResponse(
-        days=[
-            AnalysisDayResult(source_file=t.source_file, track_id=t.id, legs=len(legs))
-            for t, _, legs in planned
-        ]
+
+    return GpsUploadResponse(results=results)
+
+
+@router.get("/gps-tracks/unassigned", response_model=GpsTracksResponse)
+def list_unassigned_gps_tracks(
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> GpsTracksResponse:
+    """Days out: track days that belong to no trip, newest first, a page at a time."""
+    base = db.query(GpsTrack).filter(GpsTrack.trip_id.is_(None))
+    total = base.count()
+    # Page by id first: joinedload plus LIMIT would cut the joined leg rows.
+    ids = [
+        row.id
+        for row in base.with_entities(GpsTrack.id)
+        .order_by(GpsTrack.started_at.desc())
+        .limit(limit)
+        .offset(offset)
+    ]
+    tracks = (
+        db.query(GpsTrack)
+        .options(joinedload(GpsTrack.legs))
+        .filter(GpsTrack.id.in_(ids))
+        .order_by(GpsTrack.started_at.desc())
+        .all()
+        if ids
+        else []
     )
+    return GpsTracksResponse(
+        tracks=[_track_to_data(t) for t in tracks],
+        default_timezone=HOME_TIMEZONE,
+        total=total,
+    )
+
+
+@router.post("/gps-tracks/analysis", response_model=AnalysisResponse)
+def upload_unassigned_gps_analysis(
+    body: AnalysisUpload,
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+) -> AnalysisResponse:
+    """Analysis for days out; same format and all-or-nothing rule as for a trip."""
+    tracks = db.query(GpsTrack).filter(GpsTrack.trip_id.is_(None)).all()
+    return _apply_analysis(db, tracks, body, "days out")
+
+
+@router.patch("/gps-tracks/{track_id}", response_model=GpsTrackData)
+def update_gps_track(
+    track_id: int,
+    body: GpsTrackUpdate,
+    admin: Annotated[User, Depends(get_admin_user)],
+    db: Session = Depends(get_db),
+) -> GpsTrackData:
+    """Attach a day to a trip, detach it (trip_id null), or retitle it.
+
+    Only the fields sent are changed. The day keeps its time zone and legs.
+    """
+    track = _get_track(db, track_id)
+    sent = body.model_fields_set
+    if "trip_id" in sent:
+        if body.trip_id is not None:
+            _get_trip(db, body.trip_id)
+        track.trip_id = body.trip_id
+    if "title" in sent:
+        track.title = (body.title or "").strip()[:200] or None
+    db.commit()
+    db.refresh(track)
+    log.info("GPS track %s updated: %s", track_id, sorted(sent))
+    return _track_to_data(track)
 
 
 @router.post("/gps-tracks/{track_id}/reprocess", response_model=GpsTrackData)
