@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.52.0 (2026-11-07)
+
+- GPS tracks can now be uploaded straight from the logger card, all days at once, under Admin → Trips → Tracks. Each day is filed under the trip it belongs to, and days already uploaded are skipped
+- Days that belong to no trip, such as a day out in Czechia, are kept as "days out": newest first, with the same map and legs as trip days, a title, and a way to attach one to a trip later
+
 ## 0.51.3 (2026-11-06)
 
 - Fixed: opening the trips calendar for a year with many countries could make the site fail for about half a minute. Each country's public holidays were looked up at the same time, and every lookup kept a database connection busy while waiting for the holiday service, until none were left
