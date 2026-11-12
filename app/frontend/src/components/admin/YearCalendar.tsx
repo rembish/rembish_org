@@ -167,6 +167,7 @@ export default function YearCalendarView({
     // Today for future trip check
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const todayStr = toLocalDateStr(today);
 
     // Day cells
     for (let day = 1; day <= daysInMonth; day++) {
@@ -254,6 +255,9 @@ export default function YearCalendarView({
       } else if (weekend) {
         classes.push("weekend");
       }
+
+      // Today's marker is a ring, so it stacks on top of any state above
+      if (dateStr === todayStr) classes.push("today");
 
       const foreignCountries =
         trip && flightDates.has(dateStr)

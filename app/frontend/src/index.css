@@ -4402,6 +4402,14 @@ a {
     cursor: default;
   }
 
+  /* Outline, not background or box-shadow: every other state owns those */
+  &.today {
+    outline: 2px solid var(--color-text);
+    outline-offset: 1px;
+    font-weight: 700;
+    z-index: 1;
+  }
+
   &.weekend {
     background: #f0f0f0;
     color: var(--color-text-secondary);
