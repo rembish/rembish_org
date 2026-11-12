@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.53.0 (2026-11-12)
+
+- Flights now show their baggage allowance: what you may take into the cabin and what you may check in, for each leg. It is read from uploaded tickets when the ticket states it, and can be typed in when adding a flight by hand
+- The trips calendar marks today with a dark ring
+
 ## 0.52.0 (2026-11-07)
 
 - GPS tracks can now be uploaded straight from the logger card, all days at once, under Admin → Trips → Tracks. Each day is filed under the trip it belongs to, and days already uploaded are skipped
