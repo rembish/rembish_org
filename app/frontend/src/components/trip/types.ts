@@ -233,6 +233,8 @@ export interface FlightDataItem {
   gate: string | null;
   aircraft_type: string | null;
   seat: string | null;
+  cabin_baggage: string | null;
+  checked_baggage: string | null;
   booking_reference: string | null;
   notes: string | null;
 }
@@ -250,6 +252,8 @@ export interface ExtractedFlightData {
   arrival_terminal: string | null;
   aircraft_type: string | null;
   seat: string | null;
+  cabin_baggage: string | null;
+  checked_baggage: string | null;
   booking_reference: string | null;
   is_duplicate: boolean;
   date_warning?: string | null;

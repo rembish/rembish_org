@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import {
   BiSolidPlane,
+  BiSolidBackpack,
+  BiBriefcaseAlt,
   BiTrash,
   BiCopy,
   BiCar,
@@ -318,10 +320,23 @@ export default function TransportTab({
                       )}
                     </span>
                   </div>
-                  {(f.seat || f.booking_reference) && (
+                  {(f.seat ||
+                    f.cabin_baggage ||
+                    f.checked_baggage ||
+                    f.booking_reference) && (
                     <div className="flight-details">
                       {f.seat && (
                         <span className="flight-badge">Seat {f.seat}</span>
+                      )}
+                      {f.cabin_baggage && (
+                        <span className="flight-badge" title="Cabin baggage">
+                          <BiSolidBackpack /> {f.cabin_baggage}
+                        </span>
+                      )}
+                      {f.checked_baggage && (
+                        <span className="flight-badge" title="Checked baggage">
+                          <BiBriefcaseAlt /> {f.checked_baggage}
+                        </span>
                       )}
                       {f.booking_reference && (
                         <span className="flight-badge">

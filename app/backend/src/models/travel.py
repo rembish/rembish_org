@@ -388,6 +388,9 @@ class Flight(Base):
     gate: Mapped[str | None] = mapped_column(String(10), nullable=True)
     aircraft_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     seat: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    # Free text as the ticket states it, e.g. "1 × 8 kg (55×40×23 cm)", "None"
+    cabin_baggage: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    checked_baggage: Mapped[str | None] = mapped_column(String(100), nullable=True)
     booking_ref_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     booking_ref_masked: Mapped[str | None] = mapped_column(String(100), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

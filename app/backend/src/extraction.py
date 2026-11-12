@@ -94,6 +94,9 @@ Return ONLY a JSON array of flight objects. Each flight should have these fields
   "arrival_terminal": "arrival terminal or null",
   "aircraft_type": "e.g. Boeing 737-800, Airbus A321neo, or null",
   "seat": "e.g. 14A, or null",
+  "cabin_baggage": "cabin/hand baggage allowance, e.g. 1 × 8 kg (55×40×23 cm), or null",
+  "checked_baggage": "checked baggage allowance, e.g. 1 × 23 kg, or the text \
+'No checked bag' for a hand-baggage-only fare, or null",
   "booking_reference": "PNR/confirmation code, or null"
 }
 
@@ -103,6 +106,8 @@ Rules:
 - Use IATA airport codes (3 letters), not ICAO
 - Use 24-hour time format
 - Extract booking/confirmation/PNR reference if visible
+- Baggage: copy the allowance the document states for that leg, in under 100 characters; \
+use null when the document does not state it (never guess from the airline or fare name)
 - If the document is not a flight ticket, return an empty array: []"""
 
 
@@ -119,6 +124,8 @@ class ExtractedFlight(BaseModel):
     arrival_terminal: str | None = None
     aircraft_type: str | None = None
     seat: str | None = None
+    cabin_baggage: str | None = None
+    checked_baggage: str | None = None
     booking_reference: str | None = None
 
 

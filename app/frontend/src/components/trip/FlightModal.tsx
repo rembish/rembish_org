@@ -38,6 +38,8 @@ export default function FlightModal({
     arrival_time: "",
     airline_name: "",
     aircraft_type: "",
+    cabin_baggage: "",
+    checked_baggage: "",
   });
 
   const [addingFlights, setAddingFlights] = useState(false);
@@ -177,6 +179,8 @@ export default function FlightModal({
             arrival_terminal: ef.arrival_terminal,
             aircraft_type: ef.aircraft_type,
             seat: ef.seat,
+            cabin_baggage: ef.cabin_baggage,
+            checked_baggage: ef.checked_baggage,
             booking_reference: ef.booking_reference,
           }),
         });
@@ -213,6 +217,8 @@ export default function FlightModal({
           arrival_time: manualForm.arrival_time || null,
           airline_name: manualForm.airline_name || null,
           aircraft_type: manualForm.aircraft_type || null,
+          cabin_baggage: manualForm.cabin_baggage || null,
+          checked_baggage: manualForm.checked_baggage || null,
         }),
       });
       if (!res.ok) throw new Error("Failed to add flight");
@@ -313,6 +319,10 @@ export default function FlightModal({
                         ef.airline_name,
                         ef.aircraft_type,
                         ef.seat ? `Seat ${ef.seat}` : null,
+                        ef.cabin_baggage ? `Cabin ${ef.cabin_baggage}` : null,
+                        ef.checked_baggage
+                          ? `Checked ${ef.checked_baggage}`
+                          : null,
                         ef.booking_reference
                           ? `PNR ${ef.booking_reference}`
                           : null,
@@ -592,6 +602,38 @@ export default function FlightModal({
                     }))
                   }
                   placeholder="Airbus A321"
+                />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Cabin baggage</label>
+                <input
+                  type="text"
+                  maxLength={100}
+                  value={manualForm.cabin_baggage}
+                  onChange={(e) =>
+                    setManualForm((prev) => ({
+                      ...prev,
+                      cabin_baggage: e.target.value,
+                    }))
+                  }
+                  placeholder="1 × 8 kg (55×40×23 cm)"
+                />
+              </div>
+              <div className="form-group">
+                <label>Checked baggage</label>
+                <input
+                  type="text"
+                  maxLength={100}
+                  value={manualForm.checked_baggage}
+                  onChange={(e) =>
+                    setManualForm((prev) => ({
+                      ...prev,
+                      checked_baggage: e.target.value,
+                    }))
+                  }
+                  placeholder="1 × 23 kg, or No checked bag"
                 />
               </div>
             </div>

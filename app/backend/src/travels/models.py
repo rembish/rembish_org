@@ -453,6 +453,8 @@ class FlightData(BaseModel):
     gate: str | None
     aircraft_type: str | None
     seat: str | None
+    cabin_baggage: str | None
+    checked_baggage: str | None
     booking_reference: str | None
     notes: str | None
 
@@ -492,6 +494,8 @@ class FlightCreateRequest(BaseModel):
     gate: str | None = None
     aircraft_type: str | None = None
     seat: str | None = None
+    cabin_baggage: str | None = None
+    checked_baggage: str | None = None
     booking_reference: str | None = None
     notes: str | None = None
 
@@ -509,6 +513,8 @@ class ExtractedFlightResponse(BaseModel):
     arrival_terminal: str | None = None
     aircraft_type: str | None = None
     seat: str | None = None
+    cabin_baggage: str | None = None
+    checked_baggage: str | None = None
     booking_reference: str | None = None
     is_duplicate: bool = False
     date_warning: str | None = None

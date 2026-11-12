@@ -149,6 +149,8 @@ def _flight_to_data(flight: Flight, vault_open: bool = False) -> FlightData:
         gate=flight.gate,
         aircraft_type=flight.aircraft_type,
         seat=flight.seat,
+        cabin_baggage=flight.cabin_baggage,
+        checked_baggage=flight.checked_baggage,
         booking_reference=_booking_ref_display(flight, vault_open),
         notes=flight.notes,
     )
@@ -354,6 +356,8 @@ async def extract_flights_from_ticket(
                 arrival_terminal=flight.arrival_terminal,
                 aircraft_type=flight.aircraft_type,
                 seat=flight.seat,
+                cabin_baggage=flight.cabin_baggage,
+                checked_baggage=flight.checked_baggage,
                 booking_reference=flight.booking_reference,
                 is_duplicate=is_dup,
                 date_warning=date_warning,
@@ -452,6 +456,9 @@ def create_flight(
         gate=request.gate,
         aircraft_type=request.aircraft_type,
         seat=request.seat,
+        # Extracted text can run long; the columns hold 100 characters
+        cabin_baggage=(request.cabin_baggage or "").strip()[:100] or None,
+        checked_baggage=(request.checked_baggage or "").strip()[:100] or None,
         notes=request.notes,
     )
     if request.booking_reference:

@@ -86,6 +86,37 @@ def test_create_flight(admin_client: TestClient, db_session: Session) -> None:
     assert ist is not None
 
 
+def test_create_flight_baggage(admin_client: TestClient, db_session: Session) -> None:
+    """Baggage allowances round-trip; blanks become null, long text is cut to the column."""
+    trip = _create_trip(db_session)
+    url = f"/api/v1/travels/trips/{trip.id}/flights"
+    base = {"flight_date": "2026-03-10", "departure_iata": "PRG", "arrival_iata": "IST"}
+
+    res = admin_client.post(
+        url,
+        json={
+            **base,
+            "flight_number": "TK1770",
+            "cabin_baggage": " 1 × 8 kg (55×40×23 cm) ",
+            "checked_baggage": "1 × 23 kg",
+        },
+    )
+    assert res.status_code == 200
+    assert res.json()["cabin_baggage"] == "1 × 8 kg (55×40×23 cm)"
+    assert res.json()["checked_baggage"] == "1 × 23 kg"
+
+    res = admin_client.post(
+        url,
+        json={**base, "flight_number": "TK1771", "cabin_baggage": "  ", "checked_baggage": "x" * 150},
+    )
+    assert res.status_code == 200
+    assert res.json()["cabin_baggage"] is None
+    assert res.json()["checked_baggage"] == "x" * 100
+
+    listed = admin_client.get(url).json()["flights"]
+    assert [f["checked_baggage"] for f in listed] == ["1 × 23 kg", "x" * 100]
+
+
 def test_create_flight_manual(admin_client: TestClient, db_session: Session) -> None:
     """Manual entry with just IATA codes, no API."""
     trip = _create_trip(db_session)
@@ -557,6 +588,7 @@ def test_extract_flights_endpoint(
                 arrival_iata="IST",
                 departure_time="06:30",
                 arrival_time="10:15",
+                cabin_baggage="1 × 8 kg",
             )
         ]
     )
@@ -569,6 +601,8 @@ def test_extract_flights_endpoint(
     data = res.json()
     assert len(data["flights"]) == 1
     assert data["flights"][0]["flight_number"] == "TK1770"
+    assert data["flights"][0]["cabin_baggage"] == "1 × 8 kg"
+    assert data["flights"][0]["checked_baggage"] is None
     assert data["flights"][0]["is_duplicate"] is False
     assert data["error"] is None
 
