@@ -117,6 +117,52 @@ def test_create_flight_baggage(admin_client: TestClient, db_session: Session) ->
     assert [f["checked_baggage"] for f in listed] == ["1 × 23 kg", "x" * 100]
 
 
+def test_create_flight_long_extracted_values(admin_client: TestClient, db_session: Session) -> None:
+    """Over-long extracted text is cut to the column width, terminals to their identifier.
+
+    MySQL rejects an over-long value outright (SQLite does not), so check the stored values.
+    """
+    trip = _create_trip(db_session)
+    url = f"/api/v1/travels/trips/{trip.id}/flights"
+    base = {"flight_date": "2026-03-10", "departure_iata": "PRG", "arrival_iata": "IST"}
+
+    cases = [
+        ("Terminal 5", "5"),
+        ("T2", "2"),
+        ("2", "2"),
+        ("terminal 1A", "1A"),
+        ("North Terminal", "North"),
+        ("Terminal 2 - International Departures", "2 - Intern"),
+        ("  ", None),
+    ]
+    for i, (given, expected) in enumerate(cases):
+        res = admin_client.post(
+            url,
+            json={**base, "flight_number": f"TK{i}", "terminal": given, "arrival_terminal": given},
+        )
+        assert res.status_code == 200
+        assert res.json()["terminal"] == expected
+        assert res.json()["arrival_terminal"] == expected
+
+    res = admin_client.post(
+        url,
+        json={
+            **base,
+            "flight_number": "TK1770",
+            "gate": "G" * 30,
+            "seat": "S" * 30,
+            "aircraft_type": "A" * 80,
+            "airline_name": "N" * 150,
+        },
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["gate"] == "G" * 10
+    assert body["seat"] == "S" * 10
+    assert body["aircraft_type"] == "A" * 50
+    assert body["airline_name"] == "N" * 100
+
+
 def test_create_flight_manual(admin_client: TestClient, db_session: Session) -> None:
     """Manual entry with just IATA codes, no API."""
     trip = _create_trip(db_session)

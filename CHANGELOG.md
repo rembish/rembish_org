@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.53.1 (2026-11-23)
+
+- Fixed: adding flights from an uploaded ticket failed when the ticket spelled out a long terminal name. Terminals are now stored as their short identifier ("Terminal 5" becomes "5"), and other over-long ticket fields are shortened to fit instead of failing the save
+
 ## 0.53.0 (2026-11-12)
 
 - Flights now show their baggage allowance: what you may take into the cabin and what you may check in, for each leg. It is read from uploaded tickets when the ticket states it, and can be typed in when adding a flight by hand

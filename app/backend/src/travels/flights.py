@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import date
 from typing import Annotated, Any
 
@@ -286,6 +287,30 @@ def lookup_flight(
         return FlightLookupResponse(legs=[], error="API request failed")
 
 
+def _clip(value: str | None, limit: int) -> str | None:
+    """Trim a free-text value to its column width; blank becomes None.
+
+    Extracted and looked-up text can run longer than the column, and MySQL
+    rejects the whole insert rather than truncating.
+    """
+    return (value or "").strip()[:limit] or None
+
+
+_TERMINAL_WORD_RE = re.compile(r"\bterminal\b", re.IGNORECASE)
+_TERMINAL_T_RE = re.compile(r"^T\s*(?=\d)", re.IGNORECASE)
+
+
+def _clean_terminal(value: str | None) -> str | None:
+    """Reduce a terminal to its short identifier: "Terminal 5" → "5", "T2" → "2".
+
+    The UI prefixes the stored value with "T", so the word itself is noise.
+    """
+    text = _TERMINAL_WORD_RE.sub(" ", value or "")
+    text = " ".join(text.split()).strip(" -:,.")
+    text = _TERMINAL_T_RE.sub("", text)
+    return _clip(text, 10)
+
+
 MAX_EXTRACT_SIZE = 10 * 1024 * 1024  # 10 MB
 EXTRACT_MIME_TYPES = {"application/pdf", "image/jpeg", "image/png", "image/webp"}
 
@@ -444,21 +469,20 @@ def create_flight(
     flight = Flight(
         trip_id=trip_id,
         flight_date=date.fromisoformat(request.flight_date),
-        flight_number=request.flight_number.upper().strip(),
-        airline_name=request.airline_name,
+        flight_number=_clip(request.flight_number.upper(), 10) or "",
+        airline_name=_clip(request.airline_name, 100),
         departure_airport_id=dep_airport.id,
         arrival_airport_id=arr_airport.id,
-        departure_time=request.departure_time,
-        arrival_time=request.arrival_time,
+        departure_time=_clip(request.departure_time, 5),
+        arrival_time=_clip(request.arrival_time, 5),
         arrival_date=date.fromisoformat(request.arrival_date) if request.arrival_date else None,
-        terminal=request.terminal,
-        arrival_terminal=request.arrival_terminal,
-        gate=request.gate,
-        aircraft_type=request.aircraft_type,
-        seat=request.seat,
-        # Extracted text can run long; the columns hold 100 characters
-        cabin_baggage=(request.cabin_baggage or "").strip()[:100] or None,
-        checked_baggage=(request.checked_baggage or "").strip()[:100] or None,
+        terminal=_clean_terminal(request.terminal),
+        arrival_terminal=_clean_terminal(request.arrival_terminal),
+        gate=_clip(request.gate, 10),
+        aircraft_type=_clip(request.aircraft_type, 50),
+        seat=_clip(request.seat, 10),
+        cabin_baggage=_clip(request.cabin_baggage, 100),
+        checked_baggage=_clip(request.checked_baggage, 100),
         notes=request.notes,
     )
     if request.booking_reference:
