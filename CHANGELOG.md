@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.53.2 (2026-11-23)
+
+- Security: updated a backend library (dnspython) with a newly published vulnerability; this had blocked the 0.53.1 deployment
+
 ## 0.53.1 (2026-11-23)
 
 - Fixed: adding flights from an uploaded ticket failed when the ticket spelled out a long terminal name. Terminals are now stored as their short identifier ("Terminal 5" becomes "5"), and other over-long ticket fields are shortened to fit instead of failing the save
